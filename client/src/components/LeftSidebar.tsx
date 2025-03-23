@@ -230,6 +230,17 @@ const LeftSidebar = () => {
           <ul className="space-y-1">
             <li 
               className={`flex items-center p-2 rounded cursor-pointer ${
+                selectedMailbox === 'all' 
+                  ? 'bg-primary/15 text-primary font-medium' 
+                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
+              }`}
+              onClick={() => setSelectedMailbox('all')}
+            >
+              <Mail className={`w-5 h-5 mr-2 ${selectedMailbox === 'all' ? 'text-primary' : 'text-neutral-500'}`} />
+              All Mail <span className="ml-auto bg-primary text-white text-xs px-1.5 py-0.5 rounded-full">32</span>
+            </li>
+            <li 
+              className={`flex items-center p-2 rounded cursor-pointer ${
                 selectedMailbox === 'inbox' 
                   ? 'bg-primary/15 text-primary font-medium' 
                   : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
@@ -238,6 +249,17 @@ const LeftSidebar = () => {
             >
               <Inbox className={`w-5 h-5 mr-2 ${selectedMailbox === 'inbox' ? 'text-primary' : 'text-neutral-500'}`} />
               Inbox <span className="ml-auto bg-primary text-white text-xs px-1.5 py-0.5 rounded-full">24</span>
+            </li>
+            <li 
+              className={`flex items-center p-2 rounded cursor-pointer ${
+                selectedMailbox === 'todo' 
+                  ? 'bg-primary/15 text-primary font-medium' 
+                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
+              }`}
+              onClick={() => setSelectedMailbox('todo')}
+            >
+              <CheckSquare className={`w-5 h-5 mr-2 ${selectedMailbox === 'todo' ? 'text-primary' : 'text-neutral-500'}`} />
+              Todo <span className="ml-auto bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full">5</span>
             </li>
             <li 
               className={`flex items-center p-2 rounded cursor-pointer ${
@@ -271,6 +293,17 @@ const LeftSidebar = () => {
             >
               <Pencil className={`w-5 h-5 mr-2 ${selectedMailbox === 'drafts' ? 'text-primary' : 'text-neutral-500'}`} />
               Drafts <span className="ml-auto bg-neutral-300 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 text-xs px-1.5 py-0.5 rounded-full">3</span>
+            </li>
+            <li 
+              className={`flex items-center p-2 rounded cursor-pointer ${
+                selectedMailbox === 'archived' 
+                  ? 'bg-primary/15 text-primary font-medium' 
+                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
+              }`}
+              onClick={() => setSelectedMailbox('archived')}
+            >
+              <Archive className={`w-5 h-5 mr-2 ${selectedMailbox === 'archived' ? 'text-primary' : 'text-neutral-500'}`} />
+              Archived
             </li>
             <li 
               className={`flex items-center p-2 rounded cursor-pointer ${

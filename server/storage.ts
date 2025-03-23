@@ -229,29 +229,35 @@ export class MemStorage implements IStorage {
     });
 
     // Create tags hierarchy
-    const createTag = (name: string, parentId?: number): Tag => {
+    const createTag = (name: string, parentId?: number, bgColor: string = '#e2e8f0', textColor: string = '#000000', emoji: string | null = '🏷️'): Tag => {
       const tag: Tag = {
         id: this.currentTagId++,
         userId: user.id,
         name,
         parentId: parentId || null,
+        bgColor,
+        textColor,
+        emoji
       };
       this.tagsData.set(tag.id, tag);
       return tag;
     };
 
-    const workTag = createTag("Work");
-    const projectsTag = createTag("Projects", workTag.id);
-    const clientsTag = createTag("Clients", workTag.id);
-    const teamTag = createTag("Team", workTag.id);
+    // Create color-themed tags with emojis
+    const workTag = createTag("Work", null, '#e1f0ff', '#0369a1', '💼');
+    const projectsTag = createTag("Projects", workTag.id, '#e1f0ff', '#0369a1', '📊');
+    const clientsTag = createTag("Clients", workTag.id, '#e1f0ff', '#0369a1', '🤝');
+    const teamTag = createTag("Team", workTag.id, '#e1f0ff', '#0369a1', '👥');
 
-    const personalTag = createTag("Personal");
-    const familyTag = createTag("Family", personalTag.id);
-    const financeTag = createTag("Finance", personalTag.id);
-    const travelTag = createTag("Travel", personalTag.id);
+    const personalTag = createTag("Personal", null, '#fdf4ff', '#a21caf', '🏠');
+    const familyTag = createTag("Family", personalTag.id, '#fdf4ff', '#a21caf', '👨‍👩‍👧‍👦');
+    const financeTag = createTag("Finance", personalTag.id, '#fdf4ff', '#a21caf', '💰');
+    const travelTag = createTag("Travel", personalTag.id, '#fdf4ff', '#a21caf', '✈️');
 
-    const newslettersTag = createTag("Newsletters");
-    const schoolTag = createTag("School");
+    const newslettersTag = createTag("Newsletters", null, '#ecfdf5', '#047857', '📰');
+    const schoolTag = createTag("School", null, '#fef2f2', '#b91c1c', '🎓');
+    const urgentTag = createTag("Urgent", null, '#fee2e2', '#dc2626', '⚠️');
+    const todoTag = createTag("Todo", null, '#fef3c7', '#d97706', '✅');
 
     // Create email data
     const createEmail = (

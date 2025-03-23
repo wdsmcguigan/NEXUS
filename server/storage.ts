@@ -590,16 +590,36 @@ export class MemStorage implements IStorage {
     };
   }
 
-  async getEmailsByAccountId(accountId: number, category?: string): Promise<Email[]> {
+  async getEmailsByAccountId(accountId: number, category?: string): Promise<(Email & { fromContact?: any, tags?: any[] })[]> {
+    // Get base emails
     const emails = Array.from(this.emailsData.values()).filter(
       (email) => email.accountId === accountId && !email.isTrashed && !email.isArchived
     );
 
-    if (category) {
-      return emails.filter((email) => email.category === category);
-    }
-
-    return emails;
+    // Filter by category if specified
+    const filteredEmails = category 
+      ? emails.filter((email) => email.category === category)
+      : emails;
+    
+    // Enhance emails with contact and tag information
+    return Promise.all(filteredEmails.map(async (email) => {
+      // Get from contact
+      const fromContact = this.contactsData.get(email.fromContactId);
+      
+      // Get tags
+      const emailTags = Array.from(this.emailTagsData.values())
+        .filter((emailTag) => emailTag.emailId === email.id)
+        .map((emailTag) => {
+          const tag = this.tagsData.get(emailTag.tagId);
+          return { ...emailTag, tag };
+        });
+      
+      return {
+        ...email,
+        fromContact,
+        tags: emailTags
+      };
+    }));
   }
 
   async updateEmailStar(id: number, starColor: StarColor): Promise<Email> {

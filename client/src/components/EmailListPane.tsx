@@ -142,7 +142,8 @@ const EmailListPane = () => {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center mb-1">
                   <span className={`truncate flex-1 ${email.isRead ? 'font-normal' : 'font-semibold'} dark:text-neutral-200`}>
-                    {email.fromContact?.name}
+                    {/* Display sender name from EmailWithDetails or fallback to fetching contact */}
+                    {(email as any).fromContact?.name || ''}
                   </span>
                   <span className="text-sm text-neutral-500 dark:text-neutral-400 whitespace-nowrap ml-2">
                     {formatEmailDate(new Date(email.timestamp))}

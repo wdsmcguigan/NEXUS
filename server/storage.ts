@@ -229,12 +229,12 @@ export class MemStorage implements IStorage {
     });
 
     // Create tags hierarchy
-    const createTag = (name: string, parentId?: number, bgColor: string = '#e2e8f0', textColor: string = '#000000', emoji: string | null = '🏷️'): Tag => {
+    const createTag = (name: string, parentId: number | null = null, bgColor: string = '#e2e8f0', textColor: string = '#000000', emoji: string | null = '🏷️'): Tag => {
       const tag: Tag = {
         id: this.currentTagId++,
         userId: user.id,
         name,
-        parentId: parentId || null,
+        parentId: parentId,
         bgColor,
         textColor,
         emoji
@@ -271,7 +271,8 @@ export class MemStorage implements IStorage {
       isRead: boolean = false,
       hasTodo: boolean = false,
       todoText: string | null = null,
-      todoCompleted: boolean = false
+      todoCompleted: boolean = false,
+      tags: number[] = []
     ): Email => {
       const email: Email = {
         id: this.currentEmailId++,
@@ -291,6 +292,19 @@ export class MemStorage implements IStorage {
         todoCompleted,
       };
       this.emailsData.set(email.id, email);
+      
+      // Add tags to the email if provided
+      if (tags.length > 0) {
+        tags.forEach(tagId => {
+          const emailTag: EmailTag = {
+            id: this.currentEmailTagId++,
+            emailId: email.id,
+            tagId: tagId
+          };
+          this.emailTagsData.set(emailTag.id, emailTag);
+        });
+      }
+      
       return email;
     };
 
@@ -308,7 +322,11 @@ export class MemStorage implements IStorage {
       new Date("2023-06-20T10:42:00"),
       "primary",
       "gold",
-      true
+      true,
+      false,
+      null,
+      false,
+      [workTag.id, projectsTag.id]
     );
 
     createEmail(
@@ -317,7 +335,13 @@ export class MemStorage implements IStorage {
       "Weekend hiking plans",
       "Hey! Are we still on for hiking this weekend? The weather forecast looks good for Saturday morning. I found a new trail we could try.",
       new Date("2023-06-20T09:15:00"),
-      "primary"
+      "primary",
+      "none",
+      false,
+      false,
+      null,
+      false,
+      [personalTag.id, travelTag.id]
     );
 
     createEmail(
@@ -331,7 +355,8 @@ export class MemStorage implements IStorage {
       false,
       true,
       "Follow up with dev team about API integration delay",
-      false
+      false,
+      [workTag.id, clientsTag.id, urgentTag.id, todoTag.id]
     );
 
     createEmail(
@@ -340,7 +365,13 @@ export class MemStorage implements IStorage {
       "Team meeting agenda",
       "Attached is the agenda for tomorrow's team meeting. Please review the topics and let me know if you'd like to add anything else for discussion.",
       new Date("2023-06-19T11:20:00"),
-      "primary"
+      "primary",
+      "none",
+      false,
+      false,
+      null,
+      false,
+      [workTag.id, teamTag.id]
     );
 
     createEmail(
@@ -349,7 +380,13 @@ export class MemStorage implements IStorage {
       "Scholarship application deadline",
       "This is a reminder that the application deadline for the merit scholarship is approaching. All materials must be submitted by next Friday.",
       new Date("2023-06-17T09:00:00"),
-      "primary"
+      "primary",
+      "none",
+      false,
+      false,
+      null,
+      false,
+      [schoolTag.id, urgentTag.id]
     );
 
     createEmail(
@@ -359,7 +396,12 @@ export class MemStorage implements IStorage {
       "Hi! Mom and Dad are planning a family dinner this Sunday at 6 PM. Are you able to make it? Please let me know so I can tell them.",
       new Date("2023-06-17T16:45:00"),
       "primary",
-      "green"
+      "green",
+      false,
+      false,
+      null,
+      false,
+      [personalTag.id, familyTag.id]
     );
 
     createEmail(
@@ -368,7 +410,13 @@ export class MemStorage implements IStorage {
       "Course registration reminder",
       "Just a reminder that course registration for the fall semester opens next Monday. As your advisor, I recommend scheduling a meeting to discuss your options.",
       new Date("2023-05-12T13:10:00"),
-      "primary"
+      "primary",
+      "none",
+      true,
+      false,
+      null,
+      false,
+      [schoolTag.id]
     );
 
     createEmail(
@@ -378,7 +426,12 @@ export class MemStorage implements IStorage {
       "Great job on the client presentation yesterday! I've compiled the feedback from the team and have some suggestions for the next iteration.",
       new Date("2023-05-10T15:30:00"),
       "primary",
-      "orange"
+      "orange",
+      true,
+      false,
+      null,
+      false,
+      [workTag.id, clientsTag.id]
     );
 
     // Create user preferences

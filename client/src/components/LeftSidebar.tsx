@@ -1,11 +1,30 @@
 import { useState } from "react";
 import { useEmailContext } from "@/context/EmailContext";
 import { accountColors, categoryColors } from "@/lib/data";
-import { ChevronDown, ChevronRight, Tag, Settings, Plus, Inbox, Star, Send, Pencil, Trash } from "lucide-react";
+import { 
+  ChevronDown, 
+  ChevronRight, 
+  Tag, 
+  Settings, 
+  Plus, 
+  Inbox, 
+  Star, 
+  Send, 
+  Pencil, 
+  Trash, 
+  Archive, 
+  CheckSquare, 
+  Mail, 
+  Edit3
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { HexColorPicker } from "react-colorful";
+import { Input } from "@/components/ui/input";
 import { TagWithChildren } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
 
 const LeftSidebar = () => {
   const { 
@@ -28,26 +47,143 @@ const LeftSidebar = () => {
     }));
   };
 
+  // State for tag color editing
+  const [editingTag, setEditingTag] = useState<number | null>(null);
+  const [editingTagColor, setEditingTagColor] = useState<string>('#e2e8f0');
+  const [editingTagText, setEditingTagText] = useState<string>('#000000');
+  const [editingTagEmoji, setEditingTagEmoji] = useState<string>('🏷️');
+
+  // Update tag with new colors
+  const updateTagColors = async (tagId: number) => {
+    try {
+      await apiRequest('PATCH', `/api/tags/${tagId}`, {
+        bgColor: editingTagColor,
+        textColor: editingTagText,
+        emoji: editingTagEmoji
+      });
+      
+      // Close the editor after updating
+      setEditingTag(null);
+      
+      // We should refresh tags here, but for now we'll rely on the UI optimistic update
+    } catch (err) {
+      console.error('Error updating tag colors:', err);
+    }
+  };
+
   const renderTag = (tag: TagWithChildren, isChild = false) => {
     const hasChildren = tag.children && tag.children.length > 0;
+    const isEditing = editingTag === tag.id;
     
     return (
       <div key={tag.id}>
-        <div 
-          className={`tag-item ${isChild ? 'ml-4' : ''} flex items-center p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded cursor-pointer`}
-          onClick={() => hasChildren && toggleTagExpanded(tag.id)}
-        >
-          {hasChildren ? (
-            expandedTags[tag.id] ? (
-              <ChevronDown className="w-4 h-4 mr-1 text-neutral-500" />
+        <div className="flex items-center">
+          <div 
+            className={`tag-item ${isChild ? 'ml-4' : ''} flex items-center p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded cursor-pointer flex-1`}
+            onClick={() => hasChildren && toggleTagExpanded(tag.id)}
+          >
+            {hasChildren ? (
+              expandedTags[tag.id] ? (
+                <ChevronDown className="w-4 h-4 mr-1 text-neutral-500" />
+              ) : (
+                <ChevronRight className="w-4 h-4 mr-1 text-neutral-500" />
+              )
             ) : (
-              <ChevronRight className="w-4 h-4 mr-1 text-neutral-500" />
-            )
-          ) : (
-            <Tag className="w-4 h-4 mr-1 text-neutral-500" />
-          )}
-          <span>{tag.name}</span>
+              <span 
+                className="w-5 h-5 flex items-center justify-center mr-1 rounded"
+                style={{ 
+                  backgroundColor: tag.bgColor || '#e2e8f0',
+                  color: tag.textColor || '#000000'
+                }}
+              >
+                {tag.emoji || '🏷️'}
+              </span>
+            )}
+            <span>{tag.name}</span>
+          </div>
+          
+          {/* Edit button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 rounded-full"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditingTag(tag.id);
+              setEditingTagColor(tag.bgColor);
+              setEditingTagText(tag.textColor);
+              setEditingTagEmoji(tag.emoji || '🏷️');
+            }}
+          >
+            <Edit3 className="h-3.5 w-3.5" />
+          </Button>
         </div>
+        
+        {/* Color picker popover */}
+        {isEditing && (
+          <div className="ml-4 mt-2 p-3 bg-neutral-100 dark:bg-neutral-800 rounded-md">
+            <h4 className="font-medium text-sm mb-2">Edit Tag Appearance</h4>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-neutral-500 mb-1 block">Background Color</label>
+                <HexColorPicker 
+                  color={editingTagColor} 
+                  onChange={setEditingTagColor}
+                  className="w-full max-w-[180px] mb-1" 
+                />
+                <Input 
+                  value={editingTagColor} 
+                  onChange={(e) => setEditingTagColor(e.target.value)}
+                  className="w-full h-6 text-xs"
+                />
+              </div>
+              
+              <div>
+                <label className="text-xs text-neutral-500 mb-1 block">Text Color</label>
+                <HexColorPicker 
+                  color={editingTagText} 
+                  onChange={setEditingTagText}
+                  className="w-full max-w-[180px] mb-1" 
+                />
+                <Input 
+                  value={editingTagText} 
+                  onChange={(e) => setEditingTagText(e.target.value)}
+                  className="w-full h-6 text-xs"
+                />
+              </div>
+              
+              <div>
+                <label className="text-xs text-neutral-500 mb-1 block">Emoji</label>
+                <Input 
+                  value={editingTagEmoji} 
+                  onChange={(e) => setEditingTagEmoji(e.target.value)}
+                  className="w-full h-6 text-xs"
+                  maxLength={2}
+                />
+              </div>
+              
+              <div className="flex space-x-2 pt-1">
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="h-7 text-xs"
+                  onClick={() => updateTagColors(tag.id)}
+                >
+                  Save
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() => setEditingTag(null)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         
         {hasChildren && expandedTags[tag.id] && (
           <div>

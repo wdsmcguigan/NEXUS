@@ -12,7 +12,7 @@ import {
 } from '@shared/schema';
 
 // Define context types
-type MailboxType = 'inbox' | 'starred' | 'sent' | 'drafts' | 'trash';
+type MailboxType = 'all' | 'inbox' | 'starred' | 'sent' | 'drafts' | 'trash' | 'archived' | 'todo';
 
 interface EmailContextState {
   userId: number;
@@ -91,6 +91,9 @@ export const EmailProvider: React.FC<EmailProviderProps> = ({ children }) => {
     
     setPreferences(data.preferences);
     setTags(data.tags);
+    
+    // Set default mailbox to 'all'
+    setSelectedMailbox('all');
     
     // Fetch emails for the selected account
     if (accountToSelect) {
@@ -175,17 +178,61 @@ export const EmailProvider: React.FC<EmailProviderProps> = ({ children }) => {
     
     // Fetch emails for the selected mailbox based on filters
     if (selectedAccount) {
-      if (mailbox === 'inbox') {
+      if (mailbox === 'all') {
+        // Fetch all emails for the account (without filtering by category)
+        fetch(`/api/emails/account/${selectedAccount.id}`, { credentials: 'include' })
+          .then(res => res.json())
+          .then(data => setEmails(data))
+          .catch(err => console.error('Error fetching all emails:', err));
+      } else if (mailbox === 'inbox') {
+        // Fetch emails using the specified category filter
         fetchEmails(selectedAccount.id, selectedCategory);
       } else if (mailbox === 'starred') {
-        // This would require a backend endpoint for starred emails
-        // For now, let's filter the current emails for ones with a star color
-        const starredEmails = emails.filter(email => email.starColor !== 'none');
-        setEmails(starredEmails);
+        // Filter for emails with a star color
+        fetch(`/api/emails/account/${selectedAccount.id}`, { credentials: 'include' })
+          .then(res => res.json())
+          .then(data => {
+            const starredEmails = data.filter((email: Email) => email.starColor !== 'none');
+            setEmails(starredEmails);
+          })
+          .catch(err => console.error('Error fetching starred emails:', err));
+      } else if (mailbox === 'archived') {
+        // Fetch archived emails for the account
+        fetch(`/api/emails/account/${selectedAccount.id}/archived`, { credentials: 'include' })
+          .then(res => res.json())
+          .then(data => setEmails(data))
+          .catch(err => {
+            console.error('Error fetching archived emails:', err);
+            // Fallback to client-side filtering if endpoint doesn't exist
+            fetch(`/api/emails/account/${selectedAccount.id}`, { credentials: 'include' })
+              .then(res => res.json())
+              .then(data => {
+                const archivedEmails = data.filter((email: Email) => email.isArchived);
+                setEmails(archivedEmails);
+              });
+          });
+      } else if (mailbox === 'todo') {
+        // Fetch emails with todos for the account
+        fetch(`/api/emails/todos/user/${userId}`, { credentials: 'include' })
+          .then(res => res.json())
+          .then(data => setEmails(data))
+          .catch(err => {
+            console.error('Error fetching todo emails:', err);
+            // Fallback to client-side filtering if endpoint doesn't exist
+            fetch(`/api/emails/account/${selectedAccount.id}`, { credentials: 'include' })
+              .then(res => res.json())
+              .then(data => {
+                const todoEmails = data.filter((email: Email) => email.hasTodo);
+                setEmails(todoEmails);
+              });
+          });
+      } else if (mailbox === 'sent' || mailbox === 'drafts' || mailbox === 'trash') {
+        // These would need backend support
+        // For now, set empty list or implement client-side filtering
+        setEmails([]);
       }
-      // Handle other mailbox types similarly when backend supports them
     }
-  }, [selectedAccount, selectedCategory, emails]);
+  }, [selectedAccount, selectedCategory, userId]);
 
   // Update selected category
   const handleSelectCategory = useCallback((category: Category) => {

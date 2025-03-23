@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { useEmailContext } from "@/context/EmailContext";
+import { debounce } from "lodash";
 
 interface ResizablePanelsProps {
   leftSidebar: React.ReactNode;
@@ -30,50 +31,87 @@ const ResizablePanels: React.FC<ResizablePanelsProps> = ({
   const [rightSidebarSize, setRightSidebarSize] = useState(20); // 20% of width
   const [bottomPaneSize, setBottomPaneSize] = useState(10); // 10% of height
   
-  // Load sizes from preferences on initial render
-  useEffect(() => {
+  // Recalculate panel sizes when window is resized
+  const updatePanelSizes = useCallback(() => {
     if (preferences) {
-      // Convert absolute pixel measurements to percentage of viewport
       const totalWidth = window.innerWidth;
       const totalHeight = window.innerHeight;
       
-      setLeftSidebarSize((preferences.leftSidebarWidth / totalWidth) * 100);
-      setEmailListSize((preferences.emailListWidth / totalWidth) * 100);
-      setRightSidebarSize((preferences.rightSidebarWidth / totalWidth) * 100);
-      setBottomPaneSize((preferences.bottomPaneHeight / totalHeight) * 100);
+      const newLeftSidebarSize = (preferences.leftSidebarWidth / totalWidth) * 100;
+      const newEmailListSize = (preferences.emailListWidth / totalWidth) * 100;
+      const newRightSidebarSize = (preferences.rightSidebarWidth / totalWidth) * 100;
+      const newBottomPaneSize = (preferences.bottomPaneHeight / totalHeight) * 100;
+      
+      setLeftSidebarSize(newLeftSidebarSize);
+      setEmailListSize(newEmailListSize);
+      setRightSidebarSize(newRightSidebarSize);
+      setBottomPaneSize(newBottomPaneSize);
       
       // Adjust email detail pane to fill the remaining space
-      const remainingWidth = 100 - leftSidebarSize - emailListSize - rightSidebarSize;
+      const remainingWidth = 100 - newLeftSidebarSize - newEmailListSize - newRightSidebarSize;
       setEmailDetailSize(remainingWidth > 0 ? remainingWidth : 30);
     }
   }, [preferences]);
+  
+  // Load sizes from preferences on initial render
+  useEffect(() => {
+    updatePanelSizes();
+  }, [preferences, updatePanelSizes]);
+  
+  // Add window resize listener for responsive updates
+  useEffect(() => {
+    const debouncedHandleResize = debounce(updatePanelSizes, 100);
+    window.addEventListener('resize', debouncedHandleResize);
+    
+    return () => {
+      window.removeEventListener('resize', debouncedHandleResize);
+    };
+  }, [updatePanelSizes]);
   
   // Handle resize events
   const handleLeftSidebarResize = (size: number) => {
     setLeftSidebarSize(size);
     // Calculate pixel value based on percentage
-    const pixelWidth = (window.innerWidth * size) / 100;
+    const pixelWidth = Math.max(150, (window.innerWidth * size) / 100); // Min width 150px
     updatePreferences({ leftSidebarWidth: pixelWidth });
+    
+    // Recalculate email detail size to adapt
+    const remainingWidth = 100 - size - emailListSize - rightSidebarSize;
+    if (remainingWidth > 10) { // Ensure minimum space
+      setEmailDetailSize(remainingWidth);
+    }
   };
   
   const handleEmailListResize = (size: number) => {
     setEmailListSize(size);
     // Calculate pixel value based on percentage
-    const pixelWidth = (window.innerWidth * size) / 100;
+    const pixelWidth = Math.max(200, (window.innerWidth * size) / 100); // Min width 200px
     updatePreferences({ emailListWidth: pixelWidth });
+    
+    // Recalculate email detail size to adapt
+    const remainingWidth = 100 - leftSidebarSize - size - rightSidebarSize;
+    if (remainingWidth > 10) { // Ensure minimum space
+      setEmailDetailSize(remainingWidth);
+    }
   };
   
   const handleRightSidebarResize = (size: number) => {
     setRightSidebarSize(size);
     // Calculate pixel value based on percentage
-    const pixelWidth = (window.innerWidth * size) / 100;
+    const pixelWidth = Math.max(150, (window.innerWidth * size) / 100); // Min width 150px
     updatePreferences({ rightSidebarWidth: pixelWidth });
+    
+    // Recalculate email detail size to adapt
+    const remainingWidth = 100 - leftSidebarSize - emailListSize - size;
+    if (remainingWidth > 10) { // Ensure minimum space
+      setEmailDetailSize(remainingWidth);
+    }
   };
   
   const handleBottomPaneResize = (size: number) => {
     setBottomPaneSize(size);
     // Calculate pixel value based on percentage
-    const pixelHeight = (window.innerHeight * size) / 100;
+    const pixelHeight = Math.max(60, (window.innerHeight * size) / 100); // Min height 60px
     updatePreferences({ bottomPaneHeight: pixelHeight });
   };
 
@@ -84,6 +122,7 @@ const ResizablePanels: React.FC<ResizablePanelsProps> = ({
         minSize={60}
         maxSize={95}
         onResize={(size) => handleBottomPaneResize(100 - size)}
+        className="transition-all duration-100 ease-in-out"
       >
         <ResizablePanelGroup direction="horizontal">
           <ResizablePanel 
@@ -91,13 +130,19 @@ const ResizablePanels: React.FC<ResizablePanelsProps> = ({
             minSize={15} 
             maxSize={30}
             onResize={handleLeftSidebarResize}
+            className="transition-all duration-100 ease-in-out"
           >
             {leftSidebar}
           </ResizablePanel>
           
-          <ResizableHandle withHandle />
+          <ResizableHandle withHandle className="bg-border hover:bg-primary/50" />
           
-          <ResizablePanel defaultSize={emailListSize + emailDetailSize} minSize={40} maxSize={85}>
+          <ResizablePanel 
+            defaultSize={emailListSize + emailDetailSize} 
+            minSize={40} 
+            maxSize={85}
+            className="transition-all duration-100 ease-in-out"
+          >
             <ResizablePanelGroup direction="horizontal">
               <ResizablePanel 
                 defaultSize={(emailListSize / (emailListSize + emailDetailSize)) * 100} 
@@ -110,38 +155,44 @@ const ResizablePanels: React.FC<ResizablePanelsProps> = ({
                   // Adjust email detail size to maintain total
                   setEmailDetailSize(emailListSize + emailDetailSize - newSize);
                 }}
+                className="transition-all duration-100 ease-in-out"
               >
                 {emailListPane}
               </ResizablePanel>
               
-              <ResizableHandle withHandle />
+              <ResizableHandle withHandle className="bg-border hover:bg-primary/50" />
               
-              <ResizablePanel defaultSize={(emailDetailSize / (emailListSize + emailDetailSize)) * 100}>
+              <ResizablePanel 
+                defaultSize={(emailDetailSize / (emailListSize + emailDetailSize)) * 100}
+                className="transition-all duration-100 ease-in-out"
+              >
                 {emailDetailPane}
               </ResizablePanel>
             </ResizablePanelGroup>
           </ResizablePanel>
           
-          <ResizableHandle withHandle />
+          <ResizableHandle withHandle className="bg-border hover:bg-primary/50" />
           
           <ResizablePanel 
             defaultSize={rightSidebarSize} 
             minSize={15} 
             maxSize={30}
             onResize={handleRightSidebarResize}
+            className="transition-all duration-100 ease-in-out"
           >
             {rightSidebar}
           </ResizablePanel>
         </ResizablePanelGroup>
       </ResizablePanel>
       
-      <ResizableHandle withHandle />
+      <ResizableHandle withHandle className="bg-border hover:bg-primary/50" />
       
       <ResizablePanel 
         defaultSize={bottomPaneSize} 
         minSize={5} 
         maxSize={30}
         onResize={handleBottomPaneResize}
+        className="transition-all duration-100 ease-in-out"
       >
         {bottomPane}
       </ResizablePanel>

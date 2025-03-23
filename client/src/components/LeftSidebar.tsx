@@ -34,7 +34,7 @@ const LeftSidebar = () => {
     return (
       <div key={tag.id}>
         <div 
-          className={`tag-item ${isChild ? 'ml-4' : ''} flex items-center p-2 hover:bg-neutral-100 rounded cursor-pointer`}
+          className={`tag-item ${isChild ? 'ml-4' : ''} flex items-center p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded cursor-pointer`}
           onClick={() => hasChildren && toggleTagExpanded(tag.id)}
         >
           {hasChildren ? (
@@ -59,12 +59,12 @@ const LeftSidebar = () => {
   };
 
   return (
-    <div className="w-64 bg-neutral-50 border-r border-neutral-200 flex flex-col h-full overflow-hidden">
+    <div className="w-64 bg-neutral-50 dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 flex flex-col h-full overflow-hidden">
       {/* Account Selection */}
       <div className="p-3">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-sm uppercase text-neutral-700">Accounts</h2>
-          <Button variant="ghost" size="icon" className="text-primary hover:bg-primary hover:bg-opacity-10 p-1 rounded">
+          <h2 className="font-semibold text-sm uppercase text-neutral-700 dark:text-neutral-300">Accounts</h2>
+          <Button variant="ghost" size="icon" className="text-primary hover:bg-primary/10 p-1 rounded">
             <Plus className="h-5 w-5" />
           </Button>
         </div>
@@ -75,8 +75,8 @@ const LeftSidebar = () => {
               key={account.id}
               className={`flex items-center p-2 rounded cursor-pointer ${
                 selectedAccount?.id === account.id 
-                  ? 'bg-primary bg-opacity-10 text-primary font-medium' 
-                  : 'hover:bg-neutral-100'
+                  ? 'bg-primary/15 text-primary font-medium' 
+                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
               }`}
               onClick={() => setSelectedAccount(account)}
             >
@@ -88,13 +88,15 @@ const LeftSidebar = () => {
       </div>
       
       {/* Mailbox Navigation */}
-      <div className="p-3 border-t border-neutral-200">
-        <h2 className="font-semibold text-sm uppercase text-neutral-700 mb-2">Mailboxes</h2>
+      <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
+        <h2 className="font-semibold text-sm uppercase text-neutral-700 dark:text-neutral-300 mb-2">Mailboxes</h2>
         <nav>
           <ul className="space-y-1">
             <li 
               className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedMailbox === 'inbox' ? 'bg-primary bg-opacity-10 text-primary' : 'hover:bg-neutral-100'
+                selectedMailbox === 'inbox' 
+                  ? 'bg-primary/15 text-primary font-medium' 
+                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
               }`}
               onClick={() => setSelectedMailbox('inbox')}
             >
@@ -103,7 +105,9 @@ const LeftSidebar = () => {
             </li>
             <li 
               className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedMailbox === 'starred' ? 'bg-primary bg-opacity-10 text-primary' : 'hover:bg-neutral-100'
+                selectedMailbox === 'starred' 
+                  ? 'bg-primary/15 text-primary font-medium' 
+                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
               }`}
               onClick={() => setSelectedMailbox('starred')}
             >
@@ -112,7 +116,9 @@ const LeftSidebar = () => {
             </li>
             <li 
               className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedMailbox === 'sent' ? 'bg-primary bg-opacity-10 text-primary' : 'hover:bg-neutral-100'
+                selectedMailbox === 'sent' 
+                  ? 'bg-primary/15 text-primary font-medium' 
+                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
               }`}
               onClick={() => setSelectedMailbox('sent')}
             >
@@ -121,16 +127,20 @@ const LeftSidebar = () => {
             </li>
             <li 
               className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedMailbox === 'drafts' ? 'bg-primary bg-opacity-10 text-primary' : 'hover:bg-neutral-100'
+                selectedMailbox === 'drafts' 
+                  ? 'bg-primary/15 text-primary font-medium' 
+                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
               }`}
               onClick={() => setSelectedMailbox('drafts')}
             >
               <Pencil className={`w-5 h-5 mr-2 ${selectedMailbox === 'drafts' ? 'text-primary' : 'text-neutral-500'}`} />
-              Drafts <span className="ml-auto bg-neutral-300 text-neutral-700 text-xs px-1.5 py-0.5 rounded-full">3</span>
+              Drafts <span className="ml-auto bg-neutral-300 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 text-xs px-1.5 py-0.5 rounded-full">3</span>
             </li>
             <li 
               className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedMailbox === 'trash' ? 'bg-primary bg-opacity-10 text-primary' : 'hover:bg-neutral-100'
+                selectedMailbox === 'trash' 
+                  ? 'bg-primary/15 text-primary font-medium' 
+                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
               }`}
               onClick={() => setSelectedMailbox('trash')}
             >
@@ -142,13 +152,15 @@ const LeftSidebar = () => {
       </div>
       
       {/* Categories */}
-      <div className="p-3 border-t border-neutral-200">
-        <h2 className="font-semibold text-sm uppercase text-neutral-700 mb-2">Categories</h2>
+      <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
+        <h2 className="font-semibold text-sm uppercase text-neutral-700 dark:text-neutral-300 mb-2">Categories</h2>
         <nav>
           <ul className="space-y-1">
             <li 
               className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedCategory === 'primary' ? 'bg-primary bg-opacity-10 text-primary' : 'hover:bg-neutral-100'
+                selectedCategory === 'primary' 
+                  ? 'bg-primary/15 text-primary font-medium' 
+                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
               }`}
               onClick={() => setSelectedCategory('primary')}
             >
@@ -157,7 +169,9 @@ const LeftSidebar = () => {
             </li>
             <li 
               className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedCategory === 'social' ? 'bg-primary bg-opacity-10 text-primary' : 'hover:bg-neutral-100'
+                selectedCategory === 'social' 
+                  ? 'bg-primary/15 text-primary font-medium' 
+                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
               }`}
               onClick={() => setSelectedCategory('social')}
             >
@@ -166,7 +180,9 @@ const LeftSidebar = () => {
             </li>
             <li 
               className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedCategory === 'promotions' ? 'bg-primary bg-opacity-10 text-primary' : 'hover:bg-neutral-100'
+                selectedCategory === 'promotions' 
+                  ? 'bg-primary/15 text-primary font-medium' 
+                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
               }`}
               onClick={() => setSelectedCategory('promotions')}
             >
@@ -175,7 +191,9 @@ const LeftSidebar = () => {
             </li>
             <li 
               className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedCategory === 'updates' ? 'bg-primary bg-opacity-10 text-primary' : 'hover:bg-neutral-100'
+                selectedCategory === 'updates' 
+                  ? 'bg-primary/15 text-primary font-medium' 
+                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
               }`}
               onClick={() => setSelectedCategory('updates')}
             >
@@ -187,10 +205,10 @@ const LeftSidebar = () => {
       </div>
       
       {/* Tags */}
-      <div className="p-3 border-t border-neutral-200 flex-1 overflow-y-auto">
+      <div className="p-3 border-t border-neutral-200 dark:border-neutral-800 flex-1 overflow-y-auto">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="font-semibold text-sm uppercase text-neutral-700">Tags</h2>
-          <Button variant="ghost" size="icon" className="text-primary hover:bg-primary hover:bg-opacity-10 p-1 rounded">
+          <h2 className="font-semibold text-sm uppercase text-neutral-700 dark:text-neutral-300">Tags</h2>
+          <Button variant="ghost" size="icon" className="text-primary hover:bg-primary/10 p-1 rounded">
             <Plus className="h-5 w-5" />
           </Button>
         </div>
@@ -204,8 +222,8 @@ const LeftSidebar = () => {
       </div>
       
       {/* Settings access */}
-      <div className="p-3 border-t border-neutral-200">
-        <Button variant="ghost" className="w-full flex items-center p-2 hover:bg-neutral-100 rounded justify-start">
+      <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
+        <Button variant="ghost" className="w-full flex items-center p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded justify-start">
           <Settings className="w-5 h-5 mr-2 text-neutral-500" />
           Settings
         </Button>

@@ -197,11 +197,18 @@ export const EmailProvider: React.FC<EmailProviderProps> = ({ children }) => {
     }
   }, [selectedAccount]);
 
-  // Toggle email star status
+  // Toggle email star status with 5-color cycling
   const toggleEmailStar = useCallback(async (email: Email) => {
     try {
-      // Determine the new star color
-      const newStarColor: StarColor = email.starColor === 'none' ? 'gold' : 'none';
+      // Define the color cycle order
+      const starCycle: StarColor[] = ['gold', 'red', 'orange', 'green', 'blue', 'none'];
+      
+      // Find the current color position in the cycle
+      const currentIndex = starCycle.indexOf(email.starColor);
+      
+      // Get the next color in the cycle, or circle back to the first color
+      const nextIndex = (currentIndex + 1) % starCycle.length;
+      const newStarColor = starCycle[nextIndex];
       
       // Optimistic update
       const updatedEmails = emails.map(e => 

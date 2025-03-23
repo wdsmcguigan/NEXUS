@@ -3,6 +3,9 @@ import { cn } from "@/lib/utils";
 import { format, isToday, isYesterday } from "date-fns";
 import { Checkbox } from "./checkbox";
 import { Tag } from "./tag";
+import { Star } from "lucide-react";
+import { starColors } from "@/lib/data";
+import { StarColor } from "@shared/schema";
 
 export interface EmailSender {
   id: number;
@@ -15,6 +18,9 @@ export interface EmailTag {
   id: number;
   name: string;
   color: string;
+  textColor?: string;
+  bgColor?: string;
+  emoji?: string | null;
 }
 
 export interface EmailAttachment {
@@ -33,13 +39,15 @@ export interface EmailItemProps {
   date: Date | string;
   isRead: boolean;
   isStarred: boolean;
-  starColor?: string;
+  starColor?: StarColor;
   onStarClick?: (id: number, starred: boolean) => void;
   tags?: EmailTag[];
   accountColor?: string;
   showAccountIndicator?: boolean;
   hasAttachments?: boolean;
   attachments?: EmailAttachment[];
+  hasTodo?: boolean;
+  todoCompleted?: boolean;
   onClick?: () => void;
 }
 
@@ -66,13 +74,15 @@ const EmailListItem = React.forwardRef<HTMLLIElement, EmailItemProps>(
     date,
     isRead,
     isStarred,
-    starColor = "#eab308", // yellow default
+    starColor = "none",
     onStarClick,
     tags = [],
     accountColor,
     showAccountIndicator = false,
     hasAttachments = false,
     attachments = [],
+    hasTodo = false,
+    todoCompleted = false,
     onClick,
     ...props
   }, ref) => {
@@ -89,14 +99,17 @@ const EmailListItem = React.forwardRef<HTMLLIElement, EmailItemProps>(
       }
     };
 
+    // Get the correct star color class from our mapping
+    const starColorClass = starColor !== 'none' ? starColors[starColor] : 'text-neutral-300 hover:text-star-gold';
+
     return (
       <li
         ref={ref}
         className={cn(
-          "hover:bg-neutral-50 relative group cursor-pointer",
-          isRead ? "" : "font-medium",
+          "relative group cursor-pointer border-b border-neutral-200 dark:border-neutral-800",
+          isRead ? "bg-white dark:bg-neutral-900" : "bg-neutral-50 dark:bg-neutral-800",
           !isRead && accountColor ? `border-l-4 border-[${accountColor}]` : "",
-          selected ? "bg-neutral-50" : ""
+          selected ? "bg-primary/5" : "hover:bg-neutral-100 dark:hover:bg-neutral-800/50"
         )}
         onClick={onClick}
         data-selected={selected}
@@ -113,16 +126,13 @@ const EmailListItem = React.forwardRef<HTMLLIElement, EmailItemProps>(
             />
             <button
               className={cn(
-                "mt-2", 
-                isStarred ? "text-[#eab308]" : "text-neutral-300 hover:text-[#eab308]"
+                "mt-2",
+                starColorClass
               )}
               onClick={handleStarClick}
-              aria-label={isStarred ? "Remove star" : "Add star"}
-              style={{ color: isStarred ? starColor : undefined }}
+              aria-label={isStarred ? "Change star color" : "Add star"}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
+              <Star className="h-5 w-5 transition-colors duration-150" />
             </button>
           </div>
           
@@ -134,33 +144,41 @@ const EmailListItem = React.forwardRef<HTMLLIElement, EmailItemProps>(
                   <span className="inline-block w-2.5 h-2.5 rounded-full mr-1.5" style={{ backgroundColor: accountColor }} />
                 )}
                 <p className={cn(
-                  "text-sm text-neutral-900 truncate", 
+                  "text-sm text-neutral-900 dark:text-neutral-100 truncate", 
                   !isRead && "font-semibold"
                 )}>
                   {sender.name}
                 </p>
               </div>
-              <p className="text-xs text-neutral-500">{formatEmailDate(date)}</p>
+              <p className="text-xs text-neutral-500 dark:text-neutral-400 ml-2">{formatEmailDate(date)}</p>
             </div>
             
             <p className={cn(
-              "text-sm text-neutral-900 truncate", 
+              "text-sm text-neutral-900 dark:text-neutral-100 truncate mt-0.5", 
               !isRead && "font-medium"
             )}>
+              {hasTodo && (
+                <span className={`mr-1 ${todoCompleted ? "text-green-500" : "text-amber-500"}`}>
+                  {todoCompleted ? "✓" : "□"}
+                </span>
+              )}
               {subject}
             </p>
             
-            <p className="text-sm text-neutral-500 truncate">{preview}</p>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400 truncate mt-0.5">{preview}</p>
             
             {/* Tags/Labels */}
             {tags.length > 0 && (
-              <div className="flex mt-1 gap-1 flex-wrap">
+              <div className="flex mt-1.5 gap-1.5 flex-wrap">
                 {tags.map((tag) => (
                   <Tag 
                     key={tag.id} 
-                    color={tag.color}
+                    color={tag.color || tag.bgColor || "bg-neutral-200 dark:bg-neutral-700"}
+                    variant="outline"
+                    className="text-xs py-0 px-1.5 h-5"
                   >
-                    {tag.name}
+                    {tag.emoji && <span className="mr-1">{tag.emoji}</span>}
+                    <span className={tag.textColor}>{tag.name}</span>
                   </Tag>
                 ))}
               </div>

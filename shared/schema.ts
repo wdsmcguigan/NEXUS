@@ -52,6 +52,9 @@ export const tags = pgTable("tags", {
   userId: integer("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
   parentId: integer("parent_id").references(() => tags.id),
+  textColor: text("text_color").notNull().default('#000000'),
+  bgColor: text("bg_color").notNull().default('#e2e8f0'),
+  emoji: text("emoji").default('🏷️'),
 });
 
 // Emails table
@@ -68,6 +71,9 @@ export const emails = pgTable("emails", {
   priority: emailPriorityEnum("priority").notNull().default('none'),
   isTrashed: boolean("is_trashed").notNull().default(false),
   isArchived: boolean("is_archived").notNull().default(false),
+  hasTodo: boolean("has_todo").notNull().default(false),
+  todoText: text("todo_text"),
+  todoCompleted: boolean("todo_completed").notNull().default(false),
 });
 
 // Email recipients
@@ -138,6 +144,9 @@ export const insertTagSchema = createInsertSchema(tags).pick({
   userId: true,
   name: true,
   parentId: true,
+  textColor: true,
+  bgColor: true,
+  emoji: true,
 });
 
 export const insertEmailSchema = createInsertSchema(emails).pick({
@@ -152,6 +161,9 @@ export const insertEmailSchema = createInsertSchema(emails).pick({
   priority: true,
   isTrashed: true,
   isArchived: true,
+  hasTodo: true,
+  todoText: true,
+  todoCompleted: true,
 });
 
 export const insertEmailRecipientSchema = createInsertSchema(emailRecipients).pick({

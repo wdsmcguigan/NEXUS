@@ -42,6 +42,12 @@ export interface IStorage {
   updateEmailReadStatus(id: number, isRead: boolean): Promise<Email>;
   archiveEmail(id: number): Promise<Email>;
   trashEmail(id: number): Promise<Email>;
+  
+  // Email Todos
+  addTodoToEmail(id: number, todoText: string): Promise<Email>;
+  updateTodoStatus(id: number, todoCompleted: boolean): Promise<Email>;
+  removeTodoFromEmail(id: number): Promise<Email>;
+  getEmailsWithTodos(userId: number): Promise<Email[]>;
 
   // Email Recipients
   addRecipientToEmail(recipient: InsertEmailRecipient): Promise<EmailRecipient>;
@@ -256,7 +262,10 @@ export class MemStorage implements IStorage {
       timestamp: Date,
       category: Category = "primary",
       starColor: StarColor = "none",
-      isRead: boolean = false
+      isRead: boolean = false,
+      hasTodo: boolean = false,
+      todoText: string | null = null,
+      todoCompleted: boolean = false
     ): Email => {
       const email: Email = {
         id: this.currentEmailId++,
@@ -271,6 +280,9 @@ export class MemStorage implements IStorage {
         priority: "none",
         isTrashed: false,
         isArchived: false,
+        hasTodo,
+        todoText,
+        todoCompleted,
       };
       this.emailsData.set(email.id, email);
       return email;
@@ -309,7 +321,11 @@ export class MemStorage implements IStorage {
       "Here's the latest status report for the client project. We're on track for the deliverables but there might be a delay with the API integration.",
       new Date("2023-06-19T14:30:00"),
       "primary",
-      "red"
+      "red",
+      false,
+      true,
+      "Follow up with dev team about API integration delay",
+      false
     );
 
     createEmail(
@@ -569,6 +585,55 @@ export class MemStorage implements IStorage {
     const updatedEmail = { ...email, isTrashed: true };
     this.emailsData.set(id, updatedEmail);
     return updatedEmail;
+  }
+  
+  async addTodoToEmail(id: number, todoText: string): Promise<Email> {
+    const email = this.emailsData.get(id);
+    if (!email) {
+      throw new Error("Email not found");
+    }
+
+    const updatedEmail = { ...email, hasTodo: true, todoText, todoCompleted: false };
+    this.emailsData.set(id, updatedEmail);
+    return updatedEmail;
+  }
+  
+  async updateTodoStatus(id: number, todoCompleted: boolean): Promise<Email> {
+    const email = this.emailsData.get(id);
+    if (!email) {
+      throw new Error("Email not found");
+    }
+    
+    if (!email.hasTodo) {
+      throw new Error("Email does not have a todo");
+    }
+
+    const updatedEmail = { ...email, todoCompleted };
+    this.emailsData.set(id, updatedEmail);
+    return updatedEmail;
+  }
+  
+  async removeTodoFromEmail(id: number): Promise<Email> {
+    const email = this.emailsData.get(id);
+    if (!email) {
+      throw new Error("Email not found");
+    }
+
+    const updatedEmail = { ...email, hasTodo: false, todoText: null, todoCompleted: false };
+    this.emailsData.set(id, updatedEmail);
+    return updatedEmail;
+  }
+  
+  async getEmailsWithTodos(userId: number): Promise<Email[]> {
+    const userAccounts = await this.getEmailAccountsByUserId(userId);
+    const accountIds = userAccounts.map(account => account.id);
+    
+    return Array.from(this.emailsData.values()).filter(
+      email => accountIds.includes(email.accountId) && 
+               email.hasTodo &&
+               !email.isTrashed && 
+               !email.isArchived
+    );
   }
 
   // Email Recipients methods

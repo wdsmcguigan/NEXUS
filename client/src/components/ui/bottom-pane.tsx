@@ -1,12 +1,11 @@
 import * as React from "react";
-import { X, Settings, MessageSquare, Grid3X3, Plus } from "lucide-react";
+import { X, Settings, MessageSquare, Grid3X3, Plus, Presentation, Monitor } from "lucide-react";
 import { Button } from "./button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./tabs";
 import { 
   SiSlack, 
   SiDiscord, 
   SiAsana, 
-  SiMicrosoft, 
   SiGoogledrive, 
   SiGooglemeet,
   SiTrello,
@@ -49,7 +48,7 @@ const integrations: Integration[] = [
   {
     id: "teams",
     name: "Microsoft Teams",
-    icon: <SiMsTeams className="w-10 h-10" />,
+    icon: <Presentation className="w-10 h-10" />,
     color: "#6264A7",
   },
   {
@@ -246,7 +245,7 @@ export function BottomPane({
                                 <span className={`block w-4 h-4 rounded-full bg-white absolute top-0.5 transition-transform ${setting.value ? 'transform translate-x-4' : 'translate-x-0.5'}`} />
                               </div>
                             )}
-                            {setting.type === 'select' && (
+                            {setting.type === 'select' && setting.options && (
                               <select className="text-xs border border-neutral-200 dark:border-neutral-700 rounded bg-transparent py-1 px-2">
                                 {setting.options.map((option) => (
                                   <option key={option} value={option} selected={option === setting.value}>

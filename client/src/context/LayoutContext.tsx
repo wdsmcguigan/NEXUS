@@ -36,6 +36,7 @@ interface LayoutContextType {
 const DEFAULT_LAYOUT: PanelConfig = {
   id: 'root',
   direction: 'horizontal',
+  tabs: [],
   children: [
     {
       id: 'left-sidebar',
@@ -55,11 +56,13 @@ const DEFAULT_LAYOUT: PanelConfig = {
       id: 'main-content',
       direction: 'vertical',
       defaultSize: 60,
+      tabs: [],
       children: [
         {
           id: 'email-section',
           direction: 'horizontal',
           defaultSize: 70,
+          tabs: [],
           children: [
             {
               id: 'email-list',
@@ -347,6 +350,7 @@ export const LayoutProvider: React.FC<{children: React.ReactNode}> = ({ children
         direction,
         minSize: panel.minSize,
         defaultSize: panel.defaultSize,
+        tabs: [], // Empty tabs array for parent panels
         children: [
           {
             id: panel.id + '-child',

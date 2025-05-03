@@ -158,5 +158,9 @@ export function PanelContainer({
     setActiveTab
   ]);
 
-  return renderPanel(layout);
+  return (
+    <PanelGroup direction={layout.direction || 'horizontal'}>
+      {renderPanel(layout)}
+    </PanelGroup>
+  );
 }

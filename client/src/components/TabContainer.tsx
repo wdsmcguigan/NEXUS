@@ -1,14 +1,24 @@
 import React, { useState } from 'react';
-import { X, Plus, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Plus, Maximize2, Minimize2, Mail, Inbox, Sidebar, Users, Grid3X3 } from 'lucide-react';
 import { TabConfig } from '../context/LayoutContext';
-import { BottomPane } from './ui/bottom-pane';
-import { Button } from './ui/button';
+import { Button } from '@/components/ui/button';
 
-// Import components that can be rendered in tabs
-import { LeftSidebar } from './LeftSidebar';
-import { EmailListPane } from './EmailListPane';
-import { EmailDetailPane } from './EmailDetailPane';
-import { RightSidebar } from './RightSidebar';
+// Placeholder components for tab content
+const PlaceholderComponent = ({ type, props }: { type: string, props?: any }) => (
+  <div className="flex flex-col items-center justify-center h-full bg-gray-50 dark:bg-gray-900 p-4 text-center">
+    <div className="text-primary mb-4">
+      {type === 'leftSidebar' && <Sidebar className="h-12 w-12" />}
+      {type === 'emailList' && <Inbox className="h-12 w-12" />}
+      {type === 'emailDetail' && <Mail className="h-12 w-12" />}
+      {type === 'rightSidebar' && <Users className="h-12 w-12" />}
+      {type === 'integrations' && <Grid3X3 className="h-12 w-12" />}
+    </div>
+    <h3 className="text-lg font-medium mb-2">{type} Content</h3>
+    <p className="text-sm text-gray-500">
+      {JSON.stringify(props || {})}
+    </p>
+  </div>
+);
 
 interface TabContainerProps {
   panelId: string;
@@ -49,15 +59,11 @@ export function TabContainer({
   const renderTabContent = (tab: TabConfig) => {
     switch (tab.contentType) {
       case 'leftSidebar':
-        return <LeftSidebar {...tab.contentProps} />;
       case 'emailList':
-        return <EmailListPane {...tab.contentProps} />;
       case 'emailDetail':
-        return <EmailDetailPane {...tab.contentProps} />;
       case 'rightSidebar':
-        return <RightSidebar {...tab.contentProps} />;
       case 'integrations':
-        return <BottomPane visible={true} {...tab.contentProps} />;
+        return <PlaceholderComponent type={tab.contentType} props={tab.contentProps} />;
       case 'empty':
         return (
           <div className="flex items-center justify-center h-full text-neutral-400">

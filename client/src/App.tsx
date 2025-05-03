@@ -5,14 +5,20 @@ import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import EmailClient from "@/pages/EmailClient";
 import { EmailProvider } from "@/context/EmailContext";
+import { SimplePanelLayout } from "./components/SimplePanelLayout";
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={EmailClient} />
+      <Route path="/old" component={EmailClient} />
+      <Route path="/" component={NexusEmailClient} />
       <Route component={NotFound} />
     </Switch>
   );
+}
+
+function NexusEmailClient() {
+  return <SimplePanelLayout />;
 }
 
 function App() {

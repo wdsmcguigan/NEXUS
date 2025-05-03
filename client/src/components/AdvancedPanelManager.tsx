@@ -110,6 +110,7 @@ export function AdvancedPanelManager() {
           direction,
           minSize: panel.minSize,
           defaultSize: panel.defaultSize,
+          tabs: [], // Empty tabs array for parent panels
           children: direction === 'horizontal'
             ? [{ ...panel, id: `${panel.id}-child` }, newChildPanel]
             : [newChildPanel, { ...panel, id: `${panel.id}-child` }]

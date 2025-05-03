@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLayout } from '../context/LayoutContext';
 import { PanelContainer } from './PanelContainer';
-import { LayoutControls } from './LayoutControls';
+import { AdvancedPanelManager } from './AdvancedPanelManager';
 
 export function LayoutManager() {
   const { currentLayout } = useLayout();
@@ -25,7 +25,10 @@ export function LayoutManager() {
           maximizedPanelId={maximizedPanelId}
         />
       </div>
-      <LayoutControls />
+      <div className="flex items-center justify-center gap-2 p-2 border-t border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
+        <button className="px-3 py-1 text-sm bg-primary text-white rounded-md">Save Layout</button>
+        <button className="px-3 py-1 text-sm border border-primary text-primary rounded-md">Load Layout</button>
+      </div>
     </div>
   );
 }

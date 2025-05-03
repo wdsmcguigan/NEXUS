@@ -1,12 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import { PanelContainer } from './PanelContainer';
 import { DragOverlay } from './DragOverlay';
-import { useLayout, PanelConfig, TabConfig } from '../context/LayoutContext';
+import { usePanelContext, PanelConfig } from '../context/PanelContext';
 import { nanoid } from 'nanoid';
 
 export function AdvancedPanelManager() {
-  const { currentLayout, updateLayout, moveTab } = useLayout();
-  const [maximizedPanelId, setMaximizedPanelId] = useState<string | undefined>(undefined);
+  const { layout, updateLayout, moveTab } = usePanelContext();
+  const [maximizedPanelId, setMaximizedPanelId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [dragData, setDragData] = useState<{ tabId: string; sourcePanelId: string } | null>(null);
 
@@ -15,7 +15,7 @@ export function AdvancedPanelManager() {
   };
 
   const handleRestorePanel = () => {
-    setMaximizedPanelId(undefined);
+    setMaximizedPanelId(null);
   };
 
   const handleDragStart = useCallback((tabId: string, panelId: string) => {
@@ -65,8 +65,8 @@ export function AdvancedPanelManager() {
     if (!dragData) return;
     
     const { tabId, sourcePanelId } = dragData;
-    const sourcePanel = findPanel(currentLayout, sourcePanelId);
-    if (!sourcePanel) return;
+    const sourcePanel = findPanel(layout, sourcePanelId);
+    if (!sourcePanel || !sourcePanel.tabs) return;
     
     const tab = sourcePanel.tabs.find(t => t.id === tabId);
     if (!tab) return;
@@ -76,19 +76,22 @@ export function AdvancedPanelManager() {
     
     // Update the layout by first removing the tab from the source panel
     let newLayout = updatePanelInLayout(
-      currentLayout,
+      layout,
       sourcePanelId,
-      panel => ({
-        ...panel,
-        tabs: panel.tabs.filter(t => t.id !== tabId),
-        activeTabId: panel.activeTabId === tabId
-          ? panel.tabs.length > 1
-            ? panel.tabs[0].id === tabId
-              ? panel.tabs[1].id
-              : panel.tabs[0].id
-            : undefined
-          : panel.activeTabId
-      })
+      panel => {
+        if (!panel.tabs) return panel;
+        return {
+          ...panel,
+          tabs: panel.tabs.filter(t => t.id !== tabId),
+          activeTabId: panel.activeTabId === tabId
+            ? panel.tabs.length > 1
+              ? panel.tabs[0].id === tabId
+                ? panel.tabs[1].id
+                : panel.tabs[0].id
+              : undefined
+            : panel.activeTabId
+        };
+      }
     );
     
     // Then update the target panel to become a group with two panels
@@ -99,7 +102,8 @@ export function AdvancedPanelManager() {
         // Create a new panel with the dragged tab
         const newChildPanel: PanelConfig = {
           id: newPanelId,
-          defaultSize: 50,
+          type: 'panel',
+          size: 50,
           tabs: [tab],
           activeTabId: tab.id
         };
@@ -107,9 +111,10 @@ export function AdvancedPanelManager() {
         // The current panel becomes a parent with children
         return {
           id: panel.id,
+          type: 'split',
           direction,
           minSize: panel.minSize,
-          defaultSize: panel.defaultSize,
+          size: panel.size,
           tabs: [], // Empty tabs array for parent panels
           children: direction === 'horizontal'
             ? [{ ...panel, id: `${panel.id}-child` }, newChildPanel]
@@ -120,7 +125,7 @@ export function AdvancedPanelManager() {
     
     updateLayout(newLayout);
     handleDragEnd();
-  }, [currentLayout, dragData, findPanel, handleDragEnd, updateLayout, updatePanelInLayout]);
+  }, [layout, dragData, findPanel, handleDragEnd, updateLayout, updatePanelInLayout]);
 
   // Handle dropping a tab onto a panel
   const handlePanelDrop = useCallback((panelId: string, type: 'panel' | 'edge', direction?: 'top' | 'right' | 'bottom' | 'left') => {
@@ -141,7 +146,7 @@ export function AdvancedPanelManager() {
   return (
     <div className="h-full relative">
       <PanelContainer 
-        layout={currentLayout}
+        layout={layout}
         onMaximizePanel={handleMaximizePanel}
         onRestorePanel={handleRestorePanel}
         maximizedPanelId={maximizedPanelId}

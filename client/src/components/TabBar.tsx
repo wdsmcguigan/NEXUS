@@ -1,6 +1,8 @@
 import React from 'react';
-import { X, Plus, Maximize2, Minimize2 } from 'lucide-react';
+import { PlusIcon, XIcon, MaximizeIcon, MinimizeIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { TabControls } from './TabControls';
 
 export interface Tab {
   id: string;
@@ -12,10 +14,11 @@ export interface Tab {
 interface TabBarProps {
   tabs: Tab[];
   activeTabId: string;
+  panelId: string;
   onTabChange: (tabId: string) => void;
   onTabClose: (tabId: string) => void;
   onTabAdd: () => void;
-  onDragStart?: (tabId: string, e: React.DragEvent) => void;
+  onDragStart: (tabId: string, e: React.DragEvent) => void;
   onMaximize?: () => void;
   onRestore?: () => void;
   isMaximized?: boolean;
@@ -24,65 +27,69 @@ interface TabBarProps {
 export function TabBar({
   tabs,
   activeTabId,
+  panelId,
   onTabChange,
   onTabClose,
   onTabAdd,
   onDragStart,
   onMaximize,
   onRestore,
-  isMaximized = false
+  isMaximized
 }: TabBarProps) {
   return (
-    <div className="flex bg-neutral-100 dark:bg-neutral-800 border-b border-neutral-200 dark:border-neutral-700">
-      {tabs.map(tab => (
-        <div
-          key={tab.id}
-          className={`px-3 py-2 flex items-center cursor-pointer border-r border-neutral-200 dark:border-neutral-700 ${
-            tab.id === activeTabId 
-              ? 'bg-white dark:bg-neutral-900 border-b-2 border-primary' 
-              : 'bg-neutral-100 dark:bg-neutral-800'
-          }`}
-          onClick={() => onTabChange(tab.id)}
-          draggable={!!onDragStart}
-          onDragStart={(e) => onDragStart && onDragStart(tab.id, e)}
-        >
-          {tab.icon && <span className="mr-2">{tab.icon}</span>}
-          <span className="text-sm font-medium truncate max-w-[120px]">{tab.title}</span>
-          {tab.closeable && (
-            <button 
-              className="ml-2 text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
-              onClick={(e) => {
-                e.stopPropagation();
-                onTabClose(tab.id);
-              }}
-            >
-              <X className="h-3 w-3" />
-            </button>
-          )}
-        </div>
-      ))}
+    <div className="flex items-center gap-1 p-1 bg-neutral-100 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
+      <div className="flex-1 flex items-center overflow-x-auto hide-scrollbar">
+        {tabs.map((tab) => (
+          <div
+            key={tab.id}
+            draggable={tab.closeable}
+            onDragStart={(e) => onDragStart(tab.id, e)}
+            onDragEnd={(e) => {
+              // We can add drag end handling here if needed
+              e.preventDefault();
+            }}
+            className={cn(
+              'flex items-center gap-1 px-3 py-1 text-sm rounded-md cursor-pointer select-none',
+              activeTabId === tab.id
+                ? 'bg-white dark:bg-neutral-800 shadow-sm'
+                : 'hover:bg-neutral-200 dark:hover:bg-neutral-800'
+            )}
+            onClick={() => onTabChange(tab.id)}
+          >
+            {tab.icon && <span className="mr-1">{tab.icon}</span>}
+            <span>{tab.title}</span>
+            {tab.closeable && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="w-4 h-4 ml-1 -mr-1 rounded-full opacity-60 hover:opacity-100 hover:bg-neutral-200 dark:hover:bg-neutral-700"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTabClose(tab.id);
+                }}
+              >
+                <XIcon className="w-3 h-3" />
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
       
-      <div className="flex-1 flex items-center justify-between px-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-6 w-6"
-          onClick={onTabAdd}
-        >
-          <Plus className="h-3 w-3" />
-        </Button>
+      <div className="flex items-center gap-1">
+        <TabControls panelId={panelId} onAddTab={onTabAdd} />
         
-        {(onMaximize || onRestore) && (
+        {onMaximize && onRestore && (
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="w-6 h-6 rounded hover:bg-neutral-200 dark:hover:bg-neutral-800"
             onClick={isMaximized ? onRestore : onMaximize}
+            title={isMaximized ? 'Restore' : 'Maximize'}
           >
             {isMaximized ? (
-              <Minimize2 className="h-3 w-3" />
+              <MinimizeIcon className="w-4 h-4" />
             ) : (
-              <Maximize2 className="h-3 w-3" />
+              <MaximizeIcon className="w-4 h-4" />
             )}
           </Button>
         )}

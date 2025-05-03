@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 
+// Define types for drop zones
 interface DropZone {
   id: string;
   rect: DOMRect;
@@ -14,121 +15,122 @@ interface DragOverlayProps {
 
 export function DragOverlay({ active, onDrop }: DragOverlayProps) {
   const [dropZones, setDropZones] = useState<DropZone[]>([]);
-  const [hoveredZone, setHoveredZone] = useState<DropZone | null>(null);
+  const [highlightedZone, setHighlightedZone] = useState<DropZone | null>(null);
   
-  // Calculate drop zones when active
+  // Find all drop zones in the application when the overlay becomes active
   useEffect(() => {
-    if (active) {
-      // Find all panels
-      const panels = document.querySelectorAll('[data-panel-id]');
-      
-      const zones: DropZone[] = [];
-      
-      panels.forEach(panel => {
-        const id = panel.getAttribute('data-panel-id') || '';
-        const rect = panel.getBoundingClientRect();
-        
-        // Center zone (for dropping tabs into panels)
-        zones.push({
-          id,
-          rect,
-          type: 'panel'
-        });
-        
-        // Edge zones (for creating new panels)
-        const edgeSize = 20; // Size of edge detection zone
-        
-        // Top edge
-        zones.push({
-          id,
-          rect: new DOMRect(rect.left, rect.top, rect.width, edgeSize),
-          type: 'edge',
-          direction: 'top'
-        });
-        
-        // Right edge
-        zones.push({
-          id,
-          rect: new DOMRect(rect.right - edgeSize, rect.top, edgeSize, rect.height),
-          type: 'edge',
-          direction: 'right'
-        });
-        
-        // Bottom edge
-        zones.push({
-          id,
-          rect: new DOMRect(rect.left, rect.bottom - edgeSize, rect.width, edgeSize),
-          type: 'edge',
-          direction: 'bottom'
-        });
-        
-        // Left edge
-        zones.push({
-          id,
-          rect: new DOMRect(rect.left, rect.top, edgeSize, rect.height),
-          type: 'edge',
-          direction: 'left'
-        });
-      });
-      
-      setDropZones(zones);
-    } else {
+    if (!active) {
       setDropZones([]);
-      setHoveredZone(null);
+      setHighlightedZone(null);
+      return;
     }
+    
+    // Find panel drop zones (all panel elements)
+    const panelEls = document.querySelectorAll('[data-panel-drop-zone]');
+    const panelZones: DropZone[] = Array.from(panelEls).map(el => ({
+      id: el.getAttribute('data-panel-id') || '',
+      rect: el.getBoundingClientRect(),
+      type: 'panel'
+    }));
+    
+    // Find edge drop zones
+    const edgeEls = document.querySelectorAll('[data-edge-drop-zone]');
+    const edgeZones: DropZone[] = Array.from(edgeEls).map(el => ({
+      id: el.getAttribute('data-panel-id') || '',
+      rect: el.getBoundingClientRect(),
+      type: 'edge',
+      direction: el.getAttribute('data-edge-direction') as 'top' | 'right' | 'bottom' | 'left'
+    }));
+    
+    setDropZones([...panelZones, ...edgeZones]);
   }, [active]);
   
-  // Track mouse position and update hovered zone
-  useEffect(() => {
-    if (!active) return;
+  // Handle mouse movement to highlight appropriate zone
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!active || dropZones.length === 0) return;
     
-    const handleMouseMove = (e: MouseEvent) => {
-      const { clientX, clientY } = e;
-      
-      // Find which zone the mouse is over
-      const zone = dropZones.find(zone => {
-        const { rect } = zone;
-        return (
-          clientX >= rect.left &&
-          clientX <= rect.right &&
-          clientY >= rect.top &&
-          clientY <= rect.bottom
-        );
-      }) || null;
-      
-      setHoveredZone(zone);
-    };
+    const { clientX, clientY } = e;
+    let closestZone: DropZone | null = null;
+    let closestDistance = Infinity;
     
-    const handleMouseUp = () => {
-      if (hoveredZone) {
-        onDrop(hoveredZone.id, hoveredZone.type, hoveredZone.direction);
+    dropZones.forEach(zone => {
+      const { rect } = zone;
+      
+      // Check if mouse is inside the zone
+      if (
+        clientX >= rect.left &&
+        clientX <= rect.right &&
+        clientY >= rect.top &&
+        clientY <= rect.bottom
+      ) {
+        // For panel zones, calculate distance from center
+        if (zone.type === 'panel') {
+          const centerX = rect.left + rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
+          const distance = Math.sqrt(
+            Math.pow(clientX - centerX, 2) + Math.pow(clientY - centerY, 2)
+          );
+          
+          if (distance < closestDistance) {
+            closestDistance = distance;
+            closestZone = zone;
+          }
+        } 
+        // For edge zones, just use the first one found (they shouldn't overlap)
+        else if (zone.type === 'edge') {
+          closestZone = zone;
+          closestDistance = 0; // Edge zones take precedence
+        }
       }
-    };
+    });
     
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    setHighlightedZone(closestZone);
+  };
+  
+  // Handle mouse up to trigger drop
+  const handleMouseUp = () => {
+    if (!active || !highlightedZone) return;
+    
+    onDrop(
+      highlightedZone.id,
+      highlightedZone.type,
+      highlightedZone.direction
+    );
+    
+    setHighlightedZone(null);
+  };
+  
+  // Add and remove event listeners
+  useEffect(() => {
+    if (active) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
     
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [active, dropZones, hoveredZone, onDrop]);
+  }, [active, dropZones, highlightedZone]);
   
   if (!active) return null;
   
   return (
-    <div className="fixed inset-0 pointer-events-none z-50">
-      {hoveredZone && (
-        <div 
-          className={`absolute ${
-            hoveredZone.type === 'panel' ? 'bg-primary/10' : 'bg-primary/30'
-          }`}
+    <div className="fixed inset-0 z-50 pointer-events-none">
+      {/* Render overlay for the highlighted drop zone */}
+      {highlightedZone && (
+        <div
+          className={
+            highlightedZone.type === 'panel'
+              ? 'absolute bg-primary/20 border-2 border-primary rounded-md'
+              : 'absolute bg-primary/40 border-2 border-primary'
+          }
           style={{
-            left: hoveredZone.rect.left,
-            top: hoveredZone.rect.top,
-            width: hoveredZone.rect.width,
-            height: hoveredZone.rect.height,
-            border: hoveredZone.type === 'edge' ? '2px solid var(--primary)' : 'none'
+            left: highlightedZone.rect.left,
+            top: highlightedZone.rect.top,
+            width: highlightedZone.rect.width,
+            height: highlightedZone.rect.height,
+            transition: 'all 0.1s ease-in-out'
           }}
         />
       )}

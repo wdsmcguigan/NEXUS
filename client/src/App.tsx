@@ -7,12 +7,14 @@ import EmailClient from "@/pages/EmailClient";
 import { EmailProvider } from "@/context/EmailContext";
 import { SimplePanelLayout } from "./components/SimplePanelLayout";
 import { TabbedPanelLayout } from "./components/TabbedPanelLayout";
+import { AdvancedPanelLayout } from "./components/AdvancedPanelLayout";
 
 function Router() {
   return (
     <Switch>
       <Route path="/old" component={EmailClient} />
       <Route path="/simple" component={SimpleLayoutView} />
+      <Route path="/tabbed" component={TabbedLayoutView} />
       <Route path="/" component={NexusEmailClient} />
       <Route component={NotFound} />
     </Switch>
@@ -23,8 +25,12 @@ function SimpleLayoutView() {
   return <SimplePanelLayout />;
 }
 
-function NexusEmailClient() {
+function TabbedLayoutView() {
   return <TabbedPanelLayout />;
+}
+
+function NexusEmailClient() {
+  return <AdvancedPanelLayout />;
 }
 
 function App() {

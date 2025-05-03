@@ -247,6 +247,7 @@ export function TabbedPanelLayout() {
               tabs={leftSidebarTabs}
               contents={leftSidebarContents}
               activeTabId={leftSidebarActiveTab}
+              panelId="leftSidebar"
               onTabChange={(tabId) => setLeftSidebarActiveTab(tabId)}
               onTabClose={(tabId) => handleTabClose('leftSidebar', tabId)}
               onTabAdd={() => handleTabAdd('leftSidebar', 'leftSidebar')}
@@ -279,6 +280,7 @@ export function TabbedPanelLayout() {
                       tabs={emailListTabs}
                       contents={emailListContents}
                       activeTabId={emailListActiveTab}
+                      panelId="emailList"
                       onTabChange={(tabId) => setEmailListActiveTab(tabId)}
                       onTabClose={(tabId) => handleTabClose('emailList', tabId)}
                       onTabAdd={() => handleTabAdd('emailList', 'emailList')}
@@ -301,6 +303,7 @@ export function TabbedPanelLayout() {
                       tabs={emailDetailTabs}
                       contents={emailDetailContents}
                       activeTabId={emailDetailActiveTab}
+                      panelId="emailDetail"
                       onTabChange={(tabId) => setEmailDetailActiveTab(tabId)}
                       onTabClose={(tabId) => handleTabClose('emailDetail', tabId)}
                       onTabAdd={() => handleTabAdd('emailDetail', 'emailDetail')}
@@ -325,6 +328,7 @@ export function TabbedPanelLayout() {
                   tabs={bottomPaneTabs}
                   contents={bottomPaneContents}
                   activeTabId={bottomPaneActiveTab}
+                  panelId="bottomPane"
                   onTabChange={(tabId) => setBottomPaneActiveTab(tabId)}
                   onTabClose={(tabId) => handleTabClose('bottomPane', tabId)}
                   onTabAdd={() => handleTabAdd('bottomPane', 'integrations')}
@@ -350,6 +354,7 @@ export function TabbedPanelLayout() {
               tabs={rightSidebarTabs}
               contents={rightSidebarContents}
               activeTabId={rightSidebarActiveTab}
+              panelId="rightSidebar"
               onTabChange={(tabId) => setRightSidebarActiveTab(tabId)}
               onTabClose={(tabId) => handleTabClose('rightSidebar', tabId)}
               onTabAdd={() => handleTabAdd('rightSidebar', 'rightSidebar')}

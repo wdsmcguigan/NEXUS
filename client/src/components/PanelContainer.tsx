@@ -1,13 +1,15 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { PanelConfig, TabConfig, useLayout } from '../context/LayoutContext';
-import { TabContainer } from './TabContainer';
+import { TabPanel, TabPanelContent } from './TabPanel';
+import { Tab } from './TabBar';
+import { nanoid } from 'nanoid';
+import { PanelConfig, usePanelContext } from '../context/PanelContext';
 
 interface PanelContainerProps {
   layout: PanelConfig;
   onMaximizePanel?: (panelId: string) => void;
   onRestorePanel?: () => void;
-  maximizedPanelId?: string;
+  maximizedPanelId?: string | null;
 }
 
 export function PanelContainer({
@@ -16,101 +18,180 @@ export function PanelContainer({
   onRestorePanel,
   maximizedPanelId
 }: PanelContainerProps) {
-  const { setActiveTab, closeTab, addTab, moveTab, updateLayout } = useLayout();
-  const [dragState, setDragState] = useState<{
-    tabId: string;
-    panelId: string;
-  } | null>(null);
-
-  // Handle tab drag start
-  const handleTabDragStart = useCallback((tabId: string, panelId: string, e: React.DragEvent) => {
-    e.dataTransfer.setData('application/nexus-tab', JSON.stringify({ tabId, panelId }));
-    setDragState({ tabId, panelId });
-  }, []);
-
-  // Handle drop on a panel
-  const handleDrop = useCallback((e: React.DragEvent, targetPanelId: string) => {
-    e.preventDefault();
+  const { 
+    changeTab, 
+    removeTab, 
+    addTab, 
+    moveTab,
+    updateLayout
+  } = usePanelContext();
+  
+  // Function to update panel sizes within a split
+  const updatePanelSizes = useCallback((panelConfig: PanelConfig, sizes: number[]): PanelConfig => {
+    if (panelConfig.type !== 'split' || !panelConfig.children) return panelConfig;
     
-    try {
-      const data = e.dataTransfer.getData('application/nexus-tab');
-      if (!data) return;
-      
-      const { tabId, panelId } = JSON.parse(data);
-      if (panelId === targetPanelId) return;
-      
-      // Move tab to the target panel
-      moveTab(tabId, panelId, targetPanelId);
-    } catch (err) {
-      console.error('Error handling tab drop:', err);
-    } finally {
-      setDragState(null);
-    }
-  }, [moveTab]);
-
-  // Handle panel layout change
-  const handlePanelResize = useCallback((panelId: string, sizes: number[]) => {
-    // Update panel sizes in the layout
-    const updatePanelSizes = (panel: PanelConfig, sizes: number[]): PanelConfig => {
-      if (panel.id === panelId && panel.children) {
-        return {
-          ...panel,
-          children: panel.children.map((child, index) => ({
-            ...child,
-            defaultSize: sizes[index]
-          }))
-        };
-      }
-      
-      if (panel.children) {
-        return {
-          ...panel,
-          children: panel.children.map(child => updatePanelSizes(child, sizes))
-        };
-      }
-      
-      return panel;
+    return {
+      ...panelConfig,
+      children: panelConfig.children.map((child, i) => ({
+        ...child,
+        size: sizes[i]
+      }))
     };
+  }, []);
+  
+  // Handle panel resize
+  const handlePanelResize = useCallback((parentId: string, sizes: number[]) => {
+    updateLayout((prevLayout: PanelConfig) => {
+      // Find the parent panel and update its children's sizes
+      const updateSizes = (layout: PanelConfig): PanelConfig => {
+        if (layout.id === parentId) {
+          return updatePanelSizes(layout, sizes);
+        }
+        
+        if (layout.children) {
+          return {
+            ...layout,
+            children: layout.children.map(child => updateSizes(child))
+          };
+        }
+        
+        return layout;
+      };
+      
+      return updateSizes(prevLayout);
+    });
+  }, [updateLayout, updatePanelSizes]);
+  
+  // Handle adding a new tab to a panel
+  const handleTabAdd = useCallback((panelId: string, contentType: string) => {
+    const newTabId = `tab-${nanoid(8)}`;
     
-    const newLayout = updatePanelSizes(layout, sizes);
-    updateLayout(newLayout);
-  }, [layout, updateLayout]);
-
-  // Function to create a new tab
-  const handleAddTab = useCallback((panelId: string) => {
-    const newTab: TabConfig = {
-      id: `tab-${Date.now()}`,
-      title: 'New Tab',
-      contentType: 'empty',
+    const newTab: Tab = {
+      id: newTabId,
+      title: `New ${contentType}`,
       closeable: true
     };
     
-    addTab(newTab, panelId);
-  }, [addTab]);
-
-  // Recursive function to render the panel structure
-  const renderPanel = useCallback((panelConfig: PanelConfig, depth = 0): JSX.Element => {
-    const isMaximized = maximizedPanelId === panelConfig.id;
+    const newTabContent: TabPanelContent = {
+      id: newTabId,
+      type: contentType
+    };
     
-    // If this panel has children, render them as a nested PanelGroup
-    if (panelConfig.children && panelConfig.children.length > 0) {
+    addTab(panelId, newTab, newTabContent);
+  }, [addTab]);
+  
+  // Handle drag operations
+  const handleTabDragStart = useCallback((tabId: string, panelId: string, e: React.DragEvent) => {
+    e.dataTransfer.setData('application/json', JSON.stringify({ 
+      panelId, 
+      tabId 
+    }));
+  }, []);
+  
+  // Handle drop operations
+  const handleTabDrop = useCallback((targetPanelId: string, e: React.DragEvent) => {
+    e.preventDefault();
+    
+    try {
+      const data = e.dataTransfer.getData('application/json');
+      if (!data) return;
+      
+      const { panelId: sourcePanelId, tabId } = JSON.parse(data);
+      
+      if (sourcePanelId === targetPanelId) return;
+      
+      moveTab(sourcePanelId, tabId, targetPanelId);
+    } catch (err) {
+      console.error('Error handling tab drop:', err);
+    }
+  }, [moveTab]);
+  
+  // Render a panel element
+  const renderPanel = useCallback((panelConfig: PanelConfig, depth = 0): JSX.Element => {
+    // Determine if this panel should be visible based on maximized state
+    const isHidden = maximizedPanelId !== null && maximizedPanelId !== panelConfig.id && 
+                    maximizedPanelId ? !panelConfig.id.includes(maximizedPanelId) : false;
+    
+    // If this is a regular panel (not a split)
+    if (panelConfig.type === 'panel') {
       return (
         <Panel 
-          key={panelConfig.id} 
-          id={panelConfig.id} 
-          minSize={panelConfig.minSize || 10} 
-          defaultSize={panelConfig.defaultSize}
+          key={panelConfig.id}
+          id={panelConfig.id}
+          defaultSize={panelConfig.size || 100}
+          minSize={panelConfig.minSize || 10}
+          style={{ 
+            display: isHidden ? 'none' : 'flex',
+            flexDirection: 'column'
+          }}
+          data-panel-drop-zone
+          data-panel-id={panelConfig.id}
         >
-          <PanelGroup 
-            direction={panelConfig.direction || 'horizontal'} 
+          <TabPanel
+            tabs={panelConfig.tabs || []}
+            contents={panelConfig.contents || []}
+            activeTabId={panelConfig.activeTabId || ''}
+            panelId={panelConfig.id}
+            onTabChange={(tabId) => changeTab(panelConfig.id, tabId)}
+            onTabClose={(tabId) => removeTab(panelConfig.id, tabId)}
+            onTabAdd={() => {
+              const contentType = panelConfig.id.includes('email-list') 
+                ? 'emailList' 
+                : panelConfig.id.includes('email-detail')
+                  ? 'emailDetail'
+                  : panelConfig.id.includes('sidebar')
+                    ? 'leftSidebar'
+                    : 'integrations';
+                    
+              handleTabAdd(panelConfig.id, contentType);
+            }}
+            onDragStart={(tabId, e) => handleTabDragStart(tabId, panelConfig.id, e)}
+            onDrop={(e) => handleTabDrop(panelConfig.id, e)}
+            onMaximize={onMaximizePanel ? () => onMaximizePanel(panelConfig.id) : undefined}
+            onRestore={onRestorePanel}
+            isMaximized={maximizedPanelId === panelConfig.id}
+          />
+        </Panel>
+      );
+    }
+    
+    // If this is a split container
+    if (panelConfig.type === 'split' && panelConfig.children) {
+      const isMaximized = maximizedPanelId && 
+                         panelConfig.children.some(child => 
+                           child.id === maximizedPanelId || 
+                           (child.type === 'split' && child.id.includes(maximizedPanelId))
+                         );
+      
+      return (
+        <Panel
+          key={panelConfig.id}
+          id={panelConfig.id}
+          defaultSize={panelConfig.size || 100}
+          style={{ 
+            display: maximizedPanelId !== null && !isMaximized && 
+              (maximizedPanelId ? !panelConfig.id.includes(maximizedPanelId) : false)
+              ? 'none' 
+              : 'flex' 
+          }}
+        >
+          <PanelGroup
+            direction={panelConfig.direction || 'horizontal'}
+            id={`group-${panelConfig.id || 'unknown'}`}
             onLayout={(sizes) => handlePanelResize(panelConfig.id, sizes)}
           >
-            {panelConfig.children.map((child, i) => (
-              <React.Fragment key={child.id}>
-                {renderPanel(child, depth + 1)}
-                {i < panelConfig.children!.length - 1 && (
-                  <PanelResizeHandle className="w-1 bg-neutral-200 dark:bg-neutral-800 hover:bg-primary cursor-col-resize" />
+            {panelConfig.children.map((childPanel, index) => (
+              <React.Fragment key={childPanel.id}>
+                {index > 0 && (
+                  <PanelResizeHandle 
+                    className={
+                      panelConfig.direction === 'horizontal'
+                        ? 'w-1 bg-neutral-200 dark:bg-neutral-800 hover:bg-primary'
+                        : 'h-1 bg-neutral-200 dark:bg-neutral-800 hover:bg-primary'
+                    }
+                  />
                 )}
+                {renderPanel(childPanel, depth + 1)}
               </React.Fragment>
             ))}
           </PanelGroup>
@@ -118,49 +199,23 @@ export function PanelContainer({
       );
     }
     
-    // Otherwise, render a panel with tabs
+    // Fallback for invalid configuration
     return (
-      <Panel 
-        key={panelConfig.id} 
-        id={panelConfig.id} 
-        minSize={panelConfig.minSize || 10} 
-        defaultSize={panelConfig.defaultSize}
-      >
-        <div 
-          className="h-full" 
-          onDrop={(e) => handleDrop(e, panelConfig.id)}
-          onDragOver={(e) => e.preventDefault()}
-        >
-          <TabContainer 
-            panelId={panelConfig.id}
-            tabs={panelConfig.tabs} 
-            activeTabId={panelConfig.activeTabId}
-            onTabChange={(tabId) => setActiveTab(tabId, panelConfig.id)}
-            onTabClose={(tabId) => closeTab(tabId, panelConfig.id)}
-            onTabAdd={() => handleAddTab(panelConfig.id)}
-            onDragStart={handleTabDragStart}
-            onMaximizePanel={onMaximizePanel ? () => onMaximizePanel(panelConfig.id) : undefined}
-            onRestorePanel={onRestorePanel}
-            isMaximized={isMaximized}
-          />
-        </div>
+      <Panel key={panelConfig.id || 'unknown'} id={panelConfig.id || 'unknown'}>
+        <div className="p-4 text-red-500">Invalid panel configuration</div>
       </Panel>
     );
   }, [
-    closeTab, 
-    handleAddTab, 
-    handleDrop, 
-    handlePanelResize, 
-    handleTabDragStart, 
     maximizedPanelId, 
+    changeTab, 
+    removeTab, 
+    handleTabAdd, 
+    handleTabDragStart, 
+    handleTabDrop, 
     onMaximizePanel, 
-    onRestorePanel, 
-    setActiveTab
+    onRestorePanel,
+    handlePanelResize
   ]);
-
-  return (
-    <PanelGroup direction={layout.direction || 'horizontal'}>
-      {renderPanel(layout)}
-    </PanelGroup>
-  );
+  
+  return renderPanel(layout);
 }

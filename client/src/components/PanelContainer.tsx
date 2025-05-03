@@ -217,5 +217,10 @@ export function PanelContainer({
     handlePanelResize
   ]);
   
-  return renderPanel(layout);
+  // Wrap the top-level Panel in a PanelGroup to avoid the "Panel components must be rendered within a PanelGroup container" error
+  return (
+    <PanelGroup direction="horizontal">
+      {renderPanel(layout)}
+    </PanelGroup>
+  );
 }

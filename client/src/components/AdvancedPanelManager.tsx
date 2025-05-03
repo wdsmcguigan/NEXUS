@@ -84,8 +84,8 @@ export function AdvancedPanelManager() {
           ...panel,
           tabs: panel.tabs.filter(t => t.id !== tabId),
           activeTabId: panel.activeTabId === tabId
-            ? panel.tabs.length > 1
-              ? panel.tabs[0].id === tabId
+            ? (panel.tabs.length > 1)
+              ? (panel.tabs[0].id === tabId)
                 ? panel.tabs[1].id
                 : panel.tabs[0].id
               : undefined
@@ -109,7 +109,7 @@ export function AdvancedPanelManager() {
         };
         
         // The current panel becomes a parent with children
-        return {
+        const updatedPanel: PanelConfig = {
           id: panel.id,
           type: 'split',
           direction,
@@ -120,6 +120,8 @@ export function AdvancedPanelManager() {
             ? [{ ...panel, id: `${panel.id}-child` }, newChildPanel]
             : [newChildPanel, { ...panel, id: `${panel.id}-child` }]
         };
+        
+        return updatedPanel;
       }
     );
     

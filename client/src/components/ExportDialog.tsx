@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EmailExporter, ExportFormat, ExportOptions } from '../services/EmailExporter';
-import { EmailWithDetails } from '../../shared/schema';
+import { EmailWithDetails } from '../../../shared/schema';
 import { useToast } from '@/hooks/use-toast';
 import { 
   FileJson, FileText, FileSpreadsheet, FileCode, CopyCheck,
@@ -71,11 +71,11 @@ export function ExportDialog({ open, onOpenChange, emails }: ExportDialogProps) 
       });
       
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Export error:', error);
       toast({
         title: 'Export failed',
-        description: `An error occurred while exporting: ${error.message}`,
+        description: `An error occurred while exporting: ${error?.message || 'Unknown error'}`,
         variant: 'destructive',
       });
     }
@@ -140,18 +140,20 @@ export function ExportDialog({ open, onOpenChange, emails }: ExportDialogProps) 
               <Calendar className="h-4 w-4" />
               <span>Date Format</span>
             </Label>
-            <Select value={dateFormat} onValueChange={setDateFormat} className="col-span-3">
-              <SelectTrigger id="date-format">
-                <SelectValue placeholder="Select date format" />
-              </SelectTrigger>
-              <SelectContent>
-                {DATE_FORMAT_OPTIONS.map((format) => (
-                  <SelectItem key={format.id} value={format.id}>
-                    {format.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="col-span-3">
+              <Select value={dateFormat} onValueChange={setDateFormat}>
+                <SelectTrigger id="date-format">
+                  <SelectValue placeholder="Select date format" />
+                </SelectTrigger>
+                <SelectContent>
+                  {DATE_FORMAT_OPTIONS.map((format) => (
+                    <SelectItem key={format.id} value={format.id}>
+                      {format.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           
           {/* Options */}

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import { EmailWithDetails } from '../../shared/schema';
+// Use the exact path to the shared schema
+import type { EmailWithDetails } from '../../shared/schema';
 import { useToast } from '@/hooks/use-toast';
 
 export function useEmailExport() {

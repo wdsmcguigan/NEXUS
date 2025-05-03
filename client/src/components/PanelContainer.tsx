@@ -180,20 +180,25 @@ export function PanelContainer({
             id={`group-${panelConfig.id || 'unknown'}`}
             onLayout={(sizes) => handlePanelResize(panelConfig.id, sizes)}
           >
-            {panelConfig.children.map((childPanel, index) => (
-              <React.Fragment key={childPanel.id}>
-                {index > 0 && (
+            {panelConfig.children.flatMap((childPanel, index) => {
+              const elements = [];
+              
+              if (index > 0) {
+                elements.push(
                   <PanelResizeHandle 
+                    key={`handle-${childPanel.id}`}
                     className={
                       panelConfig.direction === 'horizontal'
                         ? 'w-1 bg-neutral-200 dark:bg-neutral-800 hover:bg-primary'
                         : 'h-1 bg-neutral-200 dark:bg-neutral-800 hover:bg-primary'
                     }
                   />
-                )}
-                {renderPanel(childPanel, depth + 1)}
-              </React.Fragment>
-            ))}
+                );
+              }
+              
+              elements.push(renderPanel(childPanel, depth + 1));
+              return elements;
+            })}
           </PanelGroup>
         </Panel>
       );

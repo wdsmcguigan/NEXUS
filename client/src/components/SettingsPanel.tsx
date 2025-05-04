@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAppContext } from '../context/AppContext';
 import { TabWidthSlider } from './TabWidthSlider';
+import { TabHeightSlider } from './TabHeightSlider';
 import { Settings, Monitor, Moon, Sun, Layout, Eye, Bell, Type, CheckSquare } from 'lucide-react';
 
 export function SettingsPanel() {
@@ -76,6 +77,9 @@ export function SettingsPanel() {
             
             {/* Tab width */}
             <TabWidthSlider />
+            
+            {/* Tab height */}
+            <TabHeightSlider />
             
             {/* Compact mode */}
             <div className="flex items-center justify-between">

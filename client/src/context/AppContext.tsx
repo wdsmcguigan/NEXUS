@@ -4,7 +4,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 export interface AppSettings {
   theme: 'light' | 'dark' | 'system';
   sidebarPosition: 'left' | 'right';
-  tabSize: number; // Changed from string to number for slider
+  tabSize: number; // Width in pixels for tabs
+  tabHeight: number; // Height in pixels for tabs
   showAvatars: boolean;
   compactMode: boolean;
   enableNotifications: boolean;
@@ -26,6 +27,7 @@ const defaultSettings: AppSettings = {
   theme: 'dark',
   sidebarPosition: 'left',
   tabSize: 160, // Default pixel width
+  tabHeight: 40, // Default pixel height
   showAvatars: true,
   compactMode: false,
   enableNotifications: true,

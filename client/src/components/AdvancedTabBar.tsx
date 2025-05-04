@@ -3,6 +3,7 @@ import { Plus, MoreVertical, Menu, Maximize2, Minimize2 } from 'lucide-react';
 import { DraggableTab } from './DraggableTab';
 import { useDragContext, DropTarget } from '../context/DragContext';
 import { ComponentContext } from '../context/ComponentContext';
+import { useAppContext } from '../context/AppContext';
 import {
   DropdownMenu,
   DropdownMenuContent,

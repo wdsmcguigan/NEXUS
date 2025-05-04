@@ -359,35 +359,24 @@ function tabReducer(state: TabState, action: TabAction): TabState {
 
     case 'MOVE_TAB': {
       const { tabId, sourcePanelId, toPanelId, index } = action.payload;
-      console.log('MOVE_TAB reducer:', { tabId, sourcePanelId, toPanelId, index });
-      
       const tab = state.tabs[tabId];
       
       if (!tab) {
-        console.error(`MOVE_TAB: Tab ${tabId} not found in state`);
         return state;
       }
 
       const sourcePanel = state.panels[sourcePanelId];
       const targetPanel = state.panels[toPanelId];
       
-      if (!sourcePanel) {
-        console.error(`MOVE_TAB: Source panel ${sourcePanelId} not found`);
-        return state;
-      }
-      
-      if (!targetPanel) {
-        console.error(`MOVE_TAB: Target panel ${toPanelId} not found`);
+      if (!sourcePanel || !targetPanel) {
         return state;
       }
 
       // Check if tab is in the source panel
       if (!sourcePanel.tabs.includes(tabId)) {
-        console.error(`MOVE_TAB: Tab ${tabId} not found in source panel ${sourcePanelId}`);
+        console.error(`Tab ${tabId} not found in source panel ${sourcePanelId}`);
         return state;
       }
-      
-      console.log('MOVE_TAB: Panels found, proceeding with move');
 
       // Remove from source panel
       const sourceTabsUpdated = sourcePanel.tabs.filter(id => id !== tabId);
@@ -606,19 +595,6 @@ export function TabProvider({ children }: TabProviderProps) {
   }, []);
 
   const moveTab = useCallback((tabId: string, sourcePanelId: string, toPanelId: string, index?: number) => {
-    console.log(`TabContext.moveTab: Moving tab ${tabId} from panel ${sourcePanelId} to ${toPanelId}${index !== undefined ? ` at index ${index}` : ''}`);
-    
-    // Add validation to prevent common issues
-    if (!tabId || !sourcePanelId || !toPanelId) {
-      console.error('TabContext.moveTab: Missing required parameters', { tabId, sourcePanelId, toPanelId });
-      return;
-    }
-    
-    if (sourcePanelId === toPanelId && index === undefined) {
-      console.log('TabContext.moveTab: Source and target panels are the same with no index, no changes needed');
-      return;
-    }
-    
     dispatch({
       type: 'MOVE_TAB',
       payload: { tabId, sourcePanelId, toPanelId, index },

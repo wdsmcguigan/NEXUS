@@ -17,9 +17,8 @@ interface DragOverlayProps {
 export function DragOverlay({ active, onDrop }: DragOverlayProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
-  const { dragItem, endDrag, dropTarget, setDropTarget } = useDragContext();
+  const { dragItem, endDrag, dropTarget } = useDragContext();
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [edgeZones, setEdgeZones] = useState<DropZone[]>([]);
   
   // Handle mouse movements during drag
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -29,146 +28,17 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
       x: e.clientX,
       y: e.clientY
     });
-    
-    // Check for panel edges when dragging tabs
-    if (dragItem.type === 'tab') {
-      console.log('DragOverlay: Tab is being dragged, checking for drop targets');
-      
-      // Add function to detect tabbar areas for dragging tabs between panels
-      const checkTabBars = () => {
-        // Look for elements that could be tabbar containers
-        const tabContainers = document.querySelectorAll('.tab-bar-container');
-        console.log(`DragOverlay: Found ${tabContainers.length} tab bar containers`);
-        
-        if (tabContainers.length === 0) {
-          // If specific containers not found, try to find any element containing tabs
-          const tabs = document.querySelectorAll('[data-tab-id]');
-          console.log(`DragOverlay: Found ${tabs.length} individual tabs`);
-          
-          // If we found tabs, we can try to get their parent containers
-          if (tabs.length > 0) {
-            const tabParents = new Set<Element>();
-            tabs.forEach(tab => {
-              const parent = tab.parentElement;
-              if (parent) tabParents.add(parent);
-            });
-            
-            console.log(`DragOverlay: Found ${tabParents.size} potential tab parent containers`);
-          }
-        }
-      };
-      
-      // Detect panel edges for potential splitting
-      const checkPanelEdges = () => {
-        const panels = document.querySelectorAll('[data-panel-id]');
-        console.log(`DragOverlay: Found ${panels.length} panels with data-panel-id`);
-        
-        const edgeThreshold = 30; // pixels from edge to trigger
-        const foundEdgeZones: DropZone[] = [];
-        
-        panels.forEach(panel => {
-          const panelId = panel.getAttribute('data-panel-id');
-          if (!panelId) return;
-          
-          // Skip source panel
-          if (panelId === dragItem.sourcePanelId) {
-            console.log(`DragOverlay: Skipping source panel ${panelId}`);
-            return;
-          }
-          
-          const rect = panel.getBoundingClientRect();
-          
-          // Check left edge
-          if (Math.abs(e.clientX - rect.left) < edgeThreshold && 
-              e.clientY > rect.top && e.clientY < rect.bottom) {
-            foundEdgeZones.push({
-              id: panelId,
-              rect,
-              type: 'edge',
-              direction: 'left'
-            });
-          }
-          
-          // Check right edge
-          if (Math.abs(e.clientX - rect.right) < edgeThreshold && 
-              e.clientY > rect.top && e.clientY < rect.bottom) {
-            foundEdgeZones.push({
-              id: panelId,
-              rect,
-              type: 'edge',
-              direction: 'right'
-            });
-          }
-          
-          // Check top edge
-          if (Math.abs(e.clientY - rect.top) < edgeThreshold && 
-              e.clientX > rect.left && e.clientX < rect.right) {
-            foundEdgeZones.push({
-              id: panelId,
-              rect,
-              type: 'edge',
-              direction: 'top'
-            });
-          }
-          
-          // Check bottom edge
-          if (Math.abs(e.clientY - rect.bottom) < edgeThreshold && 
-              e.clientX > rect.left && e.clientX < rect.right) {
-            foundEdgeZones.push({
-              id: panelId,
-              rect,
-              type: 'edge',
-              direction: 'bottom'
-            });
-          }
-        });
-        
-        setEdgeZones(foundEdgeZones);
-        
-        // If we're over an edge, update drop target
-        if (foundEdgeZones.length > 0) {
-          // Sort by distance to find closest edge
-          const closestEdge = foundEdgeZones.sort((a, b) => {
-            const getDistance = (zone: DropZone) => {
-              const { rect, direction } = zone;
-              switch (direction) {
-                case 'left': return Math.abs(e.clientX - rect.left);
-                case 'right': return Math.abs(e.clientX - rect.right);
-                case 'top': return Math.abs(e.clientY - rect.top);
-                case 'bottom': return Math.abs(e.clientY - rect.bottom);
-                default: return Number.MAX_VALUE;
-              }
-            };
-            return getDistance(a) - getDistance(b);
-          })[0];
-          
-          setDropTarget({
-            id: closestEdge.id,
-            type: 'edge',
-            rect: closestEdge.rect,
-            direction: closestEdge.direction
-          });
-        }
-      };
-      
-      checkPanelEdges();
-      checkTabBars(); // Call our new function to detect tabbars
-    }
-  }, [active, dragItem, setDropTarget]);
+  }, [active, dragItem]);
   
   // Handle mouse up to end drag
   const handleMouseUp = useCallback((e: MouseEvent) => {
     if (!active || !dragItem) return;
     
-    console.log('Mouse up in DragOverlay, dropTarget:', dropTarget);
-    
     // If we have a drop target, perform the drop
     if (dropTarget) {
-      console.log('Performing drop on target:', dropTarget);
       onDrop(dropTarget);
     } else {
       // Otherwise just end the drag
-      console.log('No drop target, ending drag');
       endDrag();
     }
   }, [active, dragItem, dropTarget, endDrag, onDrop]);
@@ -281,88 +151,35 @@ function SplitPreview({
   const isHorizontal = direction === 'left' || direction === 'right';
   const isStart = direction === 'left' || direction === 'top';
   
-  // Define size of the split preview
-  const splitSize = 150; // pixels
-  
-  // Create container style
-  let containerStyle: React.CSSProperties = {
+  let previewStyle: React.CSSProperties = {
     position: 'fixed',
     zIndex: 40,
-    left: rect.left,
-    top: rect.top,
-    width: rect.width,
-    height: rect.height,
-    pointerEvents: 'none',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
-  };
-  
-  // Create split preview style
-  let previewStyle: React.CSSProperties = {
-    position: 'absolute',
-    zIndex: 41,
-    pointerEvents: 'none',
-    background: 'rgba(59, 130, 246, 0.3)',
-    border: '2px solid rgba(59, 130, 246, 1)',
-    borderRadius: '4px',
-    boxShadow: '0 0 15px rgba(59, 130, 246, 0.5)'
+    pointerEvents: 'none'
   };
   
   // Calculate position based on direction
   if (isHorizontal) {
     previewStyle = {
       ...previewStyle,
-      left: isStart ? 0 : 'auto',
-      right: isStart ? 'auto' : 0,
-      top: 0,
-      width: splitSize,
-      height: '100%',
+      left: isStart ? rect.left : rect.right - 150,
+      top: rect.top,
+      width: 150,
+      height: rect.height,
     };
   } else {
     previewStyle = {
       ...previewStyle,
-      left: 0,
-      top: isStart ? 0 : 'auto',
-      bottom: isStart ? 'auto' : 0,
-      width: '100%',
-      height: splitSize,
+      left: rect.left,
+      top: isStart ? rect.top : rect.bottom - 150,
+      width: rect.width,
+      height: 150,
     };
   }
   
-  // Create divider line style
-  const dividerStyle: React.CSSProperties = {
-    position: 'absolute',
-    background: 'rgba(59, 130, 246, 1)',
-    zIndex: 42,
-    ...(isHorizontal 
-      ? { 
-          width: '3px', 
-          height: '100%', 
-          left: isStart ? splitSize : 'auto',
-          right: isStart ? 'auto' : splitSize,
-          top: 0
-        } 
-      : {
-          width: '100%',
-          height: '3px',
-          top: isStart ? splitSize : 'auto',
-          bottom: isStart ? 'auto' : splitSize,
-          left: 0
-        })
-  };
-  
   return (
-    <div style={containerStyle}>
-      <div className="animate-pulse" style={previewStyle}>
-        {/* Add a visual cue indicating the area will be a new panel */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-white text-sm font-bold bg-blue-600 px-2 py-1 rounded shadow">
-            New Panel
-          </span>
-        </div>
-      </div>
-      <div style={dividerStyle} />
-    </div>
+    <div
+      className="bg-blue-500 bg-opacity-20 border-2 border-blue-500 rounded"
+      style={previewStyle}
+    />
   );
 }

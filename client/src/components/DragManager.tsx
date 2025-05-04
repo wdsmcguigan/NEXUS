@@ -26,87 +26,39 @@ export function DragManager() {
   
   // Handle the drop operation
   const handleDrop = (target: DropTarget) => {
-    console.log('DragManager: handle drop called with target:', target);
-    console.log('DragManager: current dragItem:', dragItem);
+    if (!dragItem) return;
     
-    if (!dragItem) {
-      console.error('DragManager: No drag item found when handling drop');
-      endDrag(false);
-      return;
-    }
-    
-    try {
-      // Handle different types of drag items
-      if (dragItem.type === 'tab' && dragItem.sourcePanelId) {
-        const { id: tabId, sourcePanelId } = dragItem;
-        
-        if (!tabId || !sourcePanelId) {
-          console.error('DragManager: Tab ID or source panel ID is missing:', dragItem);
-          endDrag(false);
-          return;
-        }
-        
-        console.log(`DragManager: Moving tab ${tabId} from panel ${sourcePanelId}`);
-        
-        // Skip if target is the same as source with no position change
-        if (
-          (target.type === 'panel' || target.type === 'tabbar') && 
-          target.id === sourcePanelId &&
-          target.type !== 'position'
-        ) {
-          console.log('DragManager: Source and target panels are the same, skipping move');
-          endDrag(false);
-          return;
-        }
-        
-        // Handle different types of drop targets
-        switch (target.type) {
-          case 'panel':
-            console.log(`DragManager: Moving tab to panel ${target.id}`);
-            moveTab(tabId, sourcePanelId, target.id);
-            break;
-          case 'tabbar':
-            console.log(`DragManager: Moving tab to tabbar ${target.id}`);
-            moveTab(tabId, sourcePanelId, target.id);
-            break;
-          case 'position':
-            // Move tab to specific position
-            if (target.position) {
-              console.log(`DragManager: Moving tab to position index ${target.position.index} in panel ${target.position.panelId}`);
-              moveTab(
-                tabId, 
-                sourcePanelId, 
-                target.position.panelId, 
-                target.position.index
-              );
-            } else {
-              console.error('DragManager: Position target without position data');
-              endDrag(false);
-              return;
-            }
-            break;
-          case 'edge':
-            console.log(`DragManager: Edge target detected, should be handled by PanelSplitter`);
-            // Edge case is handled by PanelSplitter component
-            break;
-          default:
-            console.log(`DragManager: Unhandled target type: ${target.type}`);
-            endDrag(false);
-            return;
-        }
-      } else {
-        console.log(`DragManager: Unsupported drag item type: ${dragItem.type}`);
-        endDrag(false);
-        return;
-      }
+    // Handle different types of drag items
+    if (dragItem.type === 'tab' && dragItem.sourcePanelId) {
+      const { id: tabId, sourcePanelId } = dragItem;
       
-      // End the drag operation
-      console.log('DragManager: Ending drag operation with successful drop');
-      endDrag(true);
-    } catch (error) {
-      console.error('DragManager: Error during drop handling:', error);
-      endDrag(false);
+      // Handle different types of drop targets
+      switch (target.type) {
+        case 'panel':
+          // Move tab to panel
+          moveTab(tabId, sourcePanelId, target.id);
+          break;
+        case 'tabbar':
+          // Move tab to tabbar (same as panel)
+          moveTab(tabId, sourcePanelId, target.id);
+          break;
+        case 'position':
+          // Move tab to specific position
+          if (target.position) {
+            moveTab(
+              tabId, 
+              sourcePanelId, 
+              target.position.panelId, 
+              target.position.index
+            );
+          }
+          break;
+        // Edge case is handled by PanelSplitter component
+      }
     }
+    
+    // End the drag operation
+    endDrag(true);
   };
   
   // Update drag preview position on mouse move

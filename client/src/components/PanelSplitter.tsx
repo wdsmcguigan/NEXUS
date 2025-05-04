@@ -54,7 +54,6 @@ export function PanelSplitter() {
   React.useEffect(() => {
     if (dropTarget?.type === 'edge' && dragItem?.type === 'tab') {
       // Auto-handle edge drops immediately
-      // No modifier keys required for panel splitting
       handleEdgeDrop();
     }
   }, [dropTarget, dragItem, handleEdgeDrop]);

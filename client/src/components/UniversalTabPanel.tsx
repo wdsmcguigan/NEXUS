@@ -45,38 +45,20 @@ export function UniversalTabPanel({
   const { moveTab } = useTabContext();
   
   const handleTabDrop = (target: DropTarget, tabId: string, sourcePanelId: string) => {
-    console.log(`UniversalTabPanel: Handling tab drop in panel ${panelId}`, {
-      target,
-      tabId,
-      sourcePanelId
-    });
-    
-    if (tabId === undefined || !sourcePanelId) {
-      console.error('UniversalTabPanel: Missing tabId or sourcePanelId in handleTabDrop');
-      return;
-    }
-    
-    if (sourcePanelId === panelId) {
-      console.log('UniversalTabPanel: Source and target panels are the same, skipping moveTab call');
-      return;
-    }
-    
     if (target.type === 'tabbar') {
       // Move the tab to this panel
-      console.log(`UniversalTabPanel: Moving tab ${tabId} from panel ${sourcePanelId} to panel ${panelId} (append)`);
       moveTab(tabId, sourcePanelId, panelId);
     } 
     else if (target.type === 'position' && target.position) {
       // Move the tab to a specific position in this panel
       const { index } = target.position;
-      console.log(`UniversalTabPanel: Moving tab ${tabId} from panel ${sourcePanelId} to panel ${panelId} at index ${index}`);
       moveTab(tabId, sourcePanelId, panelId, index);
     }
   };
   
   // Render the tabs for this panel with fixed heights
   return (
-    <div className="flex flex-col h-full bg-neutral-950" data-panel-id={panelId}>
+    <div className="flex flex-col h-full bg-neutral-950">
       {/* Advanced tab bar with drag and drop */}
       <AdvancedTabBar
         tabs={tabs}

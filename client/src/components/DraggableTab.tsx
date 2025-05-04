@@ -31,17 +31,10 @@ export function DraggableTab({
   const { startDrag } = useDragContext();
   const tabRef = useRef<HTMLDivElement>(null);
   
-  // Handle starting a drag operation on mouse down instead of dragStart
-  const handleMouseDown = (e: React.MouseEvent) => {
-    // Only start the drag with the primary button (left click)
-    if (e.button !== 0) return;
-    
-    // Don't start drag on close button click
-    if ((e.target as HTMLElement).closest('.tab-close-button')) {
-      return;
-    }
-    
-    console.log(`DraggableTab: Mouse down on tab ${id} in panel ${panelId}`);
+  // Handle starting a drag operation
+  const handleDragStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     
     if (tabRef.current) {
       // Create a drag item that represents this tab
@@ -57,14 +50,8 @@ export function DraggableTab({
         }
       };
       
-      console.log('DraggableTab: Created drag item:', dragItem);
-      
       // Start the drag operation
       startDrag(dragItem);
-      
-      // Prevent default behaviors
-      e.preventDefault();
-      e.stopPropagation();
     }
   };
   
@@ -76,14 +63,18 @@ export function DraggableTab({
         isActive 
           ? "text-white bg-neutral-800 border-t-2 border-t-blue-500" 
           : "text-neutral-400 hover:text-white hover:bg-neutral-800/50",
-        "select-none",
-        "cursor-grab active:cursor-grabbing"
+        "select-none"
       )}
       style={{ width: `${settings.tabSize}px` }}
       onClick={onClick}
-      onMouseDown={handleMouseDown}
-      data-tab-id={id}
-      data-panel-id={panelId}
+      onMouseDown={(e) => {
+        // Middle mouse button to start drag
+        if (e.button === 0 && (e.ctrlKey || e.altKey)) {
+          handleDragStart(e);
+        }
+      }}
+      draggable="true"
+      onDragStart={handleDragStart}
     >
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center overflow-hidden">
@@ -93,7 +84,7 @@ export function DraggableTab({
         
         {closeable && onClose && (
           <div
-            className="ml-2 text-neutral-500 hover:text-white p-1 rounded-sm hover:bg-neutral-700 tab-close-button"
+            className="ml-2 text-neutral-500 hover:text-white p-1 rounded-sm hover:bg-neutral-700"
             onClick={(e) => {
               e.stopPropagation();
               onClose();

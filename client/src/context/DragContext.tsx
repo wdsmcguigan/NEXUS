@@ -64,7 +64,6 @@ export function DragProvider({ children }: { children: ReactNode }) {
   
   // Method to start a drag operation
   const startDrag = useCallback((item: DragItem, operation: DragOperation = 'move') => {
-    console.log('Starting drag operation:', item);
     setIsDragging(true);
     setDragItem(item);
     setDragOperation(operation);
@@ -73,54 +72,20 @@ export function DragProvider({ children }: { children: ReactNode }) {
   
   // Method to end a drag operation
   const endDrag = useCallback((dropped: boolean = false) => {
-    const source = dragItem?.sourcePanelId;
-    const target = dropTarget?.id;
-    console.log(`DragContext: Ending drag operation from ${source} to ${target}, successful: ${dropped}`);
-    
-    // Log more details if we have them
-    if (dragItem) {
-      console.log('DragContext: Drag item details:', {
-        id: dragItem.id,
-        type: dragItem.type,
-        sourcePanel: dragItem.sourcePanelId,
-        sourceIndex: dragItem.sourceIndex
-      });
-    }
-    
-    if (dropTarget) {
-      console.log('DragContext: Drop target details:', {
-        id: dropTarget.id,
-        type: dropTarget.type,
-        direction: dropTarget.direction,
-        position: dropTarget.position
-      });
-    }
-    
-    // Reset state
     setIsDragging(false);
     setDragItem(null);
-    
-    // Only keep dropTarget if it was a successful drop (for visual feedback)
     if (!dropped) {
       setDropTarget(null);
-    } else {
-      // If it was a successful drop, clear drop target after a short delay
-      // to allow for visual feedback
-      setTimeout(() => {
-        setDropTarget(null);
-      }, 300);
     }
-  }, [dragItem, dropTarget]);
+  }, []);
   
   // Method to update keyboard modifiers
-  // Modified to not require modifiers for normal operations
   const setModifiers = useCallback((shift: boolean, alt: boolean, ctrl: boolean) => {
     setIsShiftPressed(shift);
     setIsAltPressed(alt);
     setIsCtrlPressed(ctrl);
     
     // Update drag operation based on modifiers
-    // Always use 'move' as default - no modifiers required for normal operations
     let operation: DragOperation = 'move';
     if (ctrl) operation = 'copy';
     if (alt) operation = 'link';

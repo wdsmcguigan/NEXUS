@@ -166,14 +166,16 @@ export function PanelContextMenu({
     
     console.log(`📊 [PANEL_MENU] Splitting panel ${panelId} ${direction}ly with newPanelId: ${newPanelId}`);
     
-    // Create options object with newPanelId
-    const splitOptions = {
-      newPanelId: newPanelId,
-      positionAfter: false // By default, put the new panel first in the split
+    // Create a properly typed PanelConfig for the new panel
+    const newPanel = {
+      id: newPanelId,
+      type: 'panel' as const,
+      tabs: [],
+      size: 50 // Default to 50% size
     };
     
     // Perform the split
-    splitPanel(panelId, direction, splitOptions);
+    splitPanel(panelId, direction, newPanel);
   };
   
   // Handle changing the tab 

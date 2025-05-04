@@ -1,21 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Settings, Moon, Sun, Monitor, Save, Mail, Bell, Shield, PanelLeft, Users, Palette } from 'lucide-react';
-
-// Define our main settings interface
-interface AppSettings {
-  theme: 'light' | 'dark' | 'system';
-  sidebarPosition: 'left' | 'right';
-  tabSize: 'small' | 'medium' | 'large';
-  showAvatars: boolean;
-  compactMode: boolean;
-  enableNotifications: boolean;
-  markdownSupport: boolean;
-  previewPane: boolean;
-  spellCheck: boolean;
-  signature: string;
-  accountName: string;
-  emailAddress: string;
-}
+import { useAppContext, AppSettings } from '../context/AppContext';
+import { Slider } from '@/components/ui/slider';
 
 // Define mock accounts
 interface Account {
@@ -26,21 +12,16 @@ interface Account {
 }
 
 export function SettingsPanel() {
-  // Initialize with some default settings
-  const [settings, setSettings] = useState<AppSettings>({
-    theme: 'dark',
-    sidebarPosition: 'left',
-    tabSize: 'medium',
-    showAvatars: true,
-    compactMode: false,
-    enableNotifications: true,
-    markdownSupport: true,
-    previewPane: true,
-    spellCheck: true,
-    signature: 'Sent from NEXUS.email',
-    accountName: 'John Doe',
-    emailAddress: 'john@example.com',
-  });
+  // Use the global app context for settings
+  const { settings: globalSettings, updateSettings, updateSetting } = useAppContext();
+  
+  // Create a local copy of settings that we can modify and save later
+  const [settings, setSettings] = useState<AppSettings>({...globalSettings});
+
+  // Sync local settings with global ones when global changes
+  useEffect(() => {
+    setSettings({...globalSettings});
+  }, [globalSettings]);
 
   const [activeTab, setActiveTab] = useState('general');
   
@@ -70,9 +51,15 @@ export function SettingsPanel() {
     handleSettingChange(settingName, !settings[settingName]);
   };
 
+  // Handle tab size slider change
+  const handleTabSizeChange = (value: number[]) => {
+    handleSettingChange('tabSize', value[0]);
+  };
+
   const saveSettings = () => {
-    console.log('Saving settings:', settings);
-    // In a real app, this would call an API to save the settings
+    // Save all settings at once to global context
+    updateSettings(settings);
+    console.log('Settings saved:', settings);
   };
 
   return (
@@ -251,28 +238,24 @@ export function SettingsPanel() {
                 </div>
                 
                 <div className="pt-2">
-                  <span className="block mb-2">Tab size:</span>
-                  <div className="flex space-x-2">
-                    <button
-                      className={`flex-1 p-3 flex items-center justify-center rounded-sm border ${settings.tabSize === 'small' ? 'border-blue-500 bg-blue-900/20' : 'border-neutral-700 hover:bg-neutral-800'}`}
-                      onClick={() => handleSettingChange('tabSize', 'small')}
-                    >
-                      <span>Small</span>
-                    </button>
-                    
-                    <button
-                      className={`flex-1 p-3 flex items-center justify-center rounded-sm border ${settings.tabSize === 'medium' ? 'border-blue-500 bg-blue-900/20' : 'border-neutral-700 hover:bg-neutral-800'}`}
-                      onClick={() => handleSettingChange('tabSize', 'medium')}
-                    >
-                      <span>Medium</span>
-                    </button>
-                    
-                    <button
-                      className={`flex-1 p-3 flex items-center justify-center rounded-sm border ${settings.tabSize === 'large' ? 'border-blue-500 bg-blue-900/20' : 'border-neutral-700 hover:bg-neutral-800'}`}
-                      onClick={() => handleSettingChange('tabSize', 'large')}
-                    >
-                      <span>Large</span>
-                    </button>
+                  <div className="flex items-center justify-between mb-2">
+                    <span>Tab size:</span>
+                    <span className="text-sm text-neutral-400">{settings.tabSize}px</span>
+                  </div>
+                  <div className="px-1 py-4">
+                    <Slider
+                      defaultValue={[settings.tabSize]}
+                      value={[settings.tabSize]}
+                      min={100}
+                      max={300}
+                      step={10}
+                      onValueChange={handleTabSizeChange}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-neutral-400 px-1">
+                    <span>Narrow</span>
+                    <span>Wide</span>
                   </div>
                 </div>
                 

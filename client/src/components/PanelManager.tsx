@@ -46,24 +46,24 @@ function PanelLayout({ panelId, maximizedPanelId, onMaximizePanel, onRestorePane
           direction={panel.direction}
           className="h-full w-full"
         >
-          {childPanels.map((childPanel, index) => (
-            <React.Fragment key={childPanel.id}>
-              <div className="w-full h-full" style={{ flex: 1 }}>
-                <ResizablePanel defaultSize={childPanel.size || 100 / childPanels.length} data-panel-id={childPanel.id}>
-                  <PanelLayout 
-                    panelId={childPanel.id} 
-                    maximizedPanelId={maximizedPanelId}
-                    onMaximizePanel={onMaximizePanel}
-                    onRestorePanel={onRestorePanel}
-                  />
-                </ResizablePanel>
-              </div>
-              
-              {index < childPanels.length - 1 && (
-                <ResizableHandle withHandle />
-              )}
-            </React.Fragment>
-          ))}
+          {childPanels.map((childPanel, index) => [
+            <ResizablePanel 
+              key={childPanel.id}
+              defaultSize={childPanel.size || 100 / childPanels.length} 
+              data-panel-id={childPanel.id}
+            >
+              <PanelLayout 
+                panelId={childPanel.id} 
+                maximizedPanelId={maximizedPanelId}
+                onMaximizePanel={onMaximizePanel}
+                onRestorePanel={onRestorePanel}
+              />
+            </ResizablePanel>,
+            
+            index < childPanels.length - 1 ? (
+              <ResizableHandle key={`handle-${childPanel.id}`} withHandle />
+            ) : null
+          ].filter(Boolean))}
         </ResizablePanelGroup>
       </div>
     );

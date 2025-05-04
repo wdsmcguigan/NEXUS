@@ -58,7 +58,15 @@ export function AdvancedTabBar({
     if (!isDragging || !tabBarRef.current || dragItem?.type !== 'tab') return;
     
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
+      if (!isDragging || !dragItem) return;
+      
+      // Skip handling if we're dragging from the same panel (let normal tab reordering handle it)
+      if (dragItem.type === 'tab' && dragItem.sourcePanelId === panelId) {
+        console.log(`AdvancedTabBar: Dragging within same panel ${panelId}, skipping panel-to-panel drag detection`);
+        return;
+      }
+      
+      console.log(`AdvancedTabBar: Checking for drop target in panel ${panelId} for drag item:`, dragItem);
       
       // Check if mouse is inside the tabbar
       const tabBarRect = tabBarRef.current!.getBoundingClientRect();
@@ -70,6 +78,8 @@ export function AdvancedTabBar({
       );
       
       if (isInTabbar) {
+        console.log(`AdvancedTabBar: Mouse is inside tabbar for panel ${panelId}`);
+        
         // Detect tab position for insertion
         let targetIndex = -1;
         let minDistance = Infinity;
@@ -113,11 +123,12 @@ export function AdvancedTabBar({
   }, [isDragging, dragItem, dropTarget, dropZones, panelId, setDropTarget]);
   
   return (
-    <div className="flex relative h-[40px] min-h-[40px] max-h-[40px] border-b border-neutral-800 bg-neutral-900 overflow-hidden">
+    <div className="flex relative h-[40px] min-h-[40px] max-h-[40px] border-b border-neutral-800 bg-neutral-900 overflow-hidden" data-panel-id={panelId}>
       <div 
         ref={tabBarRef}
-        className="flex overflow-x-auto overflow-y-hidden scrollbar-none"
+        className="flex overflow-x-auto overflow-y-hidden scrollbar-none tab-bar-container"
         style={{ scrollbarWidth: 'none' }}
+        data-panel-id={panelId}
       >
         {tabs.map((tab, index) => (
           <DraggableTab

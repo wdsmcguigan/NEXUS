@@ -1,266 +1,207 @@
-import React, { createContext, useContext, useReducer, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 
-// Type definitions for drag operations
-export interface Point {
-  x: number;
-  y: number;
+// Types for dragged items
+export interface DragItem {
+  type: 'tab' | 'component' | 'panel';
+  id: string;
+  sourcePanelId?: string;
+  sourceIndex?: number;
+  data?: any;
 }
 
-export type DropTargetType = 'panel' | 'tabbar' | 'tab' | 'edge' | 'position';
-export type DropDirection = 'top' | 'right' | 'bottom' | 'left';
+// Types for drag states
+export type DragOperation = 'move' | 'copy' | 'link';
+export type DropTargetType = 'panel' | 'edge' | 'tabbar' | 'position';
+export type DropDirection = 'top' | 'right' | 'bottom' | 'left' | 'before' | 'after';
 
-export interface TabPosition {
-  panelId: string;
+export interface DropPosition {
   index: number;
+  panelId: string;
 }
 
-// Combined drop target type that satisfies all consumers
 export interface DropTarget {
   type: DropTargetType;
   id: string;
   direction?: DropDirection;
-  position?: TabPosition;
-  
-  // Legacy properties for backward compatibility
-  panelId?: string;
-  targetZone?: 'before' | 'after' | 'inside' | 'edge';
-  tabId?: string;
-  edge?: DropDirection;
+  position?: DropPosition;
+  rect?: DOMRect;
 }
 
-export interface DropIndicator {
-  visible: boolean;
-  targetPanelId?: string;
-  position?: 'before' | 'after';
-  tabId?: string;
+// Configuration for edge detection
+export interface EdgeDetectionConfig {
+  edgeThreshold: number; // Percentage of panel size to consider as edge zone (e.g., 20 for 20%)
 }
 
-export interface DragItem {
-  type: 'tab' | 'panel' | 'component';
-  id: string;
-  data?: any;
-  sourcePanelId?: string;
-  title?: string;
-  icon?: React.ReactNode;
-}
-
-export interface DragState {
-  isDragging: boolean;
-  draggedTabId?: string;
-  draggedTabTitle?: string;
-  draggedTabIcon?: React.ReactNode;
-  sourcePanelId?: string;
-  lastClientX: number;
-  lastClientY: number;
-  dropIndicator: DropIndicator;
-  dragItem?: DragItem;
-  dropTarget?: DropTarget;
-  mousePosition: Point;
-  dragOperation?: string;
-}
-
-// Actions
-type DragAction =
-  | { type: 'START_DRAG'; payload: { tabId: string; title: string; icon?: React.ReactNode; panelId: string; x: number; y: number } }
-  | { type: 'MOVE_DRAG'; payload: { x: number; y: number } }
-  | { type: 'SET_DROP_TARGET'; payload: DropTarget }
-  | { type: 'CLEAR_DROP_TARGET' }
-  | { type: 'END_DRAG'; payload?: { success: boolean } }
-  | { type: 'SET_DRAG_ITEM'; payload: DragItem }
-  | { type: 'UPDATE_MOUSE_POSITION'; payload: Point }
-  | { type: 'SET_DRAG_OPERATION'; payload: string };
-
-// Reducer
-const dragReducer = (state: DragState, action: DragAction): DragState => {
-  switch (action.type) {
-    case 'START_DRAG':
-      return {
-        ...state,
-        isDragging: true,
-        draggedTabId: action.payload.tabId,
-        draggedTabTitle: action.payload.title,
-        draggedTabIcon: action.payload.icon,
-        sourcePanelId: action.payload.panelId,
-        lastClientX: action.payload.x,
-        lastClientY: action.payload.y,
-        mousePosition: { x: action.payload.x, y: action.payload.y },
-        dropIndicator: { visible: false },
-        // Create a drag item based on the tab info
-        dragItem: {
-          type: 'tab',
-          id: action.payload.tabId,
-          sourcePanelId: action.payload.panelId,
-          title: action.payload.title,
-          icon: action.payload.icon
-        }
-      };
-
-    case 'MOVE_DRAG':
-      return {
-        ...state,
-        lastClientX: action.payload.x,
-        lastClientY: action.payload.y,
-        mousePosition: { x: action.payload.x, y: action.payload.y }
-      };
-
-    case 'SET_DROP_TARGET':
-      return {
-        ...state,
-        dropTarget: action.payload,
-        dropIndicator: {
-          visible: true,
-          targetPanelId: action.payload.panelId,
-          position: action.payload.targetZone as 'before' | 'after' | undefined,
-          tabId: action.payload.tabId
-        }
-      };
-
-    case 'CLEAR_DROP_TARGET':
-      return {
-        ...state,
-        dropTarget: undefined,
-        dropIndicator: { visible: false }
-      };
-
-    case 'END_DRAG':
-      // Keep the drop target if success is true (for post-processing)
-      const keepDropTarget = action.payload?.success === true;
-      return {
-        ...state,
-        isDragging: false,
-        draggedTabId: undefined,
-        draggedTabTitle: undefined,
-        draggedTabIcon: undefined,
-        sourcePanelId: undefined,
-        dropIndicator: { visible: false },
-        dropTarget: keepDropTarget ? state.dropTarget : undefined,
-        dragItem: keepDropTarget ? state.dragItem : undefined,
-      };
-      
-    case 'SET_DRAG_ITEM':
-      return {
-        ...state,
-        dragItem: action.payload,
-        isDragging: true
-      };
-      
-    case 'UPDATE_MOUSE_POSITION':
-      return {
-        ...state,
-        mousePosition: action.payload
-      };
-      
-    case 'SET_DRAG_OPERATION':
-      return {
-        ...state,
-        dragOperation: action.payload
-      };
-
-    default:
-      return state;
-  }
-};
-
-// Context
 export interface DragContextType {
-  dragState: DragState;
-  startDrag: (tabId: string, title: string, panelId: string, x: number, y: number, icon?: React.ReactNode) => void;
-  moveDrag: (x: number, y: number) => void;
-  endDrag: (success?: boolean) => void;
-  setDropTarget: (target: DropTarget) => void;
-  clearDropTarget: () => void;
-  
-  // Direct access to commonly used properties for convenience
+  // Current drag state
   isDragging: boolean;
-  dragItem?: DragItem;
-  dropTarget?: DropTarget;
-  mousePosition: Point;
-  dragOperation?: string;
+  dragItem: DragItem | null;
+  dragOperation: DragOperation;
+  dropTarget: DropTarget | null;
+  mousePosition: { x: number, y: number } | null;
+  
+  // Methods for drag operations
+  startDrag: (item: DragItem, operation?: DragOperation) => void;
+  endDrag: (dropped?: boolean) => void;
+  setDropTarget: (target: DropTarget | null) => void;
   updateMousePosition: (x: number, y: number) => void;
+  
+  // Edge detection
+  edgeDetection: EdgeDetectionConfig;
+  detectEdgeZone: (rect: DOMRect, x: number, y: number) => DropDirection | null;
+  
+  // Keyboard modifiers
+  isShiftPressed: boolean;
+  isAltPressed: boolean;
+  isCtrlPressed: boolean;
+  setModifiers: (shift: boolean, alt: boolean, ctrl: boolean) => void;
 }
 
-const initialDragState: DragState = {
-  isDragging: false,
-  lastClientX: 0,
-  lastClientY: 0,
-  dropIndicator: { visible: false },
-  mousePosition: { x: 0, y: 0 }
-};
-
+// Create the context
 const DragContext = createContext<DragContextType | undefined>(undefined);
 
-// Provider
-interface DragProviderProps {
-  children: ReactNode;
-}
-
-export function DragProvider({ children }: DragProviderProps) {
-  const [dragState, dispatch] = useReducer(dragReducer, initialDragState);
-
-  const startDrag = useCallback(
-    (tabId: string, title: string, panelId: string, x: number, y: number, icon?: React.ReactNode) => {
-      dispatch({
-        type: 'START_DRAG',
-        payload: { tabId, title, icon, panelId, x, y }
-      });
-    },
-    []
-  );
-
-  const moveDrag = useCallback((x: number, y: number) => {
-    dispatch({ type: 'MOVE_DRAG', payload: { x, y } });
-  }, []);
-
-  const endDrag = useCallback((success?: boolean) => {
-    dispatch({ 
-      type: 'END_DRAG',
-      payload: success !== undefined ? { success } : undefined
-    });
-  }, []);
-
-  const setDropTarget = useCallback((target: DropTarget) => {
-    dispatch({ type: 'SET_DROP_TARGET', payload: target });
-  }, []);
-
-  const clearDropTarget = useCallback(() => {
-    dispatch({ type: 'CLEAR_DROP_TARGET' });
+// Provider component
+export function DragProvider({ children }: { children: ReactNode }) {
+  // Drag state
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragItem, setDragItem] = useState<DragItem | null>(null);
+  const [dragOperation, setDragOperation] = useState<DragOperation>('move');
+  const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  const [mousePosition, setMousePosition] = useState<{ x: number, y: number } | null>(null);
+  
+  // Edge detection configuration
+  const edgeDetection: EdgeDetectionConfig = {
+    edgeThreshold: 20 // 20% of panel size as edge detection zone
+  };
+  
+  // Keyboard modifiers
+  const [isShiftPressed, setIsShiftPressed] = useState(false);
+  const [isAltPressed, setIsAltPressed] = useState(false);
+  const [isCtrlPressed, setIsCtrlPressed] = useState(false);
+  
+  // Method to start a drag operation
+  const startDrag = useCallback((item: DragItem, operation: DragOperation = 'move') => {
+    setIsDragging(true);
+    setDragItem(item);
+    setDragOperation(operation);
+    setDropTarget(null);
   }, []);
   
-  // New action handlers
+  // Method to end a drag operation
+  const endDrag = useCallback((dropped: boolean = false) => {
+    console.log('Ending drag operation, dropped:', dropped, 'current dropTarget:', dropTarget);
+    
+    // If this was a successful drop and we have a drop target,
+    // leave the drop target info in place briefly to allow the handler to process it
+    if (dropped && dropTarget) {
+      // Set drag state to inactive but preserve the drop target briefly
+      setIsDragging(false);
+      setDragItem(null);
+      setMousePosition(null);
+      
+      // After a small delay, clean up the drop target
+      // This ensures any effects that depend on the drop target have time to process
+      setTimeout(() => {
+        setDropTarget(null);
+      }, 100);
+    } else {
+      // If not a valid drop or no target, clean up everything immediately
+      setIsDragging(false);
+      setDragItem(null);
+      setMousePosition(null);
+      setDropTarget(null);
+    }
+  }, [dropTarget]);
+  
+  // Method to update mouse position
   const updateMousePosition = useCallback((x: number, y: number) => {
-    dispatch({ type: 'UPDATE_MOUSE_POSITION', payload: { x, y } });
+    setMousePosition({ x, y });
   }, []);
   
-  const setDragItem = useCallback((item: DragItem) => {
-    dispatch({ type: 'SET_DRAG_ITEM', payload: item });
+  // Method to detect which edge zone the mouse is in
+  const detectEdgeZone = useCallback((rect: DOMRect, x: number, y: number): DropDirection | null => {
+    // Calculate edge thresholds based on panel dimensions
+    const edgeSize = Math.min(rect.width, rect.height) * (edgeDetection.edgeThreshold / 100);
+    
+    // Get mouse position relative to the panel
+    const relX = x - rect.left;
+    const relY = y - rect.top;
+    
+    // Determine if the mouse is within the panel
+    if (relX < 0 || relX > rect.width || relY < 0 || relY > rect.height) {
+      return null;
+    }
+    
+    // Check if mouse is in an edge zone
+    if (relX < edgeSize) {
+      return 'left';
+    } else if (relX > rect.width - edgeSize) {
+      return 'right';
+    } else if (relY < edgeSize) {
+      return 'top';
+    } else if (relY > rect.height - edgeSize) {
+      return 'bottom';
+    }
+    
+    // Not in any edge zone
+    return null;
+  }, [edgeDetection.edgeThreshold]);
+  
+  // Method to update keyboard modifiers
+  const setModifiers = useCallback((shift: boolean, alt: boolean, ctrl: boolean) => {
+    setIsShiftPressed(shift);
+    setIsAltPressed(alt);
+    setIsCtrlPressed(ctrl);
+    
+    // Update drag operation based on modifiers
+    let operation: DragOperation = 'move';
+    if (ctrl) operation = 'copy';
+    if (alt) operation = 'link';
+    setDragOperation(operation);
   }, []);
   
-  const setDragOperation = useCallback((operation: string) => {
-    dispatch({ type: 'SET_DRAG_OPERATION', payload: operation });
-  }, []);
-
-  // Create the value object with direct access to frequently used state properties
+  // Register global keyboard event listeners
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      setModifiers(e.shiftKey, e.altKey, e.ctrlKey || e.metaKey);
+    };
+    
+    const handleKeyUp = (e: KeyboardEvent) => {
+      setModifiers(e.shiftKey, e.altKey, e.ctrlKey || e.metaKey);
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [setModifiers]);
+  
+  // Context value
   const value: DragContextType = {
-    dragState,
+    isDragging,
+    dragItem,
+    dragOperation,
+    dropTarget,
+    mousePosition,
     startDrag,
-    moveDrag,
     endDrag,
     setDropTarget,
-    clearDropTarget,
     updateMousePosition,
-    
-    // Direct access to state properties
-    isDragging: dragState.isDragging,
-    dragItem: dragState.dragItem,
-    dropTarget: dragState.dropTarget,
-    mousePosition: dragState.mousePosition || { x: 0, y: 0 },
-    dragOperation: dragState.dragOperation
+    edgeDetection,
+    detectEdgeZone,
+    isShiftPressed,
+    isAltPressed,
+    isCtrlPressed,
+    setModifiers
   };
-
+  
   return <DragContext.Provider value={value}>{children}</DragContext.Provider>;
 }
 
-// Hook
+// Custom hook to use the context
 export function useDragContext() {
   const context = useContext(DragContext);
   if (context === undefined) {

@@ -1,9 +1,10 @@
-import React, { useRef, useState, useCallback } from 'react';
-import { X, Pin } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import React, { useRef, useCallback } from 'react';
 import { useDragContext } from '../context/DragContext';
+import { X } from 'lucide-react';
+import { cn } from '../lib/utils';
+import { useAppContext } from '../context/AppContext';
 
-interface DraggableTabProps {
+interface TabProps {
   id: string;
   title: string;
   icon?: React.ReactNode;
@@ -13,7 +14,6 @@ interface DraggableTabProps {
   index: number;
   onClick: () => void;
   onClose?: () => void;
-  pinned?: boolean;
 }
 
 export function DraggableTab({
@@ -25,93 +25,170 @@ export function DraggableTab({
   closeable = true,
   index,
   onClick,
-  onClose,
-  pinned = false
-}: DraggableTabProps) {
+  onClose
+}: TabProps) {
+  const { settings } = useAppContext();
+  const { startDrag } = useDragContext();
   const tabRef = useRef<HTMLDivElement>(null);
-  const [isDragStarted, setIsDragStarted] = useState(false);
-  const { startDrag, moveDrag, endDrag } = useDragContext();
-
-  // Handle mouse down event to start drag
-  const handleDragStart = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      // Check if the click is on the close button, ignore it for drag
-      if ((e.target as HTMLElement).closest('button')) {
-        return;
-      }
-
-      // Save the initial position for detecting drag
-      setIsDragStarted(true);
+  const dragInitiatedRef = useRef(false);
+  
+  // Handle starting a drag operation with detailed logging
+  const handleDragStart = useCallback((e: React.MouseEvent | React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Prevent double initialization
+    if (dragInitiatedRef.current) {
+      console.log('Drag already initiated, skipping');
+      return;
+    }
+    
+    // Mark as initiated
+    dragInitiatedRef.current = true;
+    
+    // Reset after a short delay
+    setTimeout(() => {
+      dragInitiatedRef.current = false;
+    }, 300);
+    
+    console.log(`🔹 Starting drag for tab '${title}' (${id}) from panel ${panelId}`);
+    
+    if (tabRef.current) {
+      // Get the current rect for precise positioning
+      const rect = tabRef.current.getBoundingClientRect();
       
-      // Record starting position
-      const startX = e.clientX;
-      const startY = e.clientY;
-
-      // Setup drag end handler
-      const handleDragEnd = (e: MouseEvent) => {
-        setIsDragStarted(false);
-        window.removeEventListener('mouseup', handleDragEnd);
-        window.removeEventListener('mousemove', handleDragMove);
-        endDrag();
-      };
-
-      // Setup drag move handler
-      const handleDragMove = (e: MouseEvent) => {
-        // Detect if we've moved enough to start a real drag
-        const deltaX = Math.abs(e.clientX - startX);
-        const deltaY = Math.abs(e.clientY - startY);
-        
-        if (deltaX > 5 || deltaY > 5) {
-          // Start the actual drag
-          startDrag(id, title, panelId, e.clientX, e.clientY, icon);
-          // Update positions as we drag
-          moveDrag(e.clientX, e.clientY);
+      // Create a complete drag item with all necessary information
+      const dragItem = {
+        type: 'tab' as const,
+        id,
+        sourcePanelId: panelId,
+        sourceIndex: index,
+        data: {
+          title,
+          icon,
+          rect,
+          isActive,
+          closeable
         }
       };
-
-      // Add event listeners for drag and drop
-      window.addEventListener('mouseup', handleDragEnd);
-      window.addEventListener('mousemove', handleDragMove);
-    },
-    [id, title, icon, panelId, startDrag, moveDrag, endDrag]
-  );
-
-  // Stop event propagation for the close button
-  const handleCloseClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onClose?.();
-  };
-
+      
+      console.log('📋 Created drag item:', dragItem);
+      
+      // Start the drag operation in the context
+      startDrag(dragItem);
+    } else {
+      console.error('Cannot start drag - tabRef.current is null');
+    }
+  }, [id, title, icon, panelId, index, isActive, closeable, startDrag]);
+  
+  // Handle mouse down with improved drag detection
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only process left mouse button
+    if (e.button !== 0) return;
+    
+    // Always trigger the click handler to activate the tab
+    onClick();
+    
+    // Don't start drag for non-closeable tabs
+    if (!closeable) {
+      console.log('Tab is not closeable, skipping drag initialization');
+      return;
+    }
+    
+    // If modifier key is pressed, start drag immediately
+    if (e.ctrlKey || e.altKey || e.metaKey) {
+      console.log('Modifier key detected, starting drag immediately');
+      handleDragStart(e);
+      return;
+    }
+    
+    // Set up for delayed drag detection
+    const dragStartPos = { x: e.clientX, y: e.clientY };
+    let hasDragStarted = false;
+    
+    // Track mouse movement to detect drag intent
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (hasDragStarted) return;
+      
+      // Calculate distance moved
+      const dx = moveEvent.clientX - dragStartPos.x;
+      const dy = moveEvent.clientY - dragStartPos.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      // Lower threshold for more responsive drag (3px instead of 5px)
+      if (distance > 3) {
+        console.log(`Mouse moved ${distance}px, starting drag`);
+        hasDragStarted = true;
+        
+        // Clean up listeners
+        cleanup();
+        
+        // Start the drag operation
+        handleDragStart(e);
+      }
+    };
+    
+    // Clean up function to remove event listeners
+    const cleanup = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    // Handle mouse up - clean up without starting drag
+    const handleMouseUp = () => {
+      cleanup();
+    };
+    
+    // Add listeners
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  }, [onClick, closeable, handleDragStart]);
+  
+  // Handle context menu for right-click
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    // Context menu is handled by TabContextMenu component
+    // We just need to make sure the tab is active
+    onClick();
+  }, [onClick]);
+  
+  // Use simple approach without context menu for now to fix the drag and drop
   return (
     <div
       ref={tabRef}
       className={cn(
-        'flex items-center px-3 py-1 text-sm border-r border-gray-800 select-none cursor-pointer relative',
-        'transition-colors duration-200 whitespace-nowrap min-w-[100px] max-w-[200px]',
-        isActive ? 'bg-gray-800 text-white' : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/50',
-        pinned && 'bg-blue-900/20'
+        "flex items-center h-[40px] cursor-pointer shrink-0",
+        isActive 
+          ? "text-white bg-neutral-800 border-t-2 border-t-blue-500" 
+          : "text-neutral-400 hover:text-white hover:bg-neutral-800/50 border-t-2 border-t-transparent",
+        "select-none transition-colors"
       )}
-      onClick={onClick}
-      onMouseDown={handleDragStart}
+      style={{ width: `${settings.tabSize}px` }}
       data-tab-id={id}
+      data-panel-id={panelId}
       data-tab-index={index}
+      onMouseDown={handleMouseDown}
+      onContextMenu={handleContextMenu}
+      draggable={closeable}
+      onDragStart={handleDragStart}
     >
-      {icon && <span className="mr-2">{icon}</span>}
-      <span className="truncate">{title}</span>
-      <div className="flex ml-2 space-x-1">
-        {pinned && <Pin size={12} className="opacity-50" />}
+      <div className="flex items-center justify-between w-full px-4">
+        <div className="flex items-center overflow-hidden">
+          {icon && <span className="mr-2 flex-shrink-0 text-blue-400">{icon}</span>}
+          <span className="truncate">{title}</span>
+        </div>
+        
         {closeable && onClose && (
-          <button
-            className="text-gray-500 hover:text-white focus:outline-none rounded-full p-0.5 hover:bg-gray-700"
-            onClick={handleCloseClick}
-            title="Close tab"
+          <div
+            className="ml-2 text-neutral-500 hover:text-white p-1 rounded-sm hover:bg-neutral-700"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
           >
-            <X size={12} />
-          </button>
+            <X size={14} />
+          </div>
         )}
       </div>
     </div>
   );
 }
-
-export default DraggableTab;

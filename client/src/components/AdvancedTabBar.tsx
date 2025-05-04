@@ -1,17 +1,13 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Plus, Maximize2, Minimize2, ArrowUpCircle } from 'lucide-react';
+import React, { useRef, useEffect, useState } from 'react';
+import { Plus, Maximize2, Minimize2 } from 'lucide-react';
 import { DraggableTab } from './DraggableTab';
-import { useDragContext } from '../context/DragContext';
-import { useTabContext, DropTarget } from '../context/TabContext';
-import { cn } from '@/lib/utils';
+import { useDragContext, DropTarget } from '../context/DragContext';
 
-// Define the Tab interface
 interface Tab {
   id: string;
   title: string;
   icon?: React.ReactNode;
   closeable?: boolean;
-  pinned?: boolean;
 }
 
 interface AdvancedTabBarProps {
@@ -23,6 +19,7 @@ interface AdvancedTabBarProps {
   onAddTab: () => void;
   onViewToggle: () => void;
   isMaximized: boolean;
+  onTabDrop?: (target: DropTarget, tabId: string, sourcePanel: string) => void;
 }
 
 export function AdvancedTabBar({
@@ -33,115 +30,84 @@ export function AdvancedTabBar({
   onTabClose,
   onAddTab,
   onViewToggle,
-  isMaximized
+  isMaximized,
+  onTabDrop
 }: AdvancedTabBarProps) {
-  const { dragState, setDropTarget, clearDropTarget } = useDragContext();
-  const tabsContainerRef = useRef<HTMLDivElement>(null);
-  const [dropZones, setDropZones] = useState<Array<{ index: number; rect: DOMRect }>>([]);
-  const [dropIndicator, setDropIndicator] = useState<{ show: boolean; index: number }>({
-    show: false,
-    index: -1
-  });
-
-  // Separate pinned tabs from regular tabs
-  const pinnedTabs = tabs.filter(tab => tab.pinned);
-  const regularTabs = tabs.filter(tab => !tab.pinned);
-
-  // Calculate drop zones when tabs change or on resize
+  const tabBarRef = useRef<HTMLDivElement>(null);
+  const [dropZones, setDropZones] = useState<Array<{index: number, rect: DOMRect}>>([]);
+  const { dragItem, isDragging, dropTarget, setDropTarget } = useDragContext();
+  
+  // Update drop zones when tabs change or dragging starts
   useEffect(() => {
-    const calculateDropZones = () => {
-      const tabElements = tabsContainerRef.current?.querySelectorAll('[data-tab-id]');
-      if (!tabElements) return;
-
-      const newDropZones: Array<{ index: number; rect: DOMRect }> = [];
-
-      tabElements.forEach((tabElement, index) => {
-        const rect = tabElement.getBoundingClientRect();
-        newDropZones.push({ index, rect });
-      });
-
-      setDropZones(newDropZones);
-      console.log(`Calculated ${newDropZones.length} drop zones in panel ${panelId}`);
-    };
-
-    calculateDropZones();
-
-    // Also recalculate on window resize
-    window.addEventListener('resize', calculateDropZones);
-    return () => {
-      window.removeEventListener('resize', calculateDropZones);
-    };
-  }, [tabs, panelId]);
-
-  // Handle mouse move over the tab bar
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      if (!dragState.isDragging || dragState.sourcePanelId === panelId) return;
-
-      const tabBarRect = tabsContainerRef.current?.getBoundingClientRect();
-      if (!tabBarRect) return;
-
-      // Check if mouse is within the tab bar area
-      if (
+    if (!isDragging || !tabBarRef.current || dragItem?.type !== 'tab') return;
+    
+    // Calculate drop zones between tabs
+    const tabElements = Array.from(tabBarRef.current.querySelectorAll('[data-tab-id]'));
+    const zones = tabElements.map((el, index) => {
+      return {
+        index,
+        rect: el.getBoundingClientRect()
+      };
+    });
+    
+    setDropZones(zones);
+  }, [isDragging, tabs, dragItem]);
+  
+  // Handle mouse move for detecting tab position drop zones
+  useEffect(() => {
+    if (!isDragging || !tabBarRef.current || dragItem?.type !== 'tab') return;
+    
+    // Skip if we're dragging a tab from the same panel
+    if (dragItem.sourcePanelId === panelId) {
+      // Only allow internal reordering later when we support index-based moves
+      // For now, we'll just avoid setting a drop target within the same panel
+      return;
+    }
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
+      
+      // Check if mouse is inside the tabbar
+      const tabBarRect = tabBarRef.current!.getBoundingClientRect();
+      const isInTabbar = (
         e.clientX >= tabBarRect.left &&
         e.clientX <= tabBarRect.right &&
         e.clientY >= tabBarRect.top &&
         e.clientY <= tabBarRect.bottom
-      ) {
-        // Find the closest drop zone
-        let closestZoneIndex = -1;
-        let minDistance = Number.MAX_VALUE;
-
-        dropZones.forEach(({ index, rect }) => {
-          const centerX = rect.left + rect.width / 2;
-          const distance = Math.abs(e.clientX - centerX);
-
-          if (distance < minDistance) {
-            minDistance = distance;
-            closestZoneIndex = index;
-          }
+      );
+      
+      if (isInTabbar) {
+        // For now, we'll simplify by just allowing drops onto the tabbar
+        // Later we can enhance to support position-based tab insertion
+        console.log('Mouse in tabbar', panelId);
+        
+        // Default to dropping in the tabbar (at the end)
+        setDropTarget({
+          type: 'tabbar',
+          id: panelId,
+          rect: tabBarRect
         });
-
-        if (closestZoneIndex !== -1) {
-          // Determine if we should drop before or after this tab
-          const zone = dropZones[closestZoneIndex];
-          const centerX = zone.rect.left + zone.rect.width / 2;
-          const position = e.clientX < centerX ? 'before' : 'after';
-
-          // Convert to DragContext's DropTarget type
-          const target = {
-            panelId,
-            targetZone: position as 'before' | 'after',
-            tabId: tabs[closestZoneIndex]?.id
-          };
-
-          setDropTarget(target);
-          setDropIndicator({ show: true, index: closestZoneIndex + (position === 'after' ? 1 : 0) });
-        }
-      } else {
-        clearDropTarget();
-        setDropIndicator({ show: false, index: -1 });
+      } else if (dropTarget?.id === panelId || dropTarget?.id?.startsWith(`${panelId}-position-`)) {
+        // Clear the drop target if we're not in the tabbar anymore
+        setDropTarget(null);
       }
-    },
-    [dropZones, dragState.isDragging, dragState.sourcePanelId, panelId, setDropTarget, clearDropTarget, tabs]
-  );
-
-  // Handle mouse leave from the tab bar
-  const handleMouseLeave = useCallback(() => {
-    clearDropTarget();
-    setDropIndicator({ show: false, index: -1 });
-  }, [clearDropTarget]);
-
+    };
+    
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, [isDragging, dragItem, dropTarget, dropZones, panelId, setDropTarget]);
+  
   return (
-    <div
-      className="flex items-center bg-gray-900 border-b border-gray-800 overflow-x-auto hide-scrollbar"
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      data-panel-id={panelId}
-    >
-      <div ref={tabsContainerRef} className="flex flex-1 overflow-x-auto hide-scrollbar">
-        {/* Pinned tabs */}
-        {pinnedTabs.map((tab, index) => (
+    <div className="flex relative h-[40px] min-h-[40px] max-h-[40px] border-b border-neutral-800 bg-neutral-900 overflow-hidden">
+      <div 
+        ref={tabBarRef}
+        className="flex overflow-x-auto overflow-y-hidden scrollbar-none"
+        style={{ scrollbarWidth: 'none' }}
+        data-tabbar-id={panelId}
+      >
+        {tabs.map((tab, index) => (
           <DraggableTab
             key={tab.id}
             id={tab.id}
@@ -150,59 +116,50 @@ export function AdvancedTabBar({
             panelId={panelId}
             isActive={tab.id === activeTabId}
             closeable={tab.closeable}
-            pinned={true}
             index={index}
             onClick={() => onTabClick(tab.id)}
-            onClose={tab.closeable ? () => onTabClose(tab.id) : undefined}
+            onClose={() => onTabClose(tab.id)}
           />
         ))}
-
-        {/* Regular tabs */}
-        {regularTabs.map((tab, index) => (
-          <React.Fragment key={tab.id}>
-            {/* Drop indicator before tab */}
-            {dropIndicator.show && dropIndicator.index === index + pinnedTabs.length && (
-              <div className="w-1 h-full bg-blue-500 animate-pulse absolute" style={{ left: `${index * 100}px` }} />
-            )}
-            <DraggableTab
-              id={tab.id}
-              title={tab.title}
-              icon={tab.icon}
-              panelId={panelId}
-              isActive={tab.id === activeTabId}
-              closeable={tab.closeable}
-              pinned={false}
-              index={index + pinnedTabs.length}
-              onClick={() => onTabClick(tab.id)}
-              onClose={tab.closeable ? () => onTabClose(tab.id) : undefined}
-            />
-            {/* Drop indicator after the last tab */}
-            {dropIndicator.show && dropIndicator.index === index + pinnedTabs.length + 1 && index === regularTabs.length - 1 && (
-              <div className="w-1 h-full bg-blue-500 animate-pulse absolute" style={{ right: 0 }} />
-            )}
-          </React.Fragment>
-        ))}
-      </div>
-
-      {/* Tab bar actions */}
-      <div className="flex items-center px-2 space-x-1">
+        
         <button
-          className="p-1 text-gray-400 hover:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 rounded"
+          className="px-3 h-[40px] flex items-center text-neutral-400 hover:text-white hover:bg-neutral-800/50 shrink-0"
           onClick={onAddTab}
-          title="Add new tab"
         >
           <Plus size={16} />
         </button>
-        <button
-          className="p-1 text-gray-400 hover:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 rounded"
-          onClick={onViewToggle}
-          title={isMaximized ? "Restore panel" : "Maximize panel"}
-        >
-          {isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-        </button>
       </div>
+      
+      <button
+        className="absolute right-0 px-3 h-[40px] flex items-center text-neutral-400 hover:text-white hover:bg-neutral-800/50 shrink-0"
+        onClick={onViewToggle}
+      >
+        {isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+      </button>
+      
+      {/* Enhanced drop indicators for tab positions */}
+      {isDragging && dragItem?.type === 'tab' && dropTarget?.type === 'position' && dropTarget.id.startsWith(`${panelId}-position-`) && (
+        <div 
+          className="absolute h-[40px] w-2 bg-blue-500 rounded-full opacity-80 transition-all animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.8)]" 
+          style={{
+            left: dropZones[dropTarget.position?.index || 0]?.rect.left - tabBarRef.current!.getBoundingClientRect().left,
+            transform: 'translateX(-50%)'
+          }}
+        >
+          {/* Add a glow effect */}
+          <div className="absolute inset-0 bg-blue-400 blur-md opacity-50 rounded-full"></div>
+          {/* Add arrow indicators */}
+          <div className="absolute top-1 left-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-blue-500 transform -translate-x-1/2"></div>
+          <div className="absolute bottom-1 left-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-blue-500 transform -translate-x-1/2"></div>
+        </div>
+      )}
+      
+      {/* Tabbar drop indicator */}
+      {isDragging && dragItem?.type === 'tab' && dropTarget?.type === 'tabbar' && dropTarget.id === panelId && (
+        <div className="absolute inset-0 border-2 border-blue-500 border-dashed rounded-t-sm opacity-60 pointer-events-none">
+          <div className="absolute inset-0 bg-blue-500 opacity-10"></div>
+        </div>
+      )}
     </div>
   );
 }
-
-export default AdvancedTabBar;

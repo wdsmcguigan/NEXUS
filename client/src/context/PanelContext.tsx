@@ -245,49 +245,108 @@ export function PanelProvider({ children }: { children: React.ReactNode }) {
 
   // Move a tab from one panel to another
   const moveTab = useCallback((sourceId: string, sourceTabId: string, targetId: string) => {
+    console.log(`🔄 MOVE TAB: from ${sourceId} to ${targetId}, tab ${sourceTabId}`);
+    
+    // Validate input parameters
+    if (!sourceId || !sourceTabId || !targetId) {
+      console.error('Invalid parameters for moveTab', { sourceId, sourceTabId, targetId });
+      return;
+    }
+    
+    // Skip if source and target are the same
+    if (sourceId === targetId) {
+      console.log('Source and target panels are the same, no move needed');
+      return;
+    }
+    
     setLayout(prevLayout => {
-      const sourcePanel = findPanel(prevLayout, sourceId);
-      const targetPanel = findPanel(prevLayout, targetId);
-
-      if (!sourcePanel || !targetPanel || !sourcePanel.tabs || !targetPanel.tabs) {
+      try {
+        const sourcePanel = findPanel(prevLayout, sourceId);
+        const targetPanel = findPanel(prevLayout, targetId);
+        
+        // Validate panels exist
+        if (!sourcePanel) {
+          console.error(`Source panel ${sourceId} not found`);
+          return prevLayout;
+        }
+        
+        if (!targetPanel) {
+          console.error(`Target panel ${targetId} not found`);
+          return prevLayout;
+        }
+        
+        if (!sourcePanel.tabs || !targetPanel.tabs) {
+          console.error('Panels are missing tabs arrays', { 
+            sourceHasTabs: !!sourcePanel.tabs,
+            targetHasTabs: !!targetPanel.tabs 
+          });
+          return prevLayout;
+        }
+        
+        // Find tab in source panel
+        const tabIndex = sourcePanel.tabs.findIndex(tab => tab.id === sourceTabId);
+        if (tabIndex === -1) {
+          console.error(`Tab ${sourceTabId} not found in source panel ${sourceId}`);
+          return prevLayout;
+        }
+        
+        // Get tab and content
+        const tab = sourcePanel.tabs[tabIndex];
+        
+        // Non-closeable tab check (optional)
+        if (!tab.closeable) {
+          console.log(`Tab ${sourceTabId} is not closeable, skipping move`);
+          return prevLayout;
+        }
+        
+        // Find associated content
+        const content = (sourcePanel.contents || []).find(c => c.id === sourceTabId);
+        if (!content) {
+          console.error(`Content for tab ${sourceTabId} not found`);
+          return prevLayout;
+        }
+        
+        console.log('Found tab to move:', tab.title);
+        
+        // Create new source panel without the tab
+        const newSourcePanel = {
+          ...sourcePanel,
+          tabs: sourcePanel.tabs.filter(t => t.id !== sourceTabId),
+          contents: (sourcePanel.contents || []).filter(c => c.id !== sourceTabId),
+          // Update active tab in source panel if needed
+          activeTabId: sourcePanel.activeTabId === sourceTabId 
+            ? (sourcePanel.tabs.length > 1 
+                ? sourcePanel.tabs[tabIndex === 0 ? 1 : tabIndex - 1].id 
+                : undefined)
+            : sourcePanel.activeTabId
+        };
+        
+        // Create new target panel with the tab
+        const newTargetPanel = {
+          ...targetPanel,
+          tabs: [...targetPanel.tabs, tab],
+          contents: [...(targetPanel.contents || []), content],
+          activeTabId: tab.id // Make the moved tab active
+        };
+        
+        // Update the layout with the modified panels
+        console.log('Updating panels:', { 
+          oldSourceTabsCount: sourcePanel.tabs.length,
+          newSourceTabsCount: newSourcePanel.tabs.length,
+          oldTargetTabsCount: targetPanel.tabs.length,
+          newTargetTabsCount: newTargetPanel.tabs.length
+        });
+        
+        // Apply both updates
+        let newLayout = updatePanelInLayout(prevLayout, sourceId, () => newSourcePanel);
+        newLayout = updatePanelInLayout(newLayout, targetId, () => newTargetPanel);
+        
+        console.log('Move tab completed successfully');
+        return newLayout;
+      } catch (err) {
+        console.error('Error in moveTab:', err);
         return prevLayout;
       }
-
-      // Find tab and content in source panel
-      const tabIndex = sourcePanel.tabs.findIndex(tab => tab.id === sourceTabId);
-      if (tabIndex === -1) return prevLayout;
-
-      const tab = sourcePanel.tabs[tabIndex];
-      if (!tab.closeable) return prevLayout; // Don't move non-closeable tabs
-
-      const content = (sourcePanel.contents || []).find(c => c.id === sourceTabId);
-      if (!content) return prevLayout;
-
-      // Remove from source panel
-      const newSourcePanel = {
-        ...sourcePanel,
-        tabs: sourcePanel.tabs.filter(t => t.id !== sourceTabId),
-        contents: (sourcePanel.contents || []).filter(c => c.id !== sourceTabId),
-        activeTabId: sourcePanel.activeTabId === sourceTabId 
-          ? (sourcePanel.tabs.length > 1 ? sourcePanel.tabs[tabIndex === 0 ? 1 : tabIndex - 1].id : undefined)
-          : sourcePanel.activeTabId
-      };
-
-      // Add to target panel
-      const newTargetPanel = {
-        ...targetPanel,
-        tabs: [...targetPanel.tabs, tab],
-        contents: [...(targetPanel.contents || []), content],
-        activeTabId: tab.id // Make the moved tab active
-      };
-
-      // Update source panel
-      let newLayout = updatePanelInLayout(prevLayout, sourceId, () => newSourcePanel);
-      
-      // Update target panel
-      newLayout = updatePanelInLayout(newLayout, targetId, () => newTargetPanel);
-
-      return newLayout;
     });
   }, [findPanel, updatePanelInLayout]);
 

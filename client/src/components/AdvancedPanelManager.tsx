@@ -72,131 +72,180 @@ export function AdvancedPanelManager() {
   }, []);
 
   // Create a new panel by splitting an existing one
-  const handleSplitPanel = useCallback((panelId: string, direction: 'horizontal' | 'vertical') => {
-    if (!dragData) return;
-    
-    const { tabId, sourcePanelId } = dragData;
-    const sourcePanel = findPanel(layout, sourcePanelId);
-    if (!sourcePanel || !sourcePanel.tabs) return;
-    
-    const tab = sourcePanel.tabs.find(t => t.id === tabId);
-    if (!tab) return;
-    
-    // Create a new panel structure with the dragged tab
-    const newPanelId = `panel-${nanoid()}`;
-    
-    // Update the layout by first removing the tab from the source panel
-    let newLayout = updatePanelInLayout(
-      layout,
-      sourcePanelId,
-      panel => {
-        if (!panel.tabs) return panel;
-        return {
-          ...panel,
-          tabs: panel.tabs.filter(t => t.id !== tabId),
-          activeTabId: panel.activeTabId === tabId
-            ? (panel.tabs.length > 1)
-              ? (panel.tabs[0].id === tabId)
-                ? panel.tabs[1].id
-                : panel.tabs[0].id
-              : undefined
-            : panel.activeTabId
-        };
-      }
-    );
-    
-    // Then update the target panel to become a group with two panels
-    newLayout = updatePanelInLayout(
-      newLayout,
-      panelId,
-      panel => {
-        // Create a new panel with the dragged tab
-        const newChildPanel: PanelConfig = {
-          id: newPanelId,
-          type: 'panel',
-          size: 50,
-          tabs: [tab],
-          activeTabId: tab.id
-        };
-        
-        // The current panel becomes a parent with children
-        // We need to make a deep copy of the panel to avoid mutating the original
-        const panelCopy = { 
-          ...panel,
-          id: `${panel.id}-child`,
-          size: 50 // Set the size explicitly
-        };
-        
-        // Don't copy over properties that shouldn't be inherited
-        delete panelCopy.children;
-        
-        const updatedPanel: PanelConfig = {
-          id: panel.id,
-          type: 'split',
-          direction,
-          minSize: panel.minSize,
-          size: panel.size,
-          tabs: [], // Empty tabs array for parent panels
-          children: direction === 'horizontal'
-            ? [panelCopy, newChildPanel]
-            : [newChildPanel, panelCopy]
-        };
-        
-        return updatedPanel;
-      }
-    );
-    
-    updateLayout(newLayout);
-    handleDragEnd();
-  }, [layout, dragData, findPanel, handleDragEnd, updateLayout, updatePanelInLayout]);
-
-  // Handle dropping a tab onto a panel
-  const handlePanelDrop = useCallback((target: DropTarget) => {
-    if (!dragData) {
-      console.error('handlePanelDrop called with no dragData', target);
-      return;
-    }
-    
-    console.log('Handling panel drop with target:', target, 'and dragData:', dragData);
-    const { type, id: panelId, direction, position } = target;
+  const handleSplitPanel = useCallback((panelId: string, direction: 'horizontal' | 'vertical', newPanel?: PanelConfig) => {
+    console.log('💡 Creating split panel:', { panelId, direction, newPanel });
     
     try {
-      // If source and target are the same, don't do anything
-      if (type !== 'edge' && dragData.sourcePanelId === panelId) {
-        console.log('Source and target panels are the same, ignoring drop');
+      // Find the panel to split
+      const panel = findPanel(layout, panelId);
+      if (!panel) {
+        console.error(`Panel ${panelId} not found for splitting`);
         return;
       }
       
-      if (type === 'panel' || type === 'tabbar') {
-        console.log('Moving tab to panel', dragData.tabId, 'from', dragData.sourcePanelId, 'to', panelId);
-        
-        // Move the tab to the target panel
-        moveTab(dragData.tabId, dragData.sourcePanelId, panelId);
-      } else if (type === 'edge' && direction) {
-        // Make sure direction is a valid split direction
-        if (direction === 'top' || direction === 'right' || direction === 'bottom' || direction === 'left') {
-          console.log('Creating split in direction', direction);
+      // Create a new panel ID if not provided
+      const newPanelId = newPanel?.id || `panel-${nanoid()}`;
+      
+      // Create the actual new panel config or use the provided one
+      const actualNewPanel: PanelConfig = newPanel || {
+        id: newPanelId,
+        type: 'panel',
+        size: 50,
+        tabs: [],
+        contents: [],
+        activeTabId: undefined
+      };
+      
+      console.log('🔄 Creating split with panels:', {
+        existingPanel: panelId,
+        newPanel: newPanelId,
+        direction
+      });
+      
+      // Update the layout - create a new split structure
+      let newLayout = updatePanelInLayout(
+        layout,
+        panelId,
+        panel => {
+          // The current panel becomes a parent with children
+          // We need to make a deep copy of the panel to avoid mutating the original
+          const panelCopy = { 
+            ...panel,
+            id: `${panel.id}-child`,
+            size: 50 // Set the size explicitly
+          };
           
-          // Create a new panel by splitting in the direction
-          const splitDirection = (direction === 'left' || direction === 'right') ? 'horizontal' : 'vertical';
-          handleSplitPanel(panelId, splitDirection);
+          // Don't copy over properties that shouldn't be inherited
+          if (panelCopy.type === 'split') {
+            delete panelCopy.children;
+          }
+          
+          // Create the new split panel structure
+          const updatedPanel: PanelConfig = {
+            id: panel.id, // Keep the original ID for the parent
+            type: 'split',
+            direction,
+            minSize: panel.minSize,
+            size: panel.size,
+            tabs: [], // Empty tabs array for parent panels
+            children: direction === 'horizontal'
+              ? [panelCopy, { ...actualNewPanel, size: 50 }]
+              : [{ ...actualNewPanel, size: 50 }, panelCopy]
+          };
+          
+          return updatedPanel;
         }
-      } else if (type === 'position' && position) {
-        console.log('Moving tab to position', position);
+      );
+      
+      // Update the layout in state
+      console.log('📋 Applying new layout with split panel');
+      updateLayout(newLayout);
+      
+      return newPanelId; // Return the ID of the new panel
+    } catch (err) {
+      console.error('Error in handleSplitPanel:', err);
+    }
+  }, [layout, findPanel, updateLayout, updatePanelInLayout]);
+
+  // Handle dropping a tab onto a panel - this is the critical part that connects the drag to the state change
+  const handlePanelDrop = useCallback((target: DropTarget) => {
+    console.log('📌 DROP EVENT triggered with target:', target);
+    
+    // First check if we have drag data
+    if (!dragItem || dragItem.type !== 'tab') {
+      console.error('handlePanelDrop called without valid drag data', { target, dragItem });
+      return;
+    }
+    
+    // Extract the necessary info from the drag item
+    const sourceTabId = dragItem.id;
+    const sourcePanelId = dragItem.sourcePanelId || '';
+    
+    // Make sure we have the required data
+    if (!sourceTabId || !sourcePanelId) {
+      console.error('Invalid drag data', { sourceTabId, sourcePanelId });
+      return;
+    }
+    
+    console.log('⚡ Processing tab drop:', { 
+      sourceTabId, 
+      sourcePanelId, 
+      targetType: target.type,
+      targetId: target.id
+    });
+    
+    try {
+      // Handle different target types
+      if (target.type === 'panel' || target.type === 'tabbar') {
+        // This is a drop directly onto a panel or tabbar
+        const targetPanelId = target.id;
         
-        // For position drop, move to the target panel
-        moveTab(
-          dragData.tabId,
-          dragData.sourcePanelId,
-          position.panelId
-        );
-      } else {
-        console.warn('Unhandled drop target type', type);
+        console.log('🎯 Moving tab to panel', { 
+          tab: sourceTabId, 
+          from: sourcePanelId, 
+          to: targetPanelId 
+        });
+        
+        // DIRECT CALL to moveTab - this updates the panel state
+        moveTab(sourcePanelId, sourceTabId, targetPanelId);
+      } 
+      else if (target.type === 'edge' && target.direction) {
+        // This is a drop on a panel edge, which should create a split
+        const panelId = target.id;
+        const direction = target.direction;
+        
+        // Only process valid directions
+        if (direction === 'top' || direction === 'right' || direction === 'bottom' || direction === 'left') {
+          console.log('✂️ Creating split in direction', direction);
+          
+          // Convert edge direction to split direction
+          const splitDirection = (direction === 'left' || direction === 'right') ? 'horizontal' : 'vertical';
+          
+          // Create a new panel configuration
+          const newPanelId = `panel-${nanoid()}`;
+          const newPanel = {
+            id: newPanelId,
+            type: 'panel' as const,
+            size: 50,
+            tabs: [],
+            contents: [],
+          };
+          
+          // First split the panel
+          handleSplitPanel(panelId, splitDirection, newPanel);
+          
+          // Wait briefly for the split to be processed
+          setTimeout(() => {
+            // Then move the tab to the new panel
+            console.log('↪️ Moving tab to newly created panel', newPanelId);
+            moveTab(sourcePanelId, sourceTabId, newPanelId);
+          }, 50);
+        }
+      } 
+      else if (target.type === 'position' && target.position) {
+        // This is a drop at a specific position in a tab bar
+        const targetPanelId = target.position.panelId;
+        
+        console.log('🎯 Moving tab to specific position', { 
+          tab: sourceTabId, 
+          from: sourcePanelId, 
+          to: targetPanelId,
+          position: target.position.index
+        });
+        
+        // For now, we'll just move to the panel without position-specific handling
+        moveTab(sourcePanelId, sourceTabId, targetPanelId);
+      }
+      else {
+        console.warn('⚠️ Unhandled drop target type', target.type);
       }
     } catch (err) {
-      console.error('Error in handlePanelDrop:', err);
+      console.error('❌ Error processing drop:', err);
     }
-  }, [dragData, handleSplitPanel, moveTab]);
+    
+    // Always call handleDragEnd to clean up the drag state
+    handleDragEnd();
+  }, [dragItem, handleDragEnd, handleSplitPanel, moveTab]);
 
   // Process drop target when it changes but only when no longer dragging
   // This handles the case where a valid drop has occurred but wasn't caught by the mouseup

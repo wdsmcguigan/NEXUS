@@ -177,29 +177,82 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
   const handleMouseUp = useCallback((e: MouseEvent) => {
     if (!active || !dragItem) return;
     
+    console.log('🖱️ Mouse up detected with dragItem:', dragItem);
+    
+    // Special processing for last-chance detection
+    if (!dropTarget && dragItem.type === 'tab') {
+      console.log('Attempting last-chance target detection...');
+      
+      // Find the element under the mouse cursor
+      const elements = document.elementsFromPoint(e.clientX, e.clientY);
+      
+      // Look for a panel or tabbar element
+      for (const el of elements) {
+        // Try to find a panel
+        const panelId = el.getAttribute('data-panel-id') || 
+                        el.getAttribute('data-panel-body-id');
+        
+        if (panelId) {
+          console.log('Found panel under cursor on mouseup:', panelId);
+          const rect = el.getBoundingClientRect();
+          
+          // Create a drop target for the panel
+          const newTarget: DropTarget = {
+            type: 'panel',
+            id: panelId,
+            rect
+          };
+          
+          // Update the drop target in context
+          setDropTarget(newTarget);
+          break;
+        }
+        
+        // Try to find a tabbar
+        const tabBarId = el.getAttribute('data-tabbar-id');
+        if (tabBarId) {
+          console.log('Found tabbar under cursor on mouseup:', tabBarId);
+          const rect = el.getBoundingClientRect();
+          
+          // Create a drop target for the tabbar
+          const newTarget: DropTarget = {
+            type: 'tabbar',
+            id: tabBarId,
+            rect
+          };
+          
+          // Update the drop target in context
+          setDropTarget(newTarget);
+          break;
+        }
+      }
+    }
+    
     // We need to explicitly call the onDrop handler first, then end drag
     // This ensures the drop logic runs with the correct target before drag state is cleaned up
     if (dropTarget) {
       try {
-        console.log('Processing drop in DragOverlay:', dropTarget);
-        // This will call handlePanelDrop in AdvancedPanelManager
+        console.log('🎯 Processing drop in DragOverlay:', dropTarget);
+        
+        // This will call handlePanelDrop in AdvancedPanelManager with the current drop target
         onDrop(dropTarget);
         
         // Mark drag as completed successfully
+        console.log('✅ Drop processed successfully');
         endDrag(true);
       } catch (err) {
-        console.error('Error in handleMouseUp drop handler:', err);
+        console.error('❌ Error in handleMouseUp drop handler:', err);
         endDrag(false);
       }
     } else {
       // No valid drop target, just cancel the drag
-      console.log('No drop target found, cancelling drag');
+      console.log('❌ No drop target found, cancelling drag');
       endDrag(false);
     }
     
     // Reset state
     setActiveEdgeZone(null);
-  }, [active, dragItem, dropTarget, endDrag, onDrop]);
+  }, [active, dragItem, dropTarget, endDrag, onDrop, setDropTarget]);
   
   // Add/remove event listeners
   useEffect(() => {

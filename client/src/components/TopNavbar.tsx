@@ -103,171 +103,157 @@ export function TopNavbar() {
 
   return (
     <>
-      <div className="h-10 bg-neutral-900 border-b border-neutral-800 flex items-center px-2 gap-2">
-        <div className="flex items-center space-x-1">
-          {/* File Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 text-neutral-300 hover:text-white">
-                File <ChevronDown size={14} className="ml-1" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56">
-              <DropdownMenuItem>
-                New Email <DropdownMenuShortcut>⌘N</DropdownMenuShortcut>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                New Message <DropdownMenuShortcut>⌘M</DropdownMenuShortcut>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                Print <DropdownMenuShortcut>⌘P</DropdownMenuShortcut>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                Settings <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+      <div className="flex items-center gap-1">
+        {/* File Menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 text-neutral-300 hover:text-white">
+              File <ChevronDown size={14} className="ml-1" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56">
+            <DropdownMenuItem>
+              New Email <DropdownMenuShortcut>⌘N</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              New Message <DropdownMenuShortcut>⌘M</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              Print <DropdownMenuShortcut>⌘P</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              Settings <DropdownMenuShortcut>⌘,</DropdownMenuShortcut>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-          {/* Edit Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 text-neutral-300 hover:text-white">
-                Edit <ChevronDown size={14} className="ml-1" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56">
-              <DropdownMenuItem>
-                Undo <DropdownMenuShortcut>⌘Z</DropdownMenuShortcut>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                Redo <DropdownMenuShortcut>⇧⌘Z</DropdownMenuShortcut>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                Cut <DropdownMenuShortcut>⌘X</DropdownMenuShortcut>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                Copy <DropdownMenuShortcut>⌘C</DropdownMenuShortcut>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                Paste <DropdownMenuShortcut>⌘V</DropdownMenuShortcut>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                Find <DropdownMenuShortcut>⌘F</DropdownMenuShortcut>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        {/* Edit Menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 text-neutral-300 hover:text-white">
+              Edit <ChevronDown size={14} className="ml-1" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56">
+            <DropdownMenuItem>
+              Undo <DropdownMenuShortcut>⌘Z</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              Redo <DropdownMenuShortcut>⇧⌘Z</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              Cut <DropdownMenuShortcut>⌘X</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              Copy <DropdownMenuShortcut>⌘C</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              Paste <DropdownMenuShortcut>⌘V</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              Find <DropdownMenuShortcut>⌘F</DropdownMenuShortcut>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
-          {/* View Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 text-neutral-300 hover:text-white">
-                View <ChevronDown size={14} className="ml-1" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56">
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Layouts</DropdownMenuLabel>
-                <DropdownMenuItem onClick={() => setShowSaveDialog(true)}>
-                  <Save className="mr-2 h-4 w-4" />
-                  <span>Save Current Layout</span>
-                  <DropdownMenuShortcut>⇧⌘S</DropdownMenuShortcut>
-                </DropdownMenuItem>
-                
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
-                    <FolderOpen className="mr-2 h-4 w-4" />
-                    <span>Load Layout</span>
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuPortal>
-                    <DropdownMenuSubContent className="w-56">
-                      {templates.length === 0 ? (
-                        <DropdownMenuItem disabled>
-                          No saved layouts
-                        </DropdownMenuItem>
-                      ) : (
-                        templates.map(template => (
-                          <DropdownMenuItem 
-                            key={template.id}
-                            onClick={() => applyTemplate(template.id)}
-                          >
-                            <LayoutTemplate className="mr-2 h-4 w-4" />
-                            <span>{template.name}</span>
-                          </DropdownMenuItem>
-                        ))
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => setShowTemplateManager(true)}>
-                        <Cog className="mr-2 h-4 w-4" />
-                        <span>Manage Templates</span>
+        {/* View Menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="h-8 text-neutral-300 hover:text-white">
+              View <ChevronDown size={14} className="ml-1" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Layouts</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => setShowSaveDialog(true)}>
+                <Save className="mr-2 h-4 w-4" />
+                <span>Save Current Layout</span>
+                <DropdownMenuShortcut>⇧⌘S</DropdownMenuShortcut>
+              </DropdownMenuItem>
+              
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <FolderOpen className="mr-2 h-4 w-4" />
+                  <span>Load Layout</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent className="w-56">
+                    {templates.length === 0 ? (
+                      <DropdownMenuItem disabled>
+                        No saved layouts
                       </DropdownMenuItem>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuPortal>
-                </DropdownMenuSub>
-                
-                <DropdownMenuItem onClick={() => setShowTemplateManager(true)}>
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  <span>Manage Layouts</span>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
+                    ) : (
+                      templates.map(template => (
+                        <DropdownMenuItem 
+                          key={template.id}
+                          onClick={() => applyTemplate(template.id)}
+                        >
+                          <LayoutTemplate className="mr-2 h-4 w-4" />
+                          <span>{template.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setShowTemplateManager(true)}>
+                      <Cog className="mr-2 h-4 w-4" />
+                      <span>Manage Templates</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
               
+              <DropdownMenuItem onClick={() => setShowTemplateManager(true)}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                <span>Manage Layouts</span>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            
+            <DropdownMenuSeparator />
+            
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Panels</DropdownMenuLabel>
+              <DropdownMenuItem onClick={splitPanelHorizontally}>
+                <PanelTop className="mr-2 h-4 w-4" />
+                <span>Split Horizontally</span>
+                <DropdownMenuShortcut>⇧⌘H</DropdownMenuShortcut>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={splitPanelVertically}>
+                <PanelLeft className="mr-2 h-4 w-4" />
+                <span>Split Vertically</span>
+                <DropdownMenuShortcut>⇧⌘V</DropdownMenuShortcut>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={closeCurrentPanel}>
+                <PanelBottomClose className="mr-2 h-4 w-4" />
+                <span>Close Panel</span>
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
-              
-              <DropdownMenuGroup>
-                <DropdownMenuLabel>Panels</DropdownMenuLabel>
-                <DropdownMenuItem onClick={splitPanelHorizontally}>
-                  <PanelTop className="mr-2 h-4 w-4" />
-                  <span>Split Horizontally</span>
-                  <DropdownMenuShortcut>⇧⌘H</DropdownMenuShortcut>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={splitPanelVertically}>
-                  <PanelLeft className="mr-2 h-4 w-4" />
-                  <span>Split Vertically</span>
-                  <DropdownMenuShortcut>⇧⌘V</DropdownMenuShortcut>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={closeCurrentPanel}>
-                  <PanelBottomClose className="mr-2 h-4 w-4" />
-                  <span>Close Panel</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={maximizeCurrentPanel}>
-                  <Maximize2 className="mr-2 h-4 w-4" />
-                  <span>Maximize Panel</span>
-                  <DropdownMenuShortcut>F11</DropdownMenuShortcut>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={restoreLayout}>
-                  <Monitor className="mr-2 h-4 w-4" />
-                  <span>Restore Layout</span>
-                  <DropdownMenuShortcut>Esc</DropdownMenuShortcut>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              
-              <DropdownMenuSeparator />
-              
-              <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => setShowShortcutManager(true)}>
-                  <Keyboard className="mr-2 h-4 w-4" />
-                  <span>Keyboard Shortcuts</span>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        <div className="ml-auto flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="h-8">
-            <Star size={16} className="text-yellow-500 mr-1" />
-            <span className="text-neutral-300">Upgrade</span>
-          </Button>
-          
-          <Button variant="outline" size="sm" className="h-8">
-            <Cog size={16} className="mr-1" />
-            <span>Settings</span>
-          </Button>
-        </div>
+              <DropdownMenuItem onClick={maximizeCurrentPanel}>
+                <Maximize2 className="mr-2 h-4 w-4" />
+                <span>Maximize Panel</span>
+                <DropdownMenuShortcut>F11</DropdownMenuShortcut>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={restoreLayout}>
+                <Monitor className="mr-2 h-4 w-4" />
+                <span>Restore Layout</span>
+                <DropdownMenuShortcut>Esc</DropdownMenuShortcut>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+            
+            <DropdownMenuSeparator />
+            
+            <DropdownMenuGroup>
+              <DropdownMenuItem onClick={() => setShowShortcutManager(true)}>
+                <Keyboard className="mr-2 h-4 w-4" />
+                <span>Keyboard Shortcuts</span>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Template Manager Dialog */}

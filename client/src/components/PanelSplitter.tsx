@@ -241,7 +241,7 @@ export function PanelSplitter() {
     setSplitPreview(null);
   }, [dragItem, dropTarget, endDrag, moveTab, splitPanel, state.panels, state.tabs]);
   
-  // Monitor for edge drops
+  // Monitor for edge drops and create visual previews
   useEffect(() => {
     if (dropTarget?.type === 'edge' && dragItem?.type === 'tab') {
       console.log('🔍 [EDGE DROP DEBUG] dropTarget set to EDGE type with panel:', dropTarget.id, 'direction:', dropTarget.direction);
@@ -255,40 +255,62 @@ export function PanelSplitter() {
         });
         console.log('🔍 [EDGE DROP DEBUG] Split preview updated for panel:', dropTarget.id);
       }
+    } else {
+      // Clear the preview if we're not over an edge
+      setSplitPreview(null);
+    }
+  }, [dropTarget, dragItem]);
+  
+  // Listen for the custom panel-edge-drop event from DragOverlay
+  useEffect(() => {
+    const handlePanelEdgeDropEvent = (event: CustomEvent) => {
+      console.log('🔌 [PANEL EVENT] Received panel-edge-drop event:', event.detail);
       
+      // Process the drop
+      handleEdgeDrop();
+    };
+    
+    // Add event listener with type assertion for CustomEvent
+    document.addEventListener('panel-edge-drop', handlePanelEdgeDropEvent as EventListener);
+    
+    return () => {
+      // Remove event listener
+      document.removeEventListener('panel-edge-drop', handlePanelEdgeDropEvent as EventListener);
+    };
+  }, [handleEdgeDrop]);
+  
+  // Secondary monitoring with mouseUp listener as backup
+  useEffect(() => {
+    if (dropTarget?.type === 'edge' && dragItem?.type === 'tab') {
       // Add a mouse up listener to handle the actual drop
       const eventId = ++mouseEventCounter.current;
-      console.log(`🔍 [EDGE DROP DEBUG] [${eventId}] Setting up mouseup listener for edge drop`);
+      console.log(`🔍 [EDGE DROP DEBUG] [${eventId}] Setting up mouseup listener for edge drop (backup)`);
       
       const handleMouseUp = (e: MouseEvent) => {
         console.log(`🔍 [EDGE DROP DEBUG] [${eventId}] MOUSEUP TRIGGERED at ${e.clientX}x${e.clientY}`);
-        console.log(`🔍 [EDGE DROP DEBUG] [${eventId}] Current dropTarget:`, dropTarget);
         
         if (dropTarget?.type === 'edge') {
-          console.log(`🔍 [EDGE DROP DEBUG] [${eventId}] Calling handleEdgeDrop() for panel ${dropTarget.id} with direction ${dropTarget.direction}`);
+          console.log(`🔍 [EDGE DROP DEBUG] [${eventId}] Calling handleEdgeDrop() from mouseup handler`);
           
           try {
-            handleEdgeDrop();
-            console.log(`🔍 [EDGE DROP DEBUG] [${eventId}] handleEdgeDrop() executed successfully`);
+            // Only fire this if we have a processing flag that's not set yet
+            if (!processingDragEnd.current) {
+              handleEdgeDrop();
+            } else {
+              console.log(`🔍 [EDGE DROP DEBUG] [${eventId}] Skip duplicate processing - already handling drop`);
+            }
           } catch (error) {
             console.error(`🔍 [EDGE DROP DEBUG] [${eventId}] ERROR in handleEdgeDrop():`, error);
           }
-        } else {
-          console.log(`🔍 [EDGE DROP DEBUG] [${eventId}] Not calling handleEdgeDrop - dropTarget no longer an edge`);
         }
       };
       
       // Use a direct DOM approach to ensure the event is captured
       document.addEventListener('mouseup', handleMouseUp, { once: true });
-      console.log(`🔍 [EDGE DROP DEBUG] [${eventId}] Added one-time mouseup listener to document (direct DOM)`);
       
       return () => {
-        console.log(`🔍 [EDGE DROP DEBUG] [${eventId}] Cleaning up mouseup listener for edge drop`);
         document.removeEventListener('mouseup', handleMouseUp);
       };
-    } else {
-      // Clear the preview if we're not over an edge
-      setSplitPreview(null);
     }
   }, [dropTarget, dragItem, handleEdgeDrop]);
   

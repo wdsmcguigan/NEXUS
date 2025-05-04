@@ -350,25 +350,47 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
         if (dropTarget.type === 'edge') {
           console.log('🔼 [DRAG_END] Processing EDGE drop - special handling');
           
-          // Create a deep copy to avoid any references being cleared
-          const dropTargetCopy = JSON.parse(JSON.stringify(dropTarget));
+          // Ensure we have all the required properties for an edge drop
+          if (!dropTarget.direction || !dropTarget.rect) {
+            console.error('🔼 [DRAG_END] Missing required properties for edge drop:', dropTarget);
+            endDrag(false);
+            return;
+          }
           
-          // Add a slight delay to ensure the UI has time to update
-          setTimeout(() => {
-            try {
-              console.log('🔼 [DRAG_END] Calling onDrop with edge target:', dropTargetCopy);
-              onDrop(dropTargetCopy);
-              console.log('🔼 [DRAG_END] Edge drop successful');
-            } catch (delayedErr) {
-              console.error('🔼 [DRAG_END] Error in delayed edge drop handler:', delayedErr);
-              endDrag(false);
-            }
-          }, 10);
+          // Create a stable copy for the drop target, but use the original DOMRect
+          const dropTargetCopy: DropTarget = {
+            type: 'edge',
+            id: dropTarget.id,
+            direction: dropTarget.direction,
+            rect: dropTarget.rect
+          };
           
-          // End the drag operation (success) outside the timeout
-          // to avoid any weird UI state issues
-          console.log('🔼 [DRAG_END] Edge drop initiated');
-          // We don't call endDrag here as it's handled in the PanelSplitter after the panel is created
+          console.log('🔼 [DRAG_END] Calling onDrop with stable edge target:', dropTargetCopy);
+          
+          try {
+            // Call onDrop with the stabilized copy of the drop target
+            onDrop(dropTargetCopy);
+            console.log('🔼 [DRAG_END] Edge drop successfully initiated');
+            
+            // Emit a custom event to notify PanelSplitter
+            const edgeDropEvent = new CustomEvent('panel-edge-drop', {
+              detail: {
+                tabId: dragItem.id,
+                sourcePanelId: dragItem.sourcePanelId,
+                targetPanelId: dropTarget.id,
+                direction: dropTarget.direction
+              }
+            });
+            
+            console.log('🔼 [DRAG_END] Dispatching panel-edge-drop event');
+            document.dispatchEvent(edgeDropEvent);
+            
+            // Important: We don't end the drag here since PanelSplitter will handle it
+            // after creating the new panel and moving the tab
+          } catch (error) {
+            console.error('🔼 [DRAG_END] Error in edge drop handler:', error);
+            endDrag(false);
+          }
         } else {
           // Normal (non-edge) drop
           console.log('🔼 [DRAG_END] Processing normal drop');

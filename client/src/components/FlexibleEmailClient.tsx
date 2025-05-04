@@ -72,14 +72,17 @@ function Header() {
   );
 }
 
-// Import DebugStateView
+// Import DebugStateView and new SimplePanelEdgeDrop component
 import { DebugStateView } from './DebugStateView';
+import { SimplePanelEdgeDrop } from './SimplePanelEdgeDrop';
 
 function EmailClientContent() {
   return (
     <div className="h-full w-full">
       <PanelManager />
       <DragManager />
+      {/* New direct approach to panel edge drops */}
+      <SimplePanelEdgeDrop />
       {/* Add debug state view for development */}
       {process.env.NODE_ENV === 'development' && <DebugStateView />}
     </div>

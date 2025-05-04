@@ -1,11 +1,13 @@
 import React, { useEffect } from 'react';
 import { TabProvider } from '../context/TabContext';
 import { DragProvider } from '../context/DragContext';
-import { PanelManager } from './PanelManager';
+import { AdvancedPanelManager } from './AdvancedPanelManager';
 import TopNavbar from './TopNavbar';
 import registerComponents from '../lib/componentRegistry.setup';
 import { Star, Cog } from 'lucide-react';
 import { DragManager } from './DragManager';
+import { DragOverlay } from './DragOverlay';
+import { PanelProvider } from '../context/PanelContext';
 
 export function FlexibleEmailClient() {
   // Initialize component registry on mount
@@ -74,8 +76,11 @@ function Header() {
 function EmailClientContent() {
   return (
     <div className="h-full w-full">
-      <PanelManager />
-      <DragManager />
+      <PanelProvider>
+        <AdvancedPanelManager />
+        <DragManager />
+        <DragOverlay />
+      </PanelProvider>
     </div>
   );
 }

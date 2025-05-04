@@ -108,9 +108,10 @@ export function AdvancedTabBar({
           const centerX = zone.rect.left + zone.rect.width / 2;
           const position = e.clientX < centerX ? 'before' : 'after';
 
-          const target: DropTarget = {
+          // Convert to DragContext's DropTarget type
+          const target = {
             panelId,
-            targetZone: position,
+            targetZone: position as 'before' | 'after',
             tabId: tabs[closestZoneIndex]?.id
           };
 

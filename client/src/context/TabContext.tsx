@@ -360,50 +360,90 @@ function tabReducer(state: TabState, action: TabAction): TabState {
 
     case 'MOVE_TAB': {
       const { tabId, sourcePanelId, toPanelId, index } = action.payload;
+      
+      console.log(`🔄 Processing MOVE_TAB in reducer:`, {
+        tabId,
+        sourcePanelId,
+        toPanelId,
+        index,
+        sourcePanelExists: !!state.panels[sourcePanelId],
+        targetPanelExists: !!state.panels[toPanelId],
+        tabExists: !!state.tabs[tabId]
+      });
+      
       const tab = state.tabs[tabId];
       
       if (!tab) {
+        console.error(`Tab ${tabId} not found in state`);
         return state;
       }
 
       const sourcePanel = state.panels[sourcePanelId];
       const targetPanel = state.panels[toPanelId];
       
-      if (!sourcePanel || !targetPanel) {
+      if (!sourcePanel) {
+        console.error(`Source panel ${sourcePanelId} not found`);
+        return state;
+      }
+      
+      if (!targetPanel) {
+        console.error(`Target panel ${toPanelId} not found`);
         return state;
       }
 
       // Check if tab is in the source panel
       if (!sourcePanel.tabs.includes(tabId)) {
-        console.error(`Tab ${tabId} not found in source panel ${sourcePanelId}`);
+        console.error(`Tab ${tabId} not found in source panel ${sourcePanelId}, tabs: [${sourcePanel.tabs.join(', ')}]`);
         return state;
       }
 
+      // Skip if source and target are the same (no-op)
+      if (sourcePanelId === toPanelId) {
+        console.log('Source and target panels are the same, no move needed');
+        return state;
+      }
+
+      console.log(`Moving tab from ${sourcePanelId} to ${toPanelId}`);
+      
       // Remove from source panel
       const sourceTabsUpdated = sourcePanel.tabs.filter(id => id !== tabId);
+      console.log(`Source panel tabs after removal: [${sourceTabsUpdated.join(', ')}]`);
       
       // Add to target panel at specified index or end
       let targetTabsUpdated = [...targetPanel.tabs];
-      if (typeof index === 'number') {
+      if (typeof index === 'number' && index >= 0 && index <= targetTabsUpdated.length) {
         targetTabsUpdated.splice(index, 0, tabId);
+        console.log(`Added tab at index ${index}, new tabs: [${targetTabsUpdated.join(', ')}]`);
       } else {
         targetTabsUpdated.push(tabId);
+        console.log(`Added tab at end, new tabs: [${targetTabsUpdated.join(', ')}]`);
       }
 
       // Update the tab with new panel ID
       const updatedTab: Tab = {
         ...tab,
         panelId: toPanelId,
+        lastActive: Date.now(), // Update last active time to make it the most recent
       };
 
       // Update source panel's active tab if needed
       let updatedSourcePanel = { ...sourcePanel, tabs: sourceTabsUpdated };
       if (sourcePanel.activeTabId === tabId) {
-        updatedSourcePanel.activeTabId = sourceTabsUpdated.length > 0 
-          ? sourceTabsUpdated[0]
+        // Find most recently active tab in the source panel
+        const mostRecentTabId = sourceTabsUpdated.length > 0 
+          ? sourceTabsUpdated.reduce((most, id) => {
+              const mostTime = state.tabs[most]?.lastActive || 0;
+              const currTime = state.tabs[id]?.lastActive || 0;
+              return currTime > mostTime ? id : most;
+            }, sourceTabsUpdated[0])
           : undefined;
+          
+        updatedSourcePanel.activeTabId = mostRecentTabId;
+        console.log(`Updated source panel active tab to ${mostRecentTabId || 'undefined'}`);
       }
 
+      console.log(`✅ Tab move operation completed successfully`);
+      
       return {
         ...state,
         tabs: {
@@ -419,7 +459,7 @@ function tabReducer(state: TabState, action: TabAction): TabState {
             activeTabId: tabId, // Activate the moved tab in the target panel
           },
         },
-        // If tab was active, activate it in the new panel
+        // If tab was active, activate it in the new panel and set the new panel as active
         activeTabId: state.activeTabId === tabId ? tabId : state.activeTabId,
         activePanelId: state.activeTabId === tabId ? toPanelId : state.activePanelId,
       };
@@ -626,11 +666,49 @@ export function TabProvider({ children }: TabProviderProps) {
   }, []);
 
   const moveTab = useCallback((tabId: string, sourcePanelId: string, toPanelId: string, index?: number) => {
+    console.log(`🔄 Moving tab ${tabId} from panel ${sourcePanelId} to panel ${toPanelId}${index !== undefined ? ` at position ${index}` : ''}`);
+    
+    // Some basic validation
+    if (!tabId || !sourcePanelId || !toPanelId) {
+      console.error('Invalid parameters for moveTab', { tabId, sourcePanelId, toPanelId });
+      return;
+    }
+    
+    // Check if tab exists in the state
+    const tab = state.tabs[tabId];
+    if (!tab) {
+      console.error(`Tab ${tabId} not found in state`);
+      return;
+    }
+    
+    // Check if source panel exists
+    const sourcePanel = state.panels[sourcePanelId];
+    if (!sourcePanel) {
+      console.error(`Source panel ${sourcePanelId} not found`);
+      return;
+    }
+    
+    // Check if target panel exists
+    const targetPanel = state.panels[toPanelId];
+    if (!targetPanel) {
+      console.error(`Target panel ${toPanelId} not found`);
+      return;
+    }
+    
+    // Check if tab is in the source panel
+    if (!sourcePanel.tabs.includes(tabId)) {
+      console.error(`Tab ${tabId} not found in source panel ${sourcePanelId}`);
+      return;
+    }
+    
+    // All checks passed, dispatch the move action
+    console.log('✅ Validation passed, dispatching MOVE_TAB');
+    
     dispatch({
       type: 'MOVE_TAB',
       payload: { tabId, sourcePanelId, toPanelId, index },
     });
-  }, []);
+  }, [state.tabs, state.panels]);
 
   const addPanel = useCallback((type: PanelType, parentId?: string, options?: { direction?: 'horizontal' | 'vertical', size?: number }) => {
     const panelId = nanoid();

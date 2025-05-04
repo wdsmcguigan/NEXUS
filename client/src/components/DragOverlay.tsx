@@ -106,6 +106,11 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
         const panelId = panel.getAttribute('data-panel-body-id');
         if (!panelId) return;
         
+        // Skip if we're dragging a tab from the same panel
+        if (dragItem?.type === 'tab' && dragItem.sourcePanelId === panelId) {
+          return;
+        }
+        
         const rect = panel.getBoundingClientRect();
         
         // Check if mouse is inside this panel
@@ -124,6 +129,8 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
             rect
           };
           
+          console.log(`Found drop target: panel ${panelId}`);
+          
           // Update the drop target
           setDropTarget(target);
           return;
@@ -139,6 +146,11 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
           
           const panelId = tabBar.getAttribute('data-tabbar-id');
           if (!panelId) return;
+          
+          // Skip if we're dragging a tab from the same panel - we're not implementing reordering yet
+          if (dragItem?.type === 'tab' && dragItem.sourcePanelId === panelId) {
+            return;
+          }
           
           const rect = tabBar.getBoundingClientRect();
           
@@ -157,6 +169,8 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
               id: panelId,
               rect
             };
+            
+            console.log(`Found drop target: tabbar ${panelId}`);
             
             // Update the drop target
             setDropTarget(target);

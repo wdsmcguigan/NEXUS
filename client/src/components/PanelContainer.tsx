@@ -127,30 +127,32 @@ export function PanelContainer({
           data-panel-drop-zone
           data-panel-id={panelConfig.id}
         >
-          <TabPanel
-            tabs={panelConfig.tabs || []}
-            contents={panelConfig.contents || []}
-            activeTabId={panelConfig.activeTabId || ''}
-            panelId={panelConfig.id}
-            onTabChange={(tabId) => changeTab(panelConfig.id, tabId)}
-            onTabClose={(tabId) => removeTab(panelConfig.id, tabId)}
-            onTabAdd={() => {
-              const contentType = panelConfig.id.includes('email-list') 
-                ? 'emailList' 
-                : panelConfig.id.includes('email-detail')
-                  ? 'emailDetail'
-                  : panelConfig.id.includes('sidebar')
-                    ? 'leftSidebar'
-                    : 'integrations';
-                    
-              handleTabAdd(panelConfig.id, contentType);
-            }}
-            onDragStart={(tabId, e) => handleTabDragStart(tabId, panelConfig.id, e)}
-            onDrop={(e) => handleTabDrop(panelConfig.id, e)}
-            onMaximize={onMaximizePanel ? () => onMaximizePanel(panelConfig.id) : undefined}
-            onRestore={onRestorePanel}
-            isMaximized={maximizedPanelId === panelConfig.id}
-          />
+          <div data-panel-body-id={panelConfig.id} className="h-full flex flex-col">
+            <TabPanel
+              tabs={panelConfig.tabs || []}
+              contents={panelConfig.contents || []}
+              activeTabId={panelConfig.activeTabId || ''}
+              panelId={panelConfig.id}
+              onTabChange={(tabId) => changeTab(panelConfig.id, tabId)}
+              onTabClose={(tabId) => removeTab(panelConfig.id, tabId)}
+              onTabAdd={() => {
+                const contentType = panelConfig.id.includes('email-list') 
+                  ? 'emailList' 
+                  : panelConfig.id.includes('email-detail')
+                    ? 'emailDetail'
+                    : panelConfig.id.includes('sidebar')
+                      ? 'leftSidebar'
+                      : 'integrations';
+                      
+                handleTabAdd(panelConfig.id, contentType);
+              }}
+              onDragStart={(tabId, e) => handleTabDragStart(tabId, panelConfig.id, e)}
+              onDrop={(e) => handleTabDrop(panelConfig.id, e)}
+              onMaximize={onMaximizePanel ? () => onMaximizePanel(panelConfig.id) : undefined}
+              onRestore={onRestorePanel}
+              isMaximized={maximizedPanelId === panelConfig.id}
+            />
+          </div>
         </Panel>
       );
     }

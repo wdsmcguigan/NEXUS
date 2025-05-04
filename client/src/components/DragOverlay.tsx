@@ -62,14 +62,17 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
     setMousePosition(newPosition);
     updateMousePosition(newPosition.x, newPosition.y);
     
-    // Check for edge zones
-    let foundEdgeZone = false;
+    // First check for edge zones - these have highest priority
+    let foundDropTarget = false;
     
+    // Edge zone detection (for panel splitting)
     edgeZones.forEach(({ rect, panelId }) => {
+      if (foundDropTarget) return; // Skip if we already found a target
+      
       const direction = detectEdgeZone(rect, newPosition.x, newPosition.y);
       
       if (direction) {
-        foundEdgeZone = true;
+        foundDropTarget = true;
         setActiveEdgeZone({ panelId, direction });
         
         // Update drop target with edge information
@@ -82,14 +85,92 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
         
         // Set the drop target
         onDrop(target);
+        return;
       }
     });
     
     // Reset if not in any edge zone
-    if (!foundEdgeZone && activeEdgeZone) {
+    if (!foundDropTarget && activeEdgeZone) {
       setActiveEdgeZone(null);
     }
-  }, [active, dragItem, edgeZones, detectEdgeZone, activeEdgeZone, updateMousePosition, onDrop]);
+    
+    // If we didn't find an edge zone, check for tab bars and panel bodies
+    if (!foundDropTarget) {
+      // Find all panels for dropping into the panel body
+      const panels = document.querySelectorAll('[data-panel-body-id]');
+      
+      panels.forEach(panel => {
+        if (foundDropTarget) return; // Skip if we already found a target
+        
+        const panelId = panel.getAttribute('data-panel-body-id');
+        if (!panelId) return;
+        
+        const rect = panel.getBoundingClientRect();
+        
+        // Check if mouse is inside this panel
+        if (
+          newPosition.x >= rect.left &&
+          newPosition.x <= rect.right &&
+          newPosition.y >= rect.top &&
+          newPosition.y <= rect.bottom
+        ) {
+          foundDropTarget = true;
+          
+          // Create drop target for panel body
+          const target: DropTarget = {
+            type: 'panel',
+            id: panelId,
+            rect
+          };
+          
+          // Set the drop target
+          onDrop(target);
+          return;
+        }
+      });
+      
+      // If still no target, check tab bars (for tab insertion)
+      if (!foundDropTarget) {
+        const tabBars = document.querySelectorAll('[data-tabbar-id]');
+        
+        tabBars.forEach(tabBar => {
+          if (foundDropTarget) return; // Skip if we already found a target
+          
+          const panelId = tabBar.getAttribute('data-tabbar-id');
+          if (!panelId) return;
+          
+          const rect = tabBar.getBoundingClientRect();
+          
+          // Check if mouse is inside this tabbar
+          if (
+            newPosition.x >= rect.left &&
+            newPosition.x <= rect.right &&
+            newPosition.y >= rect.top &&
+            newPosition.y <= rect.bottom
+          ) {
+            foundDropTarget = true;
+            
+            // Create drop target for tabbar
+            const target: DropTarget = {
+              type: 'tabbar',
+              id: panelId,
+              rect
+            };
+            
+            // Set the drop target
+            onDrop(target);
+            return;
+          }
+        });
+      }
+    }
+    
+    // If no drop target was found, clear any existing target
+    if (!foundDropTarget && dropTarget) {
+      // Reset drop target
+      onDrop(null);
+    }
+  }, [active, dragItem, edgeZones, detectEdgeZone, activeEdgeZone, updateMousePosition, onDrop, dropTarget]);
   
   // Handle mouse up to end drag
   const handleMouseUp = useCallback((e: MouseEvent) => {
@@ -151,17 +232,26 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
         {/* Tab drag preview */}
         <div
           ref={previewRef}
-          className="fixed z-50 px-4 flex items-center h-[40px] bg-neutral-800 border-t-2 border-t-blue-500 shadow-lg rounded opacity-80 pointer-events-none animate-pulse"
+          className="fixed z-50 px-4 flex items-center h-[40px] bg-neutral-800 border-t-2 border-t-blue-500 shadow-lg rounded opacity-90 pointer-events-none"
           style={{
             left: `${mousePosition.x}px`,
             top: `${mousePosition.y}px`,
             transform: 'translate(-50%, -50%)',
-            width: '150px'
+            width: '150px',
+            boxShadow: '0 0 12px 2px rgba(59, 130, 246, 0.5)'
           }}
         >
           <div className="flex items-center overflow-hidden w-full">
             {icon && <span className="mr-2 flex-shrink-0 text-blue-400">{icon}</span>}
-            <span className="truncate text-white">{title}</span>
+            <span className="truncate text-white font-medium">{title}</span>
+          </div>
+          
+          {/* Pulsing effect */}
+          <div className="absolute inset-0 rounded">
+            <div className="absolute inset-0 border border-blue-400 rounded animate-pulse" 
+                 style={{ animationDuration: '1.5s' }}></div>
+            <div className="absolute inset-0 border border-blue-300 rounded animate-pulse" 
+                 style={{ animationDuration: '2s', animationDelay: '0.2s' }}></div>
           </div>
         </div>
         
@@ -337,14 +427,27 @@ function DropPreview({ target }: { target: DropTarget }) {
   if ((target.type === 'panel' || target.type === 'tabbar') && target.rect) {
     return (
       <div
-        className="fixed bg-blue-500 bg-opacity-20 border-2 border-blue-500 rounded z-40 pointer-events-none"
+        className="fixed bg-blue-500 bg-opacity-15 border-2 border-blue-500 rounded z-40 pointer-events-none shadow-lg animate-pulse"
         style={{
           left: `${target.rect.left}px`,
           top: `${target.rect.top}px`,
           width: `${target.rect.width}px`,
-          height: `${target.rect.height}px`
+          height: `${target.rect.height}px`,
+          boxShadow: '0 0 15px rgba(59, 130, 246, 0.4) inset, 0 0 8px rgba(59, 130, 246, 0.4)'
         }}
-      />
+      >
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="bg-blue-500 bg-opacity-80 text-white px-3 py-1 rounded-md text-sm font-medium shadow-sm">
+            Add to Panel
+          </div>
+        </div>
+        
+        {/* Corner indicators for visual emphasis */}
+        <div className="absolute top-0 left-0 w-2 h-2 bg-blue-500 rounded-full"></div>
+        <div className="absolute top-0 right-0 w-2 h-2 bg-blue-500 rounded-full"></div>
+        <div className="absolute bottom-0 left-0 w-2 h-2 bg-blue-500 rounded-full"></div>
+        <div className="absolute bottom-0 right-0 w-2 h-2 bg-blue-500 rounded-full"></div>
+      </div>
     );
   }
   

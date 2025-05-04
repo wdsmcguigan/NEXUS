@@ -93,7 +93,7 @@ export function DraggableTab({
         
         {closeable && onClose && (
           <div
-            className="ml-2 text-neutral-500 hover:text-white p-1 rounded-sm hover:bg-neutral-700"
+            className="ml-2 text-neutral-500 hover:text-white p-1 rounded-sm hover:bg-neutral-700 tab-close-button"
             onClick={(e) => {
               e.stopPropagation();
               onClose();

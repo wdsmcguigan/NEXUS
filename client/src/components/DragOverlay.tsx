@@ -32,15 +32,49 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
     
     // Check for panel edges when dragging tabs
     if (dragItem.type === 'tab') {
+      console.log('DragOverlay: Tab is being dragged, checking for drop targets');
+      
+      // Add function to detect tabbar areas for dragging tabs between panels
+      const checkTabBars = () => {
+        // Look for elements that could be tabbar containers
+        const tabContainers = document.querySelectorAll('.tab-bar-container');
+        console.log(`DragOverlay: Found ${tabContainers.length} tab bar containers`);
+        
+        if (tabContainers.length === 0) {
+          // If specific containers not found, try to find any element containing tabs
+          const tabs = document.querySelectorAll('[data-tab-id]');
+          console.log(`DragOverlay: Found ${tabs.length} individual tabs`);
+          
+          // If we found tabs, we can try to get their parent containers
+          if (tabs.length > 0) {
+            const tabParents = new Set<Element>();
+            tabs.forEach(tab => {
+              const parent = tab.parentElement;
+              if (parent) tabParents.add(parent);
+            });
+            
+            console.log(`DragOverlay: Found ${tabParents.size} potential tab parent containers`);
+          }
+        }
+      };
+      
       // Detect panel edges for potential splitting
       const checkPanelEdges = () => {
         const panels = document.querySelectorAll('[data-panel-id]');
+        console.log(`DragOverlay: Found ${panels.length} panels with data-panel-id`);
+        
         const edgeThreshold = 30; // pixels from edge to trigger
         const foundEdgeZones: DropZone[] = [];
         
         panels.forEach(panel => {
           const panelId = panel.getAttribute('data-panel-id');
           if (!panelId) return;
+          
+          // Skip source panel
+          if (panelId === dragItem.sourcePanelId) {
+            console.log(`DragOverlay: Skipping source panel ${panelId}`);
+            return;
+          }
           
           const rect = panel.getBoundingClientRect();
           
@@ -118,6 +152,7 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
       };
       
       checkPanelEdges();
+      checkTabBars(); // Call our new function to detect tabbars
     }
   }, [active, dragItem, setDropTarget]);
   

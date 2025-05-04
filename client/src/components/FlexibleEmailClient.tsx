@@ -4,6 +4,7 @@ import { PanelManager } from './PanelManager';
 import TopNavbar from './TopNavbar';
 import registerComponents from '../lib/componentRegistry.setup';
 import { Star, Cog } from 'lucide-react';
+import { DragManager } from './DragManager';
 
 export function FlexibleEmailClient() {
   // Initialize component registry on mount
@@ -71,6 +72,7 @@ function EmailClientContent() {
   return (
     <div className="h-full w-full">
       <PanelManager />
+      <DragManager />
     </div>
   );
 }

@@ -20,7 +20,8 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
   const { 
     dragItem, 
     endDrag, 
-    dropTarget, 
+    dropTarget,
+    setDropTarget,
     updateMousePosition, 
     detectEdgeZone 
   } = useDragContext();
@@ -167,10 +168,10 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
     
     // If no drop target was found, clear any existing target
     if (!foundDropTarget && dropTarget) {
-      // Reset drop target
-      endDrag();
+      // Reset drop target - explicitly passing false since we didn't drop successfully
+      setDropTarget(null);
     }
-  }, [active, dragItem, edgeZones, detectEdgeZone, activeEdgeZone, updateMousePosition, onDrop, dropTarget]);
+  }, [active, dragItem, edgeZones, detectEdgeZone, activeEdgeZone, updateMousePosition, onDrop, dropTarget, setDropTarget]);
   
   // Handle mouse up to end drag
   const handleMouseUp = useCallback((e: MouseEvent) => {

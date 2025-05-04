@@ -80,12 +80,14 @@ export function DragProvider({ children }: { children: ReactNode }) {
   }, []);
   
   // Method to update keyboard modifiers
+  // Modified to not require modifiers for normal operations
   const setModifiers = useCallback((shift: boolean, alt: boolean, ctrl: boolean) => {
     setIsShiftPressed(shift);
     setIsAltPressed(alt);
     setIsCtrlPressed(ctrl);
     
     // Update drag operation based on modifiers
+    // Always use 'move' as default - no modifiers required for normal operations
     let operation: DragOperation = 'move';
     if (ctrl) operation = 'copy';
     if (alt) operation = 'link';

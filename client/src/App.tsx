@@ -7,6 +7,7 @@ import EmailClient from "@/pages/EmailClient";
 import { EmailProvider } from "@/context/EmailContext";
 import { TagProvider } from "@/context/TagContext";
 import { AppProvider } from "@/context/AppContext";
+import { DragProvider } from "./context/DragContext";
 import { SimplePanelLayout } from "./components/SimplePanelLayout";
 import { TabbedPanelLayout } from "./components/TabbedPanelLayout";
 import { AdvancedPanelLayout } from "./components/AdvancedPanelLayout";
@@ -46,10 +47,12 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AppProvider>
         <EmailProvider>
-          <TagProvider>
-            <Router />
-            <Toaster />
-          </TagProvider>
+          <DragProvider>
+            <TagProvider>
+              <Router />
+              <Toaster />
+            </TagProvider>
+          </DragProvider>
         </EmailProvider>
       </AppProvider>
     </QueryClientProvider>

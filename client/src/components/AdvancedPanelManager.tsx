@@ -109,6 +109,16 @@ export function AdvancedPanelManager() {
         };
         
         // The current panel becomes a parent with children
+        // We need to make a deep copy of the panel to avoid mutating the original
+        const panelCopy = { 
+          ...panel,
+          id: `${panel.id}-child`,
+          size: 50 // Set the size explicitly
+        };
+        
+        // Don't copy over properties that shouldn't be inherited
+        delete panelCopy.children;
+        
         const updatedPanel: PanelConfig = {
           id: panel.id,
           type: 'split',
@@ -117,8 +127,8 @@ export function AdvancedPanelManager() {
           size: panel.size,
           tabs: [], // Empty tabs array for parent panels
           children: direction === 'horizontal'
-            ? [{ ...panel, id: `${panel.id}-child` }, newChildPanel]
-            : [newChildPanel, { ...panel, id: `${panel.id}-child` }]
+            ? [panelCopy, newChildPanel]
+            : [newChildPanel, panelCopy]
         };
         
         return updatedPanel;

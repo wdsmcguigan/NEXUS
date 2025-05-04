@@ -1,5 +1,5 @@
 import React from 'react';
-import { Inbox as InboxIcon, User as UserIcon, Settings as SettingsIcon, Tag as TagIcon, Mail as MailIcon, MailOpen as MailOpenIcon, FileText as FileTextIcon, Sliders as SlidersIcon, PanelLeft as PanelLeftIcon, Folder as FolderIcon, Search as SearchIcon } from 'lucide-react';
+import { Inbox as InboxIcon, User as UserIcon, Settings as SettingsIcon, Tag as TagIcon, Mail as MailIcon, MailOpen as MailOpenIcon, FileText as FileTextIcon, Sliders as SlidersIcon, PanelLeft as PanelLeftIcon, Folder as FolderIcon, Search as SearchIcon, SearchCheck as SearchCheckIcon } from 'lucide-react';
 import componentRegistry, { defineComponent } from './componentRegistry';
 import { PlaceholderComponent } from '../components/PlaceholderComponent';
 import { TagManager } from '../components/TagManager';
@@ -8,6 +8,7 @@ import { EmailListPane } from '../components/EmailListPane';
 import { EmailDetailPane } from '../components/EmailDetailPane';
 import { FolderExplorer } from '../components/FolderExplorer';
 import { EmailWorkspaceWithSearch } from '../components/EmailWorkspaceWithSearch';
+import { AdvancedSearchComponent } from '../components/AdvancedSearchComponent';
 
 // Helper types to patch missing imports
 // In a real implementation, you would import these from their respective files
@@ -109,6 +110,16 @@ export function registerComponents() {
     icon: SearchIcon,
     component: EmailWorkspaceWithSearch,
     supportedPanelTypes: ['main', 'any'],
+  });
+  
+  // Advanced Search
+  defineComponent({
+    id: 'advanced-search',
+    displayName: 'Advanced Search',
+    category: 'search',
+    icon: SearchCheckIcon,
+    component: AdvancedSearchComponent,
+    supportedPanelTypes: ['main', 'sidebar', 'any'],
   });
 
   return componentRegistry;

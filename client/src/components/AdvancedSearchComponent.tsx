@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AdvancedSearchPanel, SavedSearch } from './AdvancedSearchPanel';
 import { TextContentSearchAdapter } from '../lib/searchAdapters';
-import { useSearch } from '../context/SearchContext';
+import { useSearch, SearchProvider } from '../context/SearchContext';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Search, BookmarkIcon, Save, FileDown, FileUp } from 'lucide-react';
+import { Search, BookmarkIcon, Save, FileDown, FileUp, AlertCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -99,7 +99,8 @@ interface AdvancedSearchComponentProps {
   id: string;
 }
 
-export function AdvancedSearchComponent({ id }: AdvancedSearchComponentProps) {
+// A component that safely uses the SearchContext
+function AdvancedSearchComponentInner({ id }: AdvancedSearchComponentProps) {
   const { performSearch, updateSearchOptions } = useSearch();
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>(EXAMPLE_SAVED_SEARCHES);
   const [activeTab, setActiveTab] = useState<string>('search');
@@ -338,5 +339,36 @@ export function AdvancedSearchComponent({ id }: AdvancedSearchComponentProps) {
       {/* Hidden div for search adapter to use */}
       <div ref={contentRef} className="hidden"></div>
     </div>
+  );
+}
+
+// Safe search context consumer that works regardless of context existence
+function SearchContextConsumer({ children }: { children: (hasContext: boolean) => React.ReactNode }) {
+  try {
+    useSearch(); // This will throw if context is missing
+    return <>{children(true)}</>;
+  } catch (error) {
+    return <>{children(false)}</>;
+  }
+}
+
+// Wrapper component that provides SearchProvider if needed
+export function AdvancedSearchComponent({ id }: AdvancedSearchComponentProps) {
+  return (
+    <SearchContextConsumer>
+      {(hasContext) => {
+        if (hasContext) {
+          // We're already in a SearchProvider context
+          return <AdvancedSearchComponentInner id={id} />;
+        } else {
+          // We need to provide our own SearchProvider
+          return (
+            <SearchProvider>
+              <AdvancedSearchComponentInner id={id} />
+            </SearchProvider>
+          );
+        }
+      }}
+    </SearchContextConsumer>
   );
 }

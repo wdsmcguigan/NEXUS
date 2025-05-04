@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { StarColor } from '../../shared/schema';
+import { useTagContext, TagItem } from '../context/TagContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +31,7 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
   const [loading, setLoading] = useState(true);
   const [replyMode, setReplyMode] = useState(false);
   const [replyText, setReplyText] = useState('');
+  const { tags: globalTags } = useTagContext();
 
   // Fetch email details
   useEffect(() => {

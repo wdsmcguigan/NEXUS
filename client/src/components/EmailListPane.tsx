@@ -10,6 +10,7 @@ import { StarColor } from '../../shared/schema';
 import ItemContextMenu from './ContextMenu';
 import { useTabContext } from '../context/TabContext';
 import tabFactory from '../services/TabFactory';
+import { useTagContext, TagItem } from '../context/TagContext';
 
 interface EmailListPaneProps {
   tabId?: string;
@@ -24,6 +25,7 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
   const [selectedEmailId, setSelectedEmailId] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('primary');
   const tabContext = useTabContext();
+  const { tags: globalTags } = useTagContext();
 
   // Fetch emails for the current view/category
   useEffect(() => {
@@ -345,21 +347,36 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
                       
                       {/* Tags and indicators */}
                       <div className="flex items-center gap-2 mt-2">
-                        {email.tags?.map((tag) => (
-                          <Badge 
-                            key={tag.id} 
-                            variant="outline"
-                            className="flex items-center gap-1 px-2 py-0 text-xs" 
-                            style={{ 
-                              backgroundColor: tag.bgColor || '#e2e8f0', 
-                              color: tag.textColor || '#1e293b',
-                              borderColor: 'transparent' 
-                            }}
-                          >
-                            {tag.emoji && <span>{tag.emoji}</span>}
-                            {tag.name}
-                          </Badge>
-                        ))}
+                        {email.tags?.map((tag) => {
+                          // Find the matching tag in our global context if it exists
+                          const globalTag = globalTags.find(gt => gt.id === tag.id?.toString()) || 
+                                        globalTags.flatMap(gt => gt.children || [])
+                                              .find(child => child.id === tag.id?.toString());
+                          
+                          // Use global tag properties if available, otherwise use the email tag properties
+                          const displayTag = globalTag || {
+                            name: tag.name,
+                            color: tag.bgColor || '#e2e8f0',
+                            textColor: tag.textColor || '#1e293b',
+                            emoji: tag.emoji
+                          };
+                          
+                          return (
+                            <Badge 
+                              key={tag.id} 
+                              variant="outline"
+                              className="flex items-center gap-1 px-2 py-0 text-xs" 
+                              style={{ 
+                                backgroundColor: displayTag.color, 
+                                color: displayTag.textColor,
+                                borderColor: 'transparent' 
+                              }}
+                            >
+                              {displayTag.emoji && <span>{displayTag.emoji}</span>}
+                              {displayTag.name}
+                            </Badge>
+                          );
+                        })}
                         
                         {email.todoText && (
                           <Badge 

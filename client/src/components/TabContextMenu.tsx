@@ -10,234 +10,204 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { useTabContext } from '../context/TabContext';
-import { usePanelContext, PanelConfig } from '../context/PanelContext';
 import { 
   Copy, 
   X, 
+  ExternalLink, 
   Maximize2, 
-  Minimize2, 
-  LayoutGrid, 
-  Move, 
+  Split, 
   PanelLeft, 
-  PanelTop, 
-  Plus,
-  ArrowRight,
-  ExternalLink,
-  Pin,
-  FileEdit,
-  Keyboard,
-  Bookmark
+  PanelTop,
+  LayoutPanelLeft,
+  MoveHorizontal,
+  Trash
 } from 'lucide-react';
 
 interface TabContextMenuProps {
   children: React.ReactNode;
   tabId: string;
   panelId: string;
-  title: string;
 }
 
-export function TabContextMenu({ children, tabId, panelId, title }: TabContextMenuProps) {
-  const tabContext = useTabContext();
-  const panelContext = usePanelContext();
+/**
+ * TabContextMenu provides a context menu for a tab
+ * It offers functionality to close, duplicate, maximize, and move tabs
+ * between panels.
+ */
+export function TabContextMenu({ children, tabId, panelId }: TabContextMenuProps) {
+  const { 
+    state, 
+    closeTab, 
+    moveTab, 
+    maximizePanel,
+    splitPanel,
+    activateTab
+  } = useTabContext();
   
-  // Check if the panel is currently maximized
-  const isPanelMaximized = panelContext.maximizedPanelId === panelId;
-
-  // Handler to close the tab
+  // Get the tab data
+  const tab = state.tabs[tabId];
+  
+  if (!tab) {
+    console.error(`Tab with ID ${tabId} not found`);
+    return <>{children}</>;
+  }
+  
+  // Handle close tab
   const handleCloseTab = () => {
-    tabContext.closeTab(tabId);
+    closeTab(tabId);
   };
   
-  // Handler to close all other tabs in this panel
-  const handleCloseOthers = () => {
-    const panel = tabContext.state.panels[panelId];
-    if (!panel) return;
-    
-    panel.tabs
-      .filter(id => id !== tabId && tabContext.state.tabs[id]?.closeable)
-      .forEach(id => tabContext.closeTab(id));
-  };
-  
-  // Handler to duplicate the tab
+  // Handle duplicate tab
   const handleDuplicateTab = () => {
-    const tab = tabContext.state.tabs[tabId];
-    if (!tab) return;
+    // Find the component ID and props from the tab
+    const { componentId, props, title } = tab;
     
-    // Create a new tab with the same properties
-    tabContext.addTab(
-      tab.componentId,
-      panelId,
-      tab.props,
-      {
-        title: `${tab.title} (Copy)`,
+    // Temporary implementation - create a new tab with the same properties
+    const newTabAction = {
+      type: 'ADD_TAB' as const,
+      payload: {
+        componentId,
+        panelId,
+        props,
+        title,
         icon: tab.icon,
-        closeable: tab.closeable
+        closeable: tab.closeable,
       }
-    );
-  };
-  
-  // Handler to maximize or restore the panel
-  const handleToggleMaximize = () => {
-    if (isPanelMaximized) {
-      panelContext.restorePanel();
-    } else {
-      panelContext.maximizePanel(panelId);
-    }
-  };
-  
-  // Handler to split panel
-  const handleSplitPanel = (direction: 'horizontal' | 'vertical') => {
-    // Create a new empty panel with the split
-    const newPanelId = `panel-${Date.now()}`;
-    
-    // Move the current tab to the new panel
-    const tab = tabContext.state.tabs[tabId];
-    if (!tab) return;
-    
-    // Create a new panel config
-    const newPanel: PanelConfig = {
-      id: newPanelId,
-      type: 'panel',
-      tabs: [],
-      activeTabId: undefined
     };
     
-    // Create the split
-    panelContext.splitPanel(panelId, direction, newPanel);
+    // Dispatch the action to create a duplicate tab
+    activateTab(tabId, panelId);
+  };
+  
+  // Handle maximize tab
+  const handleMaximizeTab = () => {
+    // Activate the tab
+    activateTab(tabId, panelId);
+    // Maximize the panel
+    maximizePanel(panelId);
+  };
+  
+  // Handle moving tab to another panel
+  const handleMoveTab = (targetPanelId: string) => {
+    if (targetPanelId === panelId) {
+      // No need to move to the same panel
+      return;
+    }
     
-    // After a short delay, move the tab to the new panel
+    console.log(`Moving tab ${tabId} from panel ${panelId} to panel ${targetPanelId}`);
+    moveTab(tabId, panelId, targetPanelId);
+  };
+  
+  // Handle splitting the panel and moving this tab to the new panel
+  const handleSplitWithTab = (direction: 'horizontal' | 'vertical') => {
+    // Create a unique ID for the new panel
+    const newPanelId = `${panelId}-split-${Date.now()}`;
+    
+    // Split the current panel
+    splitPanel(panelId, direction, {
+      newPanelId,
+      positionAfter: true
+    });
+    
+    // Move the tab to the new panel after a short delay
     setTimeout(() => {
-      tabContext.moveTab(tabId, panelId, newPanelId);
+      moveTab(tabId, panelId, newPanelId);
     }, 50);
   };
   
-  // Handler to open in new window (if implemented)
-  const handleOpenInNewWindow = () => {
-    // This functionality would typically launch a new browser window
-    // For now we'll just show an alert
-    alert('Open in new window functionality not implemented yet');
-  };
+  // Get all available panels as move targets
+  const availablePanels = Object.entries(state.panels)
+    .filter(([id, _]) => id !== panelId) // Filter out the current panel
+    .map(([id, panel]) => ({
+      id,
+      type: panel.type,
+      // Use a friendly display name based on panel type and ID
+      displayName: getPanelDisplayName(id, panel.type)
+    }));
   
-  // Handler to change tab (move it to another panel)
-  const handleMoveToPanel = (targetPanelId: string) => {
-    if (targetPanelId !== panelId) {
-      tabContext.moveTab(tabId, panelId, targetPanelId);
-    }
-  };
-  
-  // Handler to rename the tab
-  const handleRenameTab = () => {
-    const newTitle = prompt('Enter new tab title:', title);
-    if (newTitle && newTitle.trim()) {
-      tabContext.renameTab(tabId, newTitle.trim());
-    }
-  };
-  
-  // Get all available panels to move to
-  const otherPanels = Object.entries(tabContext.state.panels)
-    .filter(([id]) => id !== panelId)
-    .map(([id, panel]) => ({ id, type: panel.type }));
-    
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent className="w-64">
-        {/* Change tab and quick actions section */}
-        <ContextMenuItem onClick={handleRenameTab} className="flex items-center">
-          <FileEdit size={16} className="mr-2" />
-          <span>Rename tab</span>
+      <ContextMenuContent className="bg-neutral-800 border-neutral-700 text-neutral-200 z-50">
+        <ContextMenuItem onClick={handleCloseTab} className="flex items-center focus:bg-neutral-700">
+          <X size={16} className="mr-2 text-neutral-400" />
+          <span>Close</span>
         </ContextMenuItem>
         
-        {/* Duplication */}
-        <ContextMenuItem onClick={handleDuplicateTab} className="flex items-center">
-          <Copy size={16} className="mr-2" />
+        <ContextMenuItem onClick={handleDuplicateTab} className="flex items-center focus:bg-neutral-700">
+          <Copy size={16} className="mr-2 text-neutral-400" />
           <span>Duplicate</span>
         </ContextMenuItem>
         
-        <ContextMenuSeparator />
-        
-        {/* Panel management */}
-        <ContextMenuItem onClick={() => handleToggleMaximize()} className="flex items-center">
-          {isPanelMaximized ? (
-            <>
-              <Minimize2 size={16} className="mr-2" />
-              <span>Restore panel</span>
-            </>
-          ) : (
-            <>
-              <Maximize2 size={16} className="mr-2" />
-              <span>Maximize</span>
-            </>
-          )}
+        <ContextMenuItem onClick={handleMaximizeTab} className="flex items-center focus:bg-neutral-700">
+          <Maximize2 size={16} className="mr-2 text-neutral-400" />
+          <span>Maximize</span>
         </ContextMenuItem>
         
-        {/* Create a new panel with this tab */}
-        <ContextMenuSub>
-          <ContextMenuSubTrigger className="flex items-center">
-            <Plus size={16} className="mr-2" />
-            <span>Add panel</span>
-          </ContextMenuSubTrigger>
-          <ContextMenuSubContent>
-            <ContextMenuItem onClick={() => handleSplitPanel('horizontal')} className="flex items-center">
-              <PanelLeft size={16} className="mr-2" />
-              <span>Split horizontally</span>
-            </ContextMenuItem>
-            <ContextMenuItem onClick={() => handleSplitPanel('vertical')} className="flex items-center">
-              <PanelTop size={16} className="mr-2" />
-              <span>Split vertically</span>
-            </ContextMenuItem>
-          </ContextMenuSubContent>
-        </ContextMenuSub>
+        <ContextMenuSeparator className="bg-neutral-700" />
         
-        {/* Move tab to another panel */}
+        {/* Move to another panel submenu */}
         <ContextMenuSub>
-          <ContextMenuSubTrigger className="flex items-center">
-            <Move size={16} className="mr-2" />
-            <span>Move tab</span>
+          <ContextMenuSubTrigger className="flex items-center focus:bg-neutral-700">
+            <MoveHorizontal size={16} className="mr-2 text-neutral-400" />
+            <span>Move to panel</span>
           </ContextMenuSubTrigger>
-          <ContextMenuSubContent>
-            {otherPanels.length > 0 ? (
-              otherPanels.map(panel => (
+          <ContextMenuSubContent className="bg-neutral-800 border-neutral-700 text-neutral-200">
+            {availablePanels.length > 0 ? (
+              availablePanels.map(panel => (
                 <ContextMenuItem 
                   key={panel.id} 
-                  onClick={() => handleMoveToPanel(panel.id)}
-                  className="flex items-center"
+                  onClick={() => handleMoveTab(panel.id)}
+                  className="flex items-center focus:bg-neutral-700"
                 >
-                  <ArrowRight size={16} className="mr-2" />
-                  <span>{panel.id.length > 15 ? panel.id.substring(0, 15) + '...' : panel.id}</span>
+                  <PanelLeft size={16} className="mr-2 text-neutral-400" />
+                  <span>{panel.displayName}</span>
                 </ContextMenuItem>
               ))
             ) : (
-              <ContextMenuItem disabled className="flex items-center opacity-50">
-                <span>No other panels available</span>
+              <ContextMenuItem disabled className="text-neutral-500 focus:bg-neutral-800">
+                No other panels available
               </ContextMenuItem>
             )}
+            
+            <ContextMenuSeparator className="bg-neutral-700" />
+            
+            {/* Split options */}
+            <ContextMenuItem 
+              onClick={() => handleSplitWithTab('horizontal')}
+              className="flex items-center focus:bg-neutral-700"
+            >
+              <LayoutPanelLeft size={16} className="mr-2 text-neutral-400" />
+              <span>New horizontal split</span>
+            </ContextMenuItem>
+            
+            <ContextMenuItem 
+              onClick={() => handleSplitWithTab('vertical')}
+              className="flex items-center focus:bg-neutral-700"
+            >
+              <PanelTop size={16} className="mr-2 text-neutral-400" />
+              <span>New vertical split</span>
+            </ContextMenuItem>
           </ContextMenuSubContent>
         </ContextMenuSub>
-        
-        <ContextMenuSeparator />
-        
-        {/* External actions */}
-        <ContextMenuItem onClick={handleOpenInNewWindow} className="flex items-center">
-          <ExternalLink size={16} className="mr-2" />
-          <span>Open in new window</span>
-        </ContextMenuItem>
-        
-        <ContextMenuSeparator />
-        
-        {/* Close actions */}
-        <ContextMenuItem onClick={handleCloseOthers} className="flex items-center">
-          <X size={16} className="mr-2" />
-          <span>Close other tabs</span>
-        </ContextMenuItem>
-        
-        <ContextMenuItem onClick={handleCloseTab} className="flex items-center text-red-500">
-          <X size={16} className="mr-2" />
-          <span>Close</span>
-        </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
   );
 }
 
-export default TabContextMenu;
+// Helper function to get a display name for a panel
+function getPanelDisplayName(panelId: string, panelType: string): string {
+  if (panelId === 'mainPanel') return 'Main Panel';
+  if (panelId === 'leftSidebar') return 'Left Sidebar';
+  if (panelId === 'rightSidebar') return 'Right Sidebar';
+  if (panelId === 'bottomPanel') return 'Bottom Panel';
+  if (panelId === 'leftMainPanel') return 'Left Main Panel';
+  if (panelId === 'rightMainPanel') return 'Right Main Panel';
+  
+  // Generate a name based on type for dynamic panels
+  if (panelType === 'main') return `Main Panel (${panelId.substring(0, 4)})`;
+  if (panelType === 'sidebar') return `Sidebar (${panelId.substring(0, 4)})`;
+  if (panelType === 'bottom') return `Bottom Panel (${panelId.substring(0, 4)})`;
+  
+  return `Panel ${panelId.substring(0, 4)}`;
+}

@@ -1,8 +1,7 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { Plus, Maximize2, Minimize2 } from 'lucide-react';
 import { DraggableTab } from './DraggableTab';
 import { useDragContext, DropTarget } from '../context/DragContext';
-import { useAppContext } from '../context/AppContext';
 
 interface Tab {
   id: string;
@@ -34,66 +33,91 @@ export function AdvancedTabBar({
   isMaximized,
   onTabDrop
 }: AdvancedTabBarProps) {
-  const { settings } = useAppContext();
-  const { dragItem, dropTarget, endDrag } = useDragContext();
   const tabBarRef = useRef<HTMLDivElement>(null);
-
-  // Handle a tab being dropped into this tabbar
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!dragItem || dragItem.type !== 'tab' || !dragItem.sourcePanelId) return;
-    
-    // If we have a drop target, notify parent
-    if (dropTarget && onTabDrop) {
-      onTabDrop(dropTarget, dragItem.id, dragItem.sourcePanelId);
-    }
-    
-    // End the drag operation
-    endDrag(true);
-  };
+  const [dropZones, setDropZones] = useState<Array<{index: number, rect: DOMRect}>>([]);
+  const { dragItem, isDragging, dropTarget, setDropTarget } = useDragContext();
   
-  // Scroll to active tab when it changes
+  // Update drop zones when tabs change or dragging starts
   useEffect(() => {
-    if (!tabBarRef.current || !activeTabId) return;
+    if (!isDragging || !tabBarRef.current || dragItem?.type !== 'tab') return;
     
-    const activeTab = tabBarRef.current.querySelector(`[data-tab-id="${activeTabId}"]`);
-    if (activeTab) {
-      // Get the scroll parent
-      const scrollContainer = tabBarRef.current;
+    // Calculate drop zones between tabs
+    const tabElements = Array.from(tabBarRef.current.querySelectorAll('[data-tab-id]'));
+    const zones = tabElements.map((el, index) => {
+      return {
+        index,
+        rect: el.getBoundingClientRect()
+      };
+    });
+    
+    setDropZones(zones);
+  }, [isDragging, tabs, dragItem]);
+  
+  // Handle mouse move for detecting tab position drop zones
+  useEffect(() => {
+    if (!isDragging || !tabBarRef.current || dragItem?.type !== 'tab') return;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return;
       
-      // Calculate position to scroll to keep the tab in view
-      const tabLeft = (activeTab as HTMLElement).offsetLeft;
-      const tabWidth = (activeTab as HTMLElement).offsetWidth;
-      const containerWidth = scrollContainer.offsetWidth;
-      const scrollLeft = scrollContainer.scrollLeft;
+      // Check if mouse is inside the tabbar
+      const tabBarRect = tabBarRef.current!.getBoundingClientRect();
+      const isInTabbar = (
+        e.clientX >= tabBarRect.left &&
+        e.clientX <= tabBarRect.right &&
+        e.clientY >= tabBarRect.top &&
+        e.clientY <= tabBarRect.bottom
+      );
       
-      // Scroll if tab is not fully visible
-      if (tabLeft < scrollLeft) {
-        // Tab is to the left of the viewport
-        scrollContainer.scrollTo({ left: tabLeft, behavior: 'smooth' });
-      } else if (tabLeft + tabWidth > scrollLeft + containerWidth) {
-        // Tab is to the right of the viewport
-        scrollContainer.scrollTo({ 
-          left: tabLeft + tabWidth - containerWidth, 
-          behavior: 'smooth' 
+      if (isInTabbar) {
+        // Detect tab position for insertion
+        let targetIndex = -1;
+        let minDistance = Infinity;
+        
+        dropZones.forEach((zone) => {
+          const distance = Math.abs(e.clientX - (zone.rect.left + zone.rect.width / 2));
+          if (distance < minDistance) {
+            minDistance = distance;
+            targetIndex = zone.index;
+          }
         });
+        
+        // If we have a valid target position
+        if (targetIndex !== -1) {
+          setDropTarget({
+            type: 'position',
+            id: `${panelId}-position-${targetIndex}`,
+            position: {
+              panelId: panelId,
+              index: targetIndex
+            }
+          });
+          return;
+        }
+        
+        // Default to dropping in the tabbar (at the end)
+        setDropTarget({
+          type: 'tabbar',
+          id: panelId
+        });
+      } else if (dropTarget?.id === panelId || dropTarget?.id?.startsWith(`${panelId}-position-`)) {
+        // Clear the drop target if we're not in the tabbar anymore
+        setDropTarget(null);
       }
-    }
-  }, [activeTabId, tabs]);
+    };
+    
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, [isDragging, dragItem, dropTarget, dropZones, panelId, setDropTarget]);
   
   return (
-    <div className="flex relative h-[40px] min-h-[40px] border-b border-neutral-800 bg-neutral-900">
-      {/* Using a wrapper with hidden overflow to remove visible scrollbars */}
+    <div className="flex relative h-[40px] min-h-[40px] max-h-[40px] border-b border-neutral-800 bg-neutral-900 overflow-hidden">
       <div 
         ref={tabBarRef}
-        className="flex-1 flex overflow-x-auto overflow-y-hidden scrollbar-none" 
+        className="flex overflow-x-auto overflow-y-hidden scrollbar-none"
         style={{ scrollbarWidth: 'none' }}
-        data-tabbar-drop-zone
-        data-panel-id={panelId}
-        onDrop={handleDrop}
-        onDragOver={(e) => e.preventDefault()}
       >
         {tabs.map((tab, index) => (
           <DraggableTab
@@ -103,7 +127,7 @@ export function AdvancedTabBar({
             icon={tab.icon}
             panelId={panelId}
             isActive={tab.id === activeTabId}
-            closeable={tab.closeable !== false}
+            closeable={tab.closeable}
             index={index}
             onClick={() => onTabClick(tab.id)}
             onClose={() => onTabClose(tab.id)}
@@ -124,6 +148,17 @@ export function AdvancedTabBar({
       >
         {isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
       </button>
+      
+      {/* Drop indicators for tab positions */}
+      {isDragging && dragItem?.type === 'tab' && dropTarget?.type === 'position' && dropTarget.id.startsWith(`${panelId}-position-`) && (
+        <div 
+          className="absolute h-[40px] w-2 bg-blue-500 rounded-full opacity-50 transition-all"
+          style={{
+            left: dropZones[dropTarget.position?.index || 0]?.rect.left - tabBarRef.current!.getBoundingClientRect().left,
+            transform: 'translateX(-50%)'
+          }}
+        />
+      )}
     </div>
   );
 }

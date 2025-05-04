@@ -94,78 +94,7 @@ export function UniversalTabPanel({
   );
 }
 
-// Simple legacy TabBar component (kept for compatibility)
-function TabBar({
-  tabs,
-  activeTabId,
-  onTabClick,
-  onTabClose,
-  onAddTab,
-  onViewToggle,
-  isMaximized
-}: {
-  tabs: any[],
-  activeTabId: string | undefined,
-  onTabClick: (tabId: string) => void,
-  onTabClose: (tabId: string) => void,
-  onAddTab: () => void,
-  onViewToggle: () => void,
-  isMaximized: boolean
-}) {
-  const { settings } = useAppContext();
-  return (
-    <div className="flex relative h-[40px] min-h-[40px] max-h-[40px] border-b border-neutral-800 bg-neutral-900">
-      <div className="flex overflow-x-auto overflow-y-hidden scrollbar-none" style={{ scrollbarWidth: 'none' }}>
-        {tabs.map(tab => (
-          <div
-            key={tab.id}
-            className={cn(
-              "px-4 flex items-center space-x-2 h-[40px] shrink-0 cursor-pointer",
-              tab.id === activeTabId 
-                ? "text-white bg-neutral-800 border-t-2 border-t-blue-500" 
-                : "text-neutral-400 hover:text-white hover:bg-neutral-800/50"
-            )}
-            style={{ width: `${settings.tabSize}px` }}
-            onClick={() => onTabClick(tab.id)}
-          >
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center overflow-hidden">
-                {tab.icon && <span className="mr-2 flex-shrink-0 text-blue-400">{tab.icon}</span>}
-                <span className="truncate">{tab.title}</span>
-              </div>
-              
-              {tab.closeable && (
-                <div
-                  className="ml-2 text-neutral-500 hover:text-white p-1 rounded-sm hover:bg-neutral-700"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onTabClose(tab.id);
-                  }}
-                >
-                  <X size={14} />
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-        
-        <button
-          className="px-3 h-[40px] flex items-center text-neutral-400 hover:text-white hover:bg-neutral-800/50 shrink-0"
-          onClick={onAddTab}
-        >
-          <Plus size={16} />
-        </button>
-      </div>
-      
-      <button
-        className="absolute right-0 px-3 h-[40px] flex items-center text-neutral-400 hover:text-white hover:bg-neutral-800/50 shrink-0"
-        onClick={onViewToggle}
-      >
-        {isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-      </button>
-    </div>
-  );
-}
+// Using the advanced tab bar with drag and drop support
 
 function RenderActiveTab({ tabId }: { tabId: string }) {
   const { state, getComponentForTab } = useTabContext();

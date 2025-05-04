@@ -309,18 +309,20 @@ export function TabPanel({
       onDragOver={handleDragOver}
       onDrop={onDrop}
     >
-      <TabBar
-        tabs={tabs}
-        activeTabId={activeTabId}
-        panelId={panelId}
-        onTabChange={onTabChange}
-        onTabClose={onTabClose}
-        onTabAdd={onTabAdd}
-        onDragStart={onDragStart}
-        onMaximize={onMaximize}
-        onRestore={onRestore}
-        isMaximized={isMaximized}
-      />
+      <div data-tabbar-id={panelId}>
+        <TabBar
+          tabs={tabs}
+          activeTabId={activeTabId}
+          panelId={panelId}
+          onTabChange={onTabChange}
+          onTabClose={onTabClose}
+          onTabAdd={onTabAdd}
+          onDragStart={onDragStart}
+          onMaximize={onMaximize}
+          onRestore={onRestore}
+          isMaximized={isMaximized}
+        />
+      </div>
       
       <div className="flex-1 overflow-auto bg-neutral-900 scrollbar-thin scrollbar-track-neutral-900 scrollbar-thumb-neutral-700">
         {activeContent && renderContent(activeContent)}

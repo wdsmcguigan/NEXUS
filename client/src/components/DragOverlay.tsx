@@ -168,7 +168,7 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
     // If no drop target was found, clear any existing target
     if (!foundDropTarget && dropTarget) {
       // Reset drop target
-      onDrop(null);
+      endDrag();
     }
   }, [active, dragItem, edgeZones, detectEdgeZone, activeEdgeZone, updateMousePosition, onDrop, dropTarget]);
   

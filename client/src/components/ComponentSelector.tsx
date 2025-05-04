@@ -18,8 +18,8 @@ export function ComponentSelector({ onSelect, onCancel, panelType }: ComponentSe
   
   // Filter components based on panel type compatibility
   const compatibleComponents = allComponents.filter(comp => 
-    comp.supportedPanelTypes.includes(panelType) || 
-    comp.supportedPanelTypes.includes('any')
+    comp.supportedPanelTypes?.includes(panelType) || 
+    comp.supportedPanelTypes?.includes('any')
   );
   
   // Get unique categories
@@ -120,7 +120,7 @@ export function ComponentSelector({ onSelect, onCancel, panelType }: ComponentSe
                     className="flex items-center p-3 rounded-md hover:bg-neutral-800 transition-colors text-left"
                   >
                     <div className="mr-3 text-blue-400">
-                      <Icon size={20} />
+                      {Icon && React.createElement(Icon, { size: 20 })}
                     </div>
                     <div>
                       <div className="font-medium text-white">{component.displayName}</div>

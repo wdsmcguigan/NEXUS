@@ -11,7 +11,7 @@ import {
   ContextMenuShortcut,
 } from '../components/ui/context-menu';
 import { usePanelContext } from '../context/PanelContext';
-import { useComponentRegistry } from '../context/ComponentContext';
+import { useComponentRegistry, ComponentContext } from '../context/ComponentContext';
 import { useShortcutContext } from '../context/ShortcutContext';
 import { 
   Layout, 
@@ -56,17 +56,22 @@ export function PanelContextMenu({
   } = usePanelContext();
   
   // Create a safe wrapper for component registry
-  const componentRegistry = React.useMemo(() => {
-    try {
-      return useComponentRegistry();
-    } catch (error) {
-      console.warn('Component registry not available:', error);
-      return {
-        components: {},
-        createComponent: () => '',
-      };
-    }
-  }, []);
+  const componentContext = React.useContext(React.createContext<{
+    components: Record<string, any>;
+    createComponent: (componentId: string, panelId: string, props?: Record<string, any>) => string;
+  }>({
+    components: {},
+    createComponent: () => '',
+  }));
+  
+  // Attempt to load real component registry
+  try {
+    const registry = useComponentRegistry();
+    componentContext.components = registry.components;
+    componentContext.createComponent = registry.createComponent;
+  } catch (error) {
+    console.warn('Component registry not available:', error);
+  }
   const { registerShortcut } = useShortcutContext();
   
   // Check if this panel is currently maximized
@@ -102,10 +107,10 @@ export function PanelContextMenu({
   }, [layout, panelId]);
   
   // Get available component types
-  const availableComponents = Object.keys(componentRegistry.components || {}).map(id => ({
+  const availableComponents = Object.keys(componentContext.components || {}).map(id => ({
     id,
-    name: componentRegistry.components[id]?.name || id,
-    description: componentRegistry.components[id]?.description || '',
+    name: (componentContext.components || {})[id]?.name || id,
+    description: (componentContext.components || {})[id]?.description || '',
   }));
   
   // Handle maximize/restore
@@ -187,7 +192,7 @@ export function PanelContextMenu({
   // Handle adding a new tab
   const handleAddTab = (componentId: string) => {
     // Use component registry to create a new component in this panel
-    componentRegistry.createComponent(componentId, panelId);
+    componentContext.createComponent(componentId, panelId);
   };
   
   // Handle moving a tab to another panel

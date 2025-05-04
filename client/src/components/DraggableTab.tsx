@@ -31,12 +31,17 @@ export function DraggableTab({
   const { startDrag } = useDragContext();
   const tabRef = useRef<HTMLDivElement>(null);
   
-  // Handle starting a drag operation
-  const handleDragStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  // Handle starting a drag operation on mouse down instead of dragStart
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Only start the drag with the primary button (left click)
+    if (e.button !== 0) return;
     
-    console.log(`DraggableTab: Starting drag for tab ${id} in panel ${panelId}`);
+    // Don't start drag on close button click
+    if ((e.target as HTMLElement).closest('.tab-close-button')) {
+      return;
+    }
+    
+    console.log(`DraggableTab: Mouse down on tab ${id} in panel ${panelId}`);
     
     if (tabRef.current) {
       // Create a drag item that represents this tab
@@ -56,6 +61,10 @@ export function DraggableTab({
       
       // Start the drag operation
       startDrag(dragItem);
+      
+      // Prevent default behaviors
+      e.preventDefault();
+      e.stopPropagation();
     }
   };
   
@@ -67,12 +76,14 @@ export function DraggableTab({
         isActive 
           ? "text-white bg-neutral-800 border-t-2 border-t-blue-500" 
           : "text-neutral-400 hover:text-white hover:bg-neutral-800/50",
-        "select-none"
+        "select-none",
+        "cursor-grab active:cursor-grabbing"
       )}
       style={{ width: `${settings.tabSize}px` }}
       onClick={onClick}
-      draggable="true"
-      onDragStart={handleDragStart}
+      onMouseDown={handleMouseDown}
+      data-tab-id={id}
+      data-panel-id={panelId}
     >
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center overflow-hidden">

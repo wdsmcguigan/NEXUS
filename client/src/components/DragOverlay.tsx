@@ -217,77 +217,179 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
   const handleMouseUp = useCallback((e: MouseEvent) => {
     if (!active || !dragItem) return;
     
-    console.log('Mouse up detected with item:', dragItem);
+    console.log('🔼 [DRAG_END] Mouse up detected with item:', dragItem);
+    console.log('🔼 [DRAG_END] Current dropTarget:', dropTarget);
+    console.log('🔼 [DRAG_END] Active edge zone:', activeEdgeZone);
+    
+    // Check if we have an active edge zone but it didn't get properly set as a drop target
+    if (activeEdgeZone && (!dropTarget || dropTarget.type !== 'edge')) {
+      console.log('🔼 [DRAG_END] Edge zone active but not set as drop target, fixing...');
+      
+      // Get panel element to get proper rect
+      const panelElement = document.querySelector(`[data-panel-id="${activeEdgeZone.panelId}"]`);
+      if (panelElement) {
+        const rect = panelElement.getBoundingClientRect();
+        
+        // Create a proper edge drop target
+        const fixedTarget: DropTarget = {
+          type: 'edge',
+          id: activeEdgeZone.panelId,
+          direction: activeEdgeZone.direction,
+          rect
+        };
+        
+        console.log('🔼 [DRAG_END] Created fixed edge drop target:', fixedTarget);
+        setDropTarget(fixedTarget);
+      }
+    }
     
     // Last chance detection if no drop target was found
     if (!dropTarget && dragItem.type === 'tab') {
-      console.log('Last chance detection...');
+      console.log('🔼 [DRAG_END] No drop target found, trying last chance detection...');
       
-      // Find elements under cursor
-      const elements = document.elementsFromPoint(e.clientX, e.clientY);
+      // First, check if we're near any panel edge by manually checking all panels
+      const panels = document.querySelectorAll('[data-panel-id]');
+      let edgeFound = false;
       
-      // Look for panel or tabbar elements
-      for (const el of elements) {
-        // Check for panels
-        const panelId = el.getAttribute('data-panel-id') || 
-                       el.getAttribute('data-panel-body-id');
+      Array.from(panels).forEach(panel => {
+        if (edgeFound) return;
         
-        if (panelId) {
-          console.log('Found panel under cursor:', panelId);
-          const rect = el.getBoundingClientRect();
+        const panelId = panel.getAttribute('data-panel-id');
+        if (!panelId || panelId === dragItem.sourcePanelId) return;
+        
+        const rect = panel.getBoundingClientRect();
+        const direction = detectEdgeZone(rect, e.clientX, e.clientY);
+        
+        if (direction) {
+          edgeFound = true;
+          console.log(`🔼 [DRAG_END] Found panel edge on last-chance detection: ${panelId}-${direction}`);
           
-          const newTarget: DropTarget = {
-            type: 'panel',
+          const edgeTarget: DropTarget = {
+            type: 'edge',
             id: panelId,
+            direction,
             rect
           };
           
-          setDropTarget(newTarget);
-          break;
+          setDropTarget(edgeTarget);
         }
+      });
+      
+      // If still no edge found, check for general panels or tabbars
+      if (!edgeFound) {
+        console.log('🔼 [DRAG_END] No edge found, checking for panels and tabbars...');
         
-        // Check for tab bars
-        const tabBarId = el.getAttribute('data-tabbar-id');
-        if (tabBarId) {
-          console.log('Found tab bar under cursor:', tabBarId);
-          const rect = el.getBoundingClientRect();
+        // Find elements under cursor
+        const elements = document.elementsFromPoint(e.clientX, e.clientY);
+        
+        // Look for panel or tabbar elements
+        for (const el of elements) {
+          // Check for panels
+          const panelId = el.getAttribute('data-panel-id') || 
+                          el.getAttribute('data-panel-body-id');
           
-          const newTarget: DropTarget = {
-            type: 'tabbar',
-            id: tabBarId,
-            rect
-          };
+          if (panelId) {
+            console.log('🔼 [DRAG_END] Found panel under cursor:', panelId);
+            const rect = el.getBoundingClientRect();
+            
+            const newTarget: DropTarget = {
+              type: 'panel',
+              id: panelId,
+              rect
+            };
+            
+            setDropTarget(newTarget);
+            break;
+          }
           
-          setDropTarget(newTarget);
-          break;
+          // Check for tab bars
+          const tabBarId = el.getAttribute('data-tabbar-id');
+          if (tabBarId) {
+            console.log('🔼 [DRAG_END] Found tab bar under cursor:', tabBarId);
+            const rect = el.getBoundingClientRect();
+            
+            const newTarget: DropTarget = {
+              type: 'tabbar',
+              id: tabBarId,
+              rect
+            };
+            
+            setDropTarget(newTarget);
+            break;
+          }
         }
+      }
+    }
+    
+    // Final chance - use the activeEdgeZone if we have it
+    if (!dropTarget && activeEdgeZone && dragItem.type === 'tab') {
+      console.log('🔼 [DRAG_END] No drop target but have activeEdgeZone, using it as last resort');
+      
+      // Try to find the panel element
+      const panelElement = document.querySelector(`[data-panel-id="${activeEdgeZone.panelId}"]`);
+      if (panelElement) {
+        const rect = panelElement.getBoundingClientRect();
+        
+        const lastChanceTarget: DropTarget = {
+          type: 'edge',
+          id: activeEdgeZone.panelId,
+          direction: activeEdgeZone.direction,
+          rect
+        };
+        
+        setDropTarget(lastChanceTarget);
       }
     }
     
     // Process the drop if we have a valid target
     if (dropTarget) {
       try {
-        console.log('Processing drop:', dropTarget);
+        console.log('🔼 [DRAG_END] Processing drop:', dropTarget);
         
-        // Call the onDrop handler with the current target
-        onDrop(dropTarget);
-        
-        // End the drag operation (success)
-        console.log('Drop successful');
-        endDrag(true);
+        // Special handling for edge drops to ensure they're processed correctly
+        if (dropTarget.type === 'edge') {
+          console.log('🔼 [DRAG_END] Processing EDGE drop - special handling');
+          
+          // Create a deep copy to avoid any references being cleared
+          const dropTargetCopy = JSON.parse(JSON.stringify(dropTarget));
+          
+          // Add a slight delay to ensure the UI has time to update
+          setTimeout(() => {
+            try {
+              console.log('🔼 [DRAG_END] Calling onDrop with edge target:', dropTargetCopy);
+              onDrop(dropTargetCopy);
+              console.log('🔼 [DRAG_END] Edge drop successful');
+            } catch (delayedErr) {
+              console.error('🔼 [DRAG_END] Error in delayed edge drop handler:', delayedErr);
+              endDrag(false);
+            }
+          }, 10);
+          
+          // End the drag operation (success) outside the timeout
+          // to avoid any weird UI state issues
+          console.log('🔼 [DRAG_END] Edge drop initiated');
+          // We don't call endDrag here as it's handled in the PanelSplitter after the panel is created
+        } else {
+          // Normal (non-edge) drop
+          console.log('🔼 [DRAG_END] Processing normal drop');
+          onDrop(dropTarget);
+          console.log('🔼 [DRAG_END] Drop successful');
+          endDrag(true);
+        }
       } catch (err) {
-        console.error('Error in drop handler:', err);
+        console.error('🔼 [DRAG_END] Error in drop handler:', err);
         endDrag(false);
       }
     } else {
       // No drop target found
-      console.log('No drop target found');
+      console.log('🔼 [DRAG_END] No drop target found after all attempts');
       endDrag(false);
     }
     
     // Reset active edge zone
+    console.log('🔼 [DRAG_END] Resetting activeEdgeZone');
     setActiveEdgeZone(null);
-  }, [active, dragItem, dropTarget, endDrag, onDrop, setDropTarget]);
+  }, [active, dragItem, dropTarget, activeEdgeZone, detectEdgeZone, endDrag, onDrop, setDropTarget]);
   
   // Add/remove event listeners
   useEffect(() => {

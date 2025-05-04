@@ -46,9 +46,12 @@ export function DragManager() {
   
   // Handle the drop operation
   const handleDrop = useCallback((target: DropTarget) => {
-    if (!dragItem) return;
+    if (!dragItem) {
+      console.error('🎯 [DRAG_MGR] ERROR: No drag item available for drop operation');
+      return;
+    }
     
-    console.log('Processing drop in DragManager:', { target, dragItem });
+    console.log('🎯 [DRAG_MGR] Processing drop:', { target, dragItem });
     
     // Set the current drop target (used by other components)
     setDropTarget(target);
@@ -60,40 +63,76 @@ export function DragManager() {
       // Handle different types of drop targets
       switch (target.type) {
         case 'panel':
-          console.log(`Moving tab ${tabId} from panel ${sourcePanelId} to panel ${target.id}`);
+          console.log(`🎯 [DRAG_MGR] Moving tab ${tabId} from panel ${sourcePanelId} to panel ${target.id}`);
           moveTab(tabId, sourcePanelId, target.id);
+          console.log(`🎯 [DRAG_MGR] moveTab executed successfully for panel drop`);
           endDrag(true); // Mark as successful drop
           break;
+          
         case 'tabbar':
-          console.log(`Moving tab ${tabId} from panel ${sourcePanelId} to tabbar ${target.id}`);
+          console.log(`🎯 [DRAG_MGR] Moving tab ${tabId} from panel ${sourcePanelId} to tabbar ${target.id}`);
           moveTab(tabId, sourcePanelId, target.id);
+          console.log(`🎯 [DRAG_MGR] moveTab executed successfully for tabbar drop`);
           endDrag(true); // Mark as successful drop
           break;
+          
         case 'position':
           // Move tab to specific position
           if (target.position) {
-            console.log(`Moving tab ${tabId} from panel ${sourcePanelId} to position ${target.position.index} in panel ${target.position.panelId}`);
+            console.log(`🎯 [DRAG_MGR] Moving tab ${tabId} from panel ${sourcePanelId} to position ${target.position.index} in panel ${target.position.panelId}`);
             moveTab(
               tabId, 
               sourcePanelId, 
               target.position.panelId, 
               target.position.index
             );
+            console.log(`🎯 [DRAG_MGR] moveTab executed successfully for position drop`);
             endDrag(true); // Mark as successful drop
-          }
-          break;
-        case 'edge':
-          // Let the PanelSplitter handle this but ensure the drop target is set
-          if (target.direction) {
-            console.log(`Edge drop detected on ${target.id} with direction ${target.direction} - letting PanelSplitter handle it`);
-            // Important: We need to keep the dropTarget set for PanelSplitter
-            // But we don't call endDrag() here since PanelSplitter will do that
-            return;
           } else {
-            console.error('Edge drop target missing direction');
+            console.error(`🎯 [DRAG_MGR] ERROR: Position drop target missing position details`);
             endDrag(false);
           }
+          break;
+          
+        case 'edge':
+          // Edge drop handling is more complex - PanelSplitter needs to create a new panel first
+          if (target.direction) {
+            console.log(`🎯 [DRAG_MGR] EDGE DROP DETECTED: Tab ${tabId} from panel ${sourcePanelId} to ${target.direction} edge of panel ${target.id}`);
+            
+            // Debug info
+            console.log(`🎯 [DRAG_MGR] This will create a ${target.direction === 'left' || target.direction === 'right' ? 'horizontal' : 'vertical'} split`);
+            
+            // IMPORTANT: Add more details to help with debugging
+            console.log(`🎯 [DRAG_MGR] Edge drop details:`, {
+              tabId,
+              sourcePanelId,
+              targetPanelId: target.id,
+              direction: target.direction,
+              targetRect: target.rect ? 
+                `${target.rect.left},${target.rect.top},${target.rect.right},${target.rect.bottom}` : 
+                'missing'
+            });
+            
+            // Important: We need to keep the dropTarget set for PanelSplitter
+            // But we don't call endDrag() here since PanelSplitter will do that
+            console.log(`🎯 [DRAG_MGR] Letting PanelSplitter handle this - NOT ending drag yet`);
+            
+            // Wait for PanelSplitter to react to the dropTarget change
+            console.log(`🎯 [DRAG_MGR] PanelSplitter should detect the edge drop and create a new panel`);
+            return;
+          } else {
+            console.error('🎯 [DRAG_MGR] ERROR: Edge drop target missing direction');
+            endDrag(false);
+          }
+          break;
+          
+        default:
+          console.error(`🎯 [DRAG_MGR] ERROR: Unsupported drop target type: ${target.type}`);
+          endDrag(false); // Mark as failed drop
       }
+    } else {
+      console.error(`🎯 [DRAG_MGR] ERROR: Unsupported drag item or missing source panel: ${JSON.stringify(dragItem)}`);
+      endDrag(false); // Mark as failed drop
     }
   }, [dragItem, setDropTarget, moveTab, endDrag]);
   

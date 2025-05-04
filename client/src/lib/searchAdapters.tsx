@@ -1,144 +1,130 @@
-import { SearchAdapter, SearchOptions, TextSearchResult, ListSearchResult, SearchResult } from '../context/SearchContext';
+import React from 'react';
+import { SearchOptions, SearchResult, TextSearchResult, ListSearchResult, SearchAdapter } from '../context/SearchContext';
 
 /**
- * TextContentSearchAdapter - For searching within plain text content
- * Use this for email bodies, text editors, documentation, etc.
+ * A search adapter for searching text content within a DOM node
  */
 export class TextContentSearchAdapter implements SearchAdapter {
-  private contentRef: React.RefObject<HTMLElement>;
-  private highlightClassName: string;
-  private activeHighlightClassName: string;
-  private originalContent: string | null = null;
-  private highlightedElements: HTMLElement[] = [];
+  contentRef: React.RefObject<HTMLElement>;
+  highlightedElements: HTMLElement[] = [];
   
-  constructor(
-    contentRef: React.RefObject<HTMLElement>,
-    options?: {
-      highlightClassName?: string;
-      activeHighlightClassName?: string;
-    }
-  ) {
+  constructor(contentRef: React.RefObject<HTMLElement>) {
     this.contentRef = contentRef;
-    this.highlightClassName = options?.highlightClassName || 'text-search-highlight';
-    this.activeHighlightClassName = options?.activeHighlightClassName || 'text-search-highlight-active';
   }
   
   /**
-   * Searches text content for matches
+   * Search within the text content of the DOM node
    */
   async search(term: string, options: SearchOptions): Promise<SearchResult[]> {
-    if (!term || !this.contentRef.current) {
-      return [];
-    }
-
-    // Get text content
-    const content = this.contentRef.current.innerText || this.contentRef.current.textContent || '';
-    this.originalContent = content;
+    const content = this.contentRef.current;
+    if (!content || !term) return [];
     
-    // Create regex from search term based on options
-    let regex: RegExp;
-    try {
-      if (options.useRegex) {
-        regex = new RegExp(term, options.caseSensitive ? 'g' : 'gi');
-      } else {
-        const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const pattern = options.wholeWord ? `\\b${escapedTerm}\\b` : escapedTerm;
-        regex = new RegExp(pattern, options.caseSensitive ? 'g' : 'gi');
-      }
-    } catch (error) {
-      console.error('Invalid regex pattern:', error);
-      return [];
-    }
-    
-    // Find all matches
+    const text = content.textContent || '';
     const results: TextSearchResult[] = [];
-    let match;
-    while ((match = regex.exec(content)) !== null) {
-      // Get context around match (up to 30 chars before and after)
-      const contextStart = Math.max(0, match.index - 30);
-      const contextEnd = Math.min(content.length, match.index + match[0].length + 30);
-      
-      const beforeContext = content.substring(contextStart, match.index);
-      const afterContext = content.substring(match.index + match[0].length, contextEnd);
-      
-      // Calculate line number
-      const contentUpToMatch = content.substring(0, match.index);
-      const lineNumber = (contentUpToMatch.match(/\n/g) || []).length + 1;
-      
-      results.push({
-        content: match[0],
-        startIndex: match.index,
-        endIndex: match.index + match[0].length,
-        lineNumber,
-        context: `...${beforeContext}${match[0]}${afterContext}...`
-      });
-    }
     
-    return results;
+    // Create regex pattern based on options
+    try {
+      let pattern: string | RegExp = term;
+      
+      if (!options.useRegex) {
+        pattern = options.wholeWord ? `\\b${this.escapeRegExp(term)}\\b` : this.escapeRegExp(term);
+      }
+      
+      const regex = new RegExp(pattern, options.caseSensitive ? 'g' : 'gi');
+      
+      // Find all matches
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        // Prevent infinite loops with zero-width matches
+        if (match.index === regex.lastIndex) {
+          regex.lastIndex++;
+          continue;
+        }
+        
+        // Get some context around the match
+        const startContext = Math.max(0, match.index - 40);
+        const endContext = Math.min(text.length, match.index + match[0].length + 40);
+        const context = text.substring(startContext, endContext);
+        
+        results.push({
+          content: match[0],
+          startIndex: match.index,
+          endIndex: match.index + match[0].length,
+          context: context
+        });
+      }
+      
+      return results;
+    } catch (error) {
+      console.error('Search regex error:', error);
+      return [];
+    }
   }
   
   /**
-   * Highlights search results in the DOM
+   * Highlights results in the DOM by wrapping them in span elements
    */
   highlightResults(results: SearchResult[], currentIndex: number): void {
-    if (!this.contentRef.current || results.length === 0) {
-      return;
-    }
-    
-    // Cast the results to TextSearchResult since we know this adapter only works with text results
-    const textResults = results.filter(r => 'content' in r) as TextSearchResult[];
-    if (textResults.length === 0) return;
-    
-    // Clear previous highlights first
+    // Clear previous highlights
     this.clearHighlights();
     
-    // Store original content if needed
-    if (this.originalContent === null) {
-      this.originalContent = this.contentRef.current.innerText || this.contentRef.current.textContent || '';
+    if (!this.contentRef.current) return;
+    
+    // We're only dealing with TextSearchResults in this adapter
+    const textResults = results as TextSearchResult[];
+    
+    // Create a document fragment to minimize reflows
+    const content = this.contentRef.current;
+    const text = content.textContent || '';
+    let currentPos = 0;
+    const fragment = document.createDocumentFragment();
+    
+    textResults.forEach((result, index) => {
+      // Add text before the match
+      if (result.startIndex > currentPos) {
+        const textBefore = document.createTextNode(text.substring(currentPos, result.startIndex));
+        fragment.appendChild(textBefore);
+      }
+      
+      // Add the match with highlight
+      const matchText = text.substring(result.startIndex, result.endIndex);
+      const highlightSpan = document.createElement('span');
+      highlightSpan.textContent = matchText;
+      highlightSpan.classList.add('search-highlight');
+      
+      // Add special styling for the current result
+      if (index === currentIndex) {
+        highlightSpan.classList.add('search-highlight-current');
+      }
+      
+      fragment.appendChild(highlightSpan);
+      this.highlightedElements.push(highlightSpan);
+      
+      currentPos = result.endIndex;
+    });
+    
+    // Add any remaining text
+    if (currentPos < text.length) {
+      const textAfter = document.createTextNode(text.substring(currentPos));
+      fragment.appendChild(textAfter);
     }
     
-    // Create a wrapper for the content
-    const wrapper = document.createElement('div');
-    let content = this.originalContent || '';
-    
-    // Start from the end to avoid messing up indices
-    textResults
-      .slice()
-      .sort((a, b) => b.startIndex - a.startIndex)
-      .forEach((result, index) => {
-        const isActive = index === textResults.length - 1 - currentIndex;
-        const highlightClasses = `${this.highlightClassName} ${isActive ? this.activeHighlightClassName : ''}`;
-        
-        const beforeText = content.substring(0, result.startIndex);
-        const matchText = content.substring(result.startIndex, result.endIndex);
-        const afterText = content.substring(result.endIndex);
-        
-        content = `${beforeText}<span class="${highlightClasses}" data-search-index="${index}">${matchText}</span>${afterText}`;
-      });
-    
-    wrapper.innerHTML = content;
-    this.contentRef.current.innerHTML = wrapper.innerHTML;
-    
-    // Store references to highlighted elements for later cleanup
-    this.highlightedElements = Array.from(
-      this.contentRef.current.querySelectorAll(`.${this.highlightClassName}`)
-    );
+    // Replace content
+    content.innerHTML = '';
+    content.appendChild(fragment);
   }
   
   /**
-   * Scrolls to a specific result
+   * Scroll to a specific search result
    */
   scrollToResult(result: SearchResult): void {
-    if (!this.contentRef.current || !('content' in result)) {
-      return;
-    }
+    if (!this.contentRef.current) return;
     
-    const highlightElement = this.contentRef.current.querySelector(
-      `.${this.activeHighlightClassName}`
-    );
-    
-    if (highlightElement) {
-      highlightElement.scrollIntoView({
+    // Get the highlighted element for this result
+    const highlightElements = this.contentRef.current.querySelectorAll('.search-highlight-current');
+    if (highlightElements.length > 0) {
+      const element = highlightElements[0] as HTMLElement;
+      element.scrollIntoView({
         behavior: 'smooth',
         block: 'center'
       });
@@ -146,372 +132,258 @@ export class TextContentSearchAdapter implements SearchAdapter {
   }
   
   /**
-   * Cleans up highlighting
+   * Clear all highlights
    */
   clearHighlights(): void {
-    if (!this.contentRef.current || !this.originalContent) {
-      return;
-    }
+    // Remove all highlight spans and restore original text
+    this.highlightedElements.forEach(element => {
+      if (element.parentNode) {
+        const text = element.textContent;
+        const textNode = document.createTextNode(text || '');
+        element.parentNode.replaceChild(textNode, element);
+      }
+    });
     
-    // Check if we can simply restore original content
-    if (this.originalContent) {
-      // Only use textContent to avoid executing scripts
-      this.contentRef.current.textContent = this.originalContent;
-      this.highlightedElements = [];
-    } else {
-      // Otherwise remove highlight spans
-      this.highlightedElements.forEach(el => {
-        const parent = el.parentNode;
-        if (parent) {
-          const textNode = document.createTextNode(el.textContent || '');
-          parent.replaceChild(textNode, el);
-        }
-      });
-      this.highlightedElements = [];
-    }
+    this.highlightedElements = [];
+  }
+  
+  /**
+   * Escape special regex characters in a string
+   */
+  private escapeRegExp(string: string): string {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }
 
 /**
- * ListSearchAdapter - For searching within lists of items
- * Use this for email lists, contact lists, etc.
+ * Search adapter for list-based data like emails, contacts, etc.
  */
 export class ListSearchAdapter<T> implements SearchAdapter {
   private items: T[];
-  private getSearchableFields: (item: T) => Record<string, string>;
-  private filterCallback: (item: T, results: ListSearchResult<T>[]) => void;
-  private scrollToItemCallback: (item: T) => void;
+  private searchableFields: (keyof T)[];
+  private onHighlight?: (item: T, results: ListSearchResult<T>[], currentIndex: number) => void;
+  private onScroll?: (item: T) => void;
   
   constructor(
-    options: {
-      items: T[];
-      getSearchableFields: (item: T) => Record<string, string>;
-      filterCallback: (item: T, results: ListSearchResult<T>[]) => void;
-      scrollToItemCallback: (item: T) => void;
-    }
+    items: T[],
+    searchableFields: (keyof T)[],
+    onHighlight?: (item: T, results: ListSearchResult<T>[], currentIndex: number) => void,
+    onScroll?: (item: T) => void
   ) {
-    this.items = options.items;
-    this.getSearchableFields = options.getSearchableFields;
-    this.filterCallback = options.filterCallback;
-    this.scrollToItemCallback = options.scrollToItemCallback;
+    this.items = items;
+    this.searchableFields = searchableFields;
+    this.onHighlight = onHighlight;
+    this.onScroll = onScroll;
   }
   
   /**
-   * Updates the list of items to search
+   * Update the items to search
    */
   updateItems(items: T[]): void {
     this.items = items;
   }
   
   /**
-   * Searches within list items
+   * Search through the list items
    */
-  async search(term: string, options: SearchOptions): Promise<SearchResult[]> {
-    if (!term || this.items.length === 0) {
-      return [];
-    }
+  async search(term: string, options: SearchOptions): Promise<ListSearchResult<T>[]> {
+    if (!term) return [];
     
-    // Create regex from search term based on options
-    let regex: RegExp;
-    try {
-      if (options.useRegex) {
-        regex = new RegExp(term, options.caseSensitive ? 'g' : 'gi');
-      } else {
-        const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const pattern = options.wholeWord ? `\\b${escapedTerm}\\b` : escapedTerm;
-        regex = new RegExp(pattern, options.caseSensitive ? 'g' : 'gi');
-      }
-    } catch (error) {
-      console.error('Invalid regex pattern:', error);
-      return [];
-    }
-    
-    // Find all matches in each item
     const results: ListSearchResult<T>[] = [];
     
-    for (const item of this.items) {
-      const searchableFields = this.getSearchableFields(item);
-      const matchedFields: { field: string; matches: { startIndex: number; endIndex: number }[] }[] = [];
+    // Create regex pattern based on options
+    try {
+      let pattern: string | RegExp = term;
       
-      // Search each field
-      for (const [field, value] of Object.entries(searchableFields)) {
-        const matches: { startIndex: number; endIndex: number }[] = [];
+      if (!options.useRegex) {
+        pattern = options.wholeWord ? `\\b${this.escapeRegExp(term)}\\b` : this.escapeRegExp(term);
+      }
+      
+      const regex = new RegExp(pattern, options.caseSensitive ? 'g' : 'gi');
+      
+      // Search in each item
+      for (const item of this.items) {
+        // Search in each searchable field
+        const matchedFields: { field: string; matches: { startIndex: number; endIndex: number }[] }[] = [];
         
-        let match;
-        while ((match = regex.exec(value)) !== null) {
-          matches.push({
-            startIndex: match.index,
-            endIndex: match.index + match[0].length
-          });
+        for (const field of this.searchableFields) {
+          const fieldValue = String(item[field] || '');
+          let match;
+          const matches: { startIndex: number; endIndex: number }[] = [];
           
-          // Reset regex position if using global flag
-          if (regex.global) {
-            regex.lastIndex = match.index + 1;
-          } else {
-            break;
+          // Reset regex state
+          regex.lastIndex = 0;
+          
+          // Find all matches in this field
+          while ((match = regex.exec(fieldValue)) !== null) {
+            // Prevent infinite loops with zero-width matches
+            if (match.index === regex.lastIndex) {
+              regex.lastIndex++;
+              continue;
+            }
+            
+            matches.push({
+              startIndex: match.index,
+              endIndex: match.index + match[0].length
+            });
+          }
+          
+          if (matches.length > 0) {
+            matchedFields.push({
+              field: String(field),
+              matches
+            });
           }
         }
         
-        if (matches.length > 0) {
-          matchedFields.push({ field, matches });
+        if (matchedFields.length > 0) {
+          results.push({
+            item,
+            matchedFields
+          });
         }
       }
       
-      // If any fields matched, add this item to results
-      if (matchedFields.length > 0) {
-        results.push({
-          item,
-          matchedFields
-        });
-      }
+      return results;
+    } catch (error) {
+      console.error('Search regex error:', error);
+      return [];
     }
-    
-    return results;
   }
   
   /**
-   * Highlights results in the list
+   * Highlight the current result
    */
   highlightResults(results: SearchResult[], currentIndex: number): void {
-    // Cast to the correct type
-    const listResults = results.filter(r => 'item' in r) as ListSearchResult<T>[];
-    if (listResults.length === 0) return;
+    if (currentIndex < 0 || currentIndex >= results.length || !this.onHighlight) return;
     
-    // Filter items to show only matches
-    listResults.forEach((result) => {
-      this.filterCallback(result.item, listResults);
-    });
+    const listResults = results as ListSearchResult<T>[];
+    const currentResult = listResults[currentIndex];
+    
+    this.onHighlight(currentResult.item, listResults, currentIndex);
   }
   
   /**
-   * Scrolls to the current result
+   * Scroll to the current result
    */
   scrollToResult(result: SearchResult): void {
-    if (!('item' in result)) return;
+    if (!this.onScroll) return;
+    
     const listResult = result as ListSearchResult<T>;
-    this.scrollToItemCallback(listResult.item);
+    this.onScroll(listResult.item);
   }
   
   /**
-   * Clears highlights and resets list
+   * Clear highlights - this is application specific and should be handled by the onHighlight callback
    */
   clearHighlights(): void {
-    // Show all items again
-    this.items.forEach((item) => {
-      this.filterCallback(item, []);
-    });
+    // If needed, call onHighlight with empty results
+    if (this.onHighlight) {
+      this.onHighlight({} as T, [], -1);
+    }
+  }
+  
+  /**
+   * Escape special regex characters in a string
+   */
+  private escapeRegExp(string: string): string {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }
 
 /**
- * HighlightText component - Highlights matching text in a string
- * This is a utility component for list items to highlight the matching parts
+ * A component to highlight search matches in text
  */
 export function HighlightText({
   text,
   searchTerm,
-  options = { caseSensitive: false, wholeWord: false, useRegex: false },
-  highlightClassName = 'text-blue-500 font-medium bg-blue-500/10'
+  options,
+  highlightClassName = 'search-highlight',
+  activeClassName = 'search-highlight-current',
+  isActive = false
 }: {
   text: string;
   searchTerm: string;
-  options?: SearchOptions;
+  options: SearchOptions;
   highlightClassName?: string;
+  activeClassName?: string;
+  isActive?: boolean;
 }) {
   if (!searchTerm || !text) {
     return <>{text}</>;
   }
-
+  
   try {
-    // Create regex based on options
-    let regex: RegExp;
-    if (options.useRegex) {
-      regex = new RegExp(searchTerm, options.caseSensitive ? 'g' : 'gi');
-    } else {
-      const escapedTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const pattern = options.wholeWord ? `\\b${escapedTerm}\\b` : escapedTerm;
-      regex = new RegExp(pattern, options.caseSensitive ? 'g' : 'gi');
+    // Create regex pattern based on options
+    let pattern: string | RegExp = searchTerm;
+    
+    if (!options.useRegex) {
+      pattern = options.wholeWord 
+        ? `\\b${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b` 
+        : searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
-
+    
+    const regex = new RegExp(pattern, options.caseSensitive ? 'g' : 'gi');
+    
     // Find all matches
     const matches: { start: number; end: number }[] = [];
     let match;
     while ((match = regex.exec(text)) !== null) {
+      // Prevent infinite loops with zero-width matches
+      if (match.index === regex.lastIndex) {
+        regex.lastIndex++;
+        continue;
+      }
+      
       matches.push({
         start: match.index,
         end: match.index + match[0].length
       });
-      
-      // Reset regex position
-      if (regex.global) {
-        regex.lastIndex = match.index + 1;
-      } else {
-        break;
-      }
     }
-
-    // If no matches, return the plain text
+    
     if (matches.length === 0) {
       return <>{text}</>;
     }
-
-    // Build up array of text segments and highlighted matches
-    const parts: JSX.Element[] = [];
-    let lastEnd = 0;
-
+    
+    // Create an array of text segments with highlights
+    const segments: React.ReactNode[] = [];
+    let lastIndex = 0;
+    
     matches.forEach((match, i) => {
       // Add text before the match
-      if (match.start > lastEnd) {
-        parts.push(<span key={`text-${i}`}>{text.substring(lastEnd, match.start)}</span>);
+      if (match.start > lastIndex) {
+        segments.push(
+          <React.Fragment key={`t-${i}`}>
+            {text.substring(lastIndex, match.start)}
+          </React.Fragment>
+        );
       }
       
-      // Add highlighted match
-      parts.push(
-        <span key={`highlight-${i}`} className={highlightClassName}>
+      // Add the match with highlight
+      segments.push(
+        <span 
+          key={`h-${i}`}
+          className={`${highlightClassName} ${isActive ? activeClassName : ''}`}
+        >
           {text.substring(match.start, match.end)}
         </span>
       );
       
-      lastEnd = match.end;
+      lastIndex = match.end;
     });
-
-    // Add remaining text after the last match
-    if (lastEnd < text.length) {
-      parts.push(<span key="text-end">{text.substring(lastEnd)}</span>);
+    
+    // Add any remaining text
+    if (lastIndex < text.length) {
+      segments.push(
+        <React.Fragment key="t-last">
+          {text.substring(lastIndex)}
+        </React.Fragment>
+      );
     }
-
-    return <>{parts}</>;
+    
+    return <>{segments}</>;
   } catch (error) {
-    // If there's an error (e.g., invalid regex), just return the original text
     console.error('Error highlighting text:', error);
     return <>{text}</>;
-  }
-}
-
-/**
- * EmailSearchAdapter - Specialized adapter for email content
- * This combines text content search with metadata search
- */
-export class EmailSearchAdapter implements SearchAdapter {
-  private emailContentRef: React.RefObject<HTMLElement>;
-  private textAdapter: TextContentSearchAdapter;
-  private email: any; // Email data object
-  private metadataFields: { [key: string]: string }; // Fields to search in metadata
-  
-  constructor(
-    emailContentRef: React.RefObject<HTMLElement>,
-    email: any,
-    metadataFields: { [key: string]: string } = {}
-  ) {
-    this.emailContentRef = emailContentRef;
-    this.textAdapter = new TextContentSearchAdapter(emailContentRef);
-    this.email = email;
-    this.metadataFields = metadataFields;
-  }
-  
-  /**
-   * Update the email data
-   */
-  updateEmail(email: any, metadataFields: { [key: string]: string } = {}): void {
-    this.email = email;
-    this.metadataFields = metadataFields;
-  }
-  
-  /**
-   * Searches email content and metadata
-   */
-  async search(term: string, options: SearchOptions): Promise<SearchResult[]> {
-    const contentResults = await this.textAdapter.search(term, options);
-    const metadataResults = this.searchMetadata(term, options);
-    
-    return [...contentResults, ...metadataResults];
-  }
-  
-  /**
-   * Searches within email metadata (subject, from, to, etc.)
-   */
-  private searchMetadata(term: string, options: SearchOptions): TextSearchResult[] {
-    const results: TextSearchResult[] = [];
-    
-    if (!term || !this.email) {
-      return results;
-    }
-    
-    // Create regex from search term based on options
-    let regex: RegExp;
-    try {
-      if (options.useRegex) {
-        regex = new RegExp(term, options.caseSensitive ? 'g' : 'gi');
-      } else {
-        const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const pattern = options.wholeWord ? `\\b${escapedTerm}\\b` : escapedTerm;
-        regex = new RegExp(pattern, options.caseSensitive ? 'g' : 'gi');
-      }
-    } catch (error) {
-      console.error('Invalid regex pattern:', error);
-      return results;
-    }
-    
-    // Search each metadata field
-    for (const [fieldName, fieldValue] of Object.entries(this.metadataFields)) {
-      if (!fieldValue) continue;
-      
-      let match;
-      while ((match = regex.exec(fieldValue)) !== null) {
-        results.push({
-          content: match[0],
-          startIndex: match.index,
-          endIndex: match.index + match[0].length,
-          context: `${fieldName}: ${fieldValue}`,
-        });
-        
-        // Reset regex position
-        if (regex.global) {
-          regex.lastIndex = match.index + 1;
-        } else {
-          break;
-        }
-      }
-    }
-    
-    return results;
-  }
-  
-  /**
-   * Highlights results in the email
-   */
-  highlightResults(results: SearchResult[], currentIndex: number): void {
-    // Highlight text content using the text adapter
-    const contentResults = results.filter(r => 
-      // Filter out metadata results based on context
-      'content' in r && (!r.context || !r.context.startsWith('subject:'))
-    );
-    
-    if (contentResults.length > 0) {
-      this.textAdapter.highlightResults(contentResults, currentIndex);
-    }
-    
-    // For metadata results, you might implement special highlighting in the UI
-    // This would typically be done in the component rendering the email header
-  }
-  
-  /**
-   * Scrolls to a specific result
-   */
-  scrollToResult(result: SearchResult): void {
-    // For content results, use the text adapter
-    if ('content' in result && (!result.context || !result.context.startsWith('subject:'))) {
-      this.textAdapter.scrollToResult(result);
-    }
-    
-    // For metadata results, you might scroll to the email header section
-    // This would be implemented based on your app's specific layout
-  }
-  
-  /**
-   * Clears highlights
-   */
-  clearHighlights(): void {
-    this.textAdapter.clearHighlights();
   }
 }

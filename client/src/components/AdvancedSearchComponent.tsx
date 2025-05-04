@@ -318,7 +318,7 @@ export function AdvancedSearchComponent({ id }: AdvancedSearchComponentProps) {
                     <div className="mt-3 pt-3 border-t border-neutral-800">
                       <div className="text-xs text-neutral-500">Search query:</div>
                       <div className="font-mono text-xs mt-1 p-2 bg-neutral-900 rounded overflow-x-auto">
-                        {search.query || '(No query terms)'}
+                        {search.searchFields.query || '(No query terms)'}
                       </div>
                     </div>
                   </div>

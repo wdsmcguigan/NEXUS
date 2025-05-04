@@ -16,6 +16,19 @@ export interface SearchHistoryItem {
   frequency: number;
 }
 
+// Define saved search interface
+export interface SavedSearch {
+  id: string;
+  name: string;
+  description?: string;
+  query: string;
+  options: SearchOptions;
+  createdAt: string;
+  lastUsed?: string;
+  timesUsed?: number;
+  isDefault?: boolean;
+}
+
 // Define search result type for different content types
 export interface TextSearchResult {
   content: string;

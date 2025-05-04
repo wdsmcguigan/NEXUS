@@ -7,7 +7,7 @@ import { SettingsPanel } from '../components/SettingsPanel';
 import { EmailListPane } from '../components/EmailListPane';
 import { EmailDetailPane } from '../components/EmailDetailPane';
 import { FolderExplorer } from '../components/FolderExplorer';
-import { EmailWorkspace } from '../components/EmailWorkspace';
+import { EmailWorkspaceWithSearch } from '../components/EmailWorkspaceWithSearch';
 
 // Helper types to patch missing imports
 // In a real implementation, you would import these from their respective files
@@ -107,7 +107,7 @@ export function registerComponents() {
     displayName: 'Email Workspace (with Search)',
     category: 'email',
     icon: SearchIcon,
-    component: EmailWorkspace,
+    component: EmailWorkspaceWithSearch,
     supportedPanelTypes: ['main', 'any'],
   });
 

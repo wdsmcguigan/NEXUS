@@ -69,6 +69,8 @@ interface TabContextType {
   isPanelMaximized: boolean;
   maximizePanel: (panelId: string) => void;
   restorePanel: () => void;
+  closePanel: (panelId: string) => void;
+  restoreMaximizedPanel: () => void;
 }
 
 // Initial state
@@ -638,12 +640,23 @@ export function TabProvider({ children }: TabProviderProps) {
   const maximizePanel = useCallback((panelId: string) => {
     setMaximizedPanelId(panelId);
   }, []);
-
+  
+  // Reset the maximized panel to normal view
   const restorePanel = useCallback(() => {
     setMaximizedPanelId(null);
   }, []);
+  
+  // Alias for restorePanel for backward compatibility
+  const restoreMaximizedPanel = useCallback(() => {
+    setMaximizedPanelId(null);
+  }, []);
+  
+  // Close a panel and all its tabs
+  const closePanel = useCallback((panelId: string) => {
+    removePanel(panelId);
+  }, [removePanel]);
 
-  const value = {
+  const value: TabContextType = {
     state,
     dispatch,
     addTab,
@@ -660,6 +673,8 @@ export function TabProvider({ children }: TabProviderProps) {
     isPanelMaximized: maximizedPanelId !== null,
     maximizePanel,
     restorePanel,
+    restoreMaximizedPanel,
+    closePanel,
   };
 
   return <TabContext.Provider value={value}>{children}</TabContext.Provider>;

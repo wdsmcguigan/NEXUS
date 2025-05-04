@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTabContext } from '../context/TabContext';
+import { useAppContext } from '../context/AppContext';
 import { Plus, Maximize2, Minimize2, X } from 'lucide-react';
 import componentRegistry from '../lib/componentRegistry';
 import { cn } from '../lib/utils';
@@ -12,7 +13,7 @@ interface UniversalTabPanelProps {
   isMaximized: boolean;
 }
 
-// Fixed-size tab component
+// Dynamic-size tab component that uses app settings
 function TabItem({ 
   tab, 
   isActive, 
@@ -24,14 +25,18 @@ function TabItem({
   onClick: () => void, 
   onClose?: () => void 
 }) {
+  const { settings } = useAppContext();
+  const tabWidth = settings.tabSize; // Use tab width from settings
+  
   return (
     <div
       className={cn(
-        "px-4 flex items-center space-x-2 w-[160px] h-[40px] shrink-0 cursor-pointer",
+        "px-4 flex items-center space-x-2 h-[40px] shrink-0 cursor-pointer",
         isActive 
           ? "text-white bg-neutral-800 border-t-2 border-t-blue-500" 
           : "text-neutral-400 hover:text-white hover:bg-neutral-800/50"
       )}
+      style={{ width: `${tabWidth}px` }} // Dynamic width based on settings
       onClick={onClick}
     >
       <div className="flex items-center justify-between w-full">
@@ -60,7 +65,7 @@ function TabItem({
   );
 }
 
-// Fixed-height tab bar component
+// Fixed-height tab bar component with scrollbar styling
 function TabBar({
   tabs,
   activeTabId,
@@ -79,28 +84,31 @@ function TabBar({
   isMaximized: boolean
 }) {
   return (
-    <div className="flex h-[40px] min-h-[40px] max-h-[40px] border-b border-neutral-800 bg-neutral-900 overflow-x-auto overflow-y-hidden thin-scrollbar">
-      {tabs.map(tab => (
-        <TabItem
-          key={tab.id}
-          tab={tab}
-          isActive={tab.id === activeTabId}
-          onClick={() => onTabClick(tab.id)}
-          onClose={tab.closeable ? () => onTabClose(tab.id) : undefined}
-        />
-      ))}
-      
-      <button
-        className="px-3 h-[40px] flex items-center text-neutral-400 hover:text-white hover:bg-neutral-800/50 shrink-0"
-        onClick={onAddTab}
-      >
-        <Plus size={16} />
-      </button>
+    <div className="flex relative h-[40px] min-h-[40px] max-h-[40px] border-b border-neutral-800 bg-neutral-900">
+      {/* Using a wrapper with hidden overflow to remove visible scrollbars */}
+      <div className="flex overflow-x-auto overflow-y-hidden scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+        {tabs.map(tab => (
+          <TabItem
+            key={tab.id}
+            tab={tab}
+            isActive={tab.id === activeTabId}
+            onClick={() => onTabClick(tab.id)}
+            onClose={tab.closeable ? () => onTabClose(tab.id) : undefined}
+          />
+        ))}
+        
+        <button
+          className="px-3 h-[40px] flex items-center text-neutral-400 hover:text-white hover:bg-neutral-800/50 shrink-0"
+          onClick={onAddTab}
+        >
+          <Plus size={16} />
+        </button>
+      </div>
       
       <div className="flex-grow"></div>
       
       <button
-        className="px-3 h-[40px] flex items-center text-neutral-400 hover:text-white hover:bg-neutral-800/50 shrink-0"
+        className="absolute right-0 px-3 h-[40px] flex items-center text-neutral-400 hover:text-white hover:bg-neutral-800/50 shrink-0"
         onClick={onViewToggle}
       >
         {isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}

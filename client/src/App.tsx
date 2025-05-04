@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import EmailClient from "@/pages/EmailClient";
 import { EmailProvider } from "@/context/EmailContext";
 import { TagProvider } from "@/context/TagContext";
+import { AppProvider } from "@/context/AppContext";
 import { SimplePanelLayout } from "./components/SimplePanelLayout";
 import { TabbedPanelLayout } from "./components/TabbedPanelLayout";
 import { AdvancedPanelLayout } from "./components/AdvancedPanelLayout";
@@ -43,12 +44,14 @@ function FlexibleEmailClientView() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <EmailProvider>
-        <TagProvider>
-          <Router />
-          <Toaster />
-        </TagProvider>
-      </EmailProvider>
+      <AppProvider>
+        <EmailProvider>
+          <TagProvider>
+            <Router />
+            <Toaster />
+          </TagProvider>
+        </EmailProvider>
+      </AppProvider>
     </QueryClientProvider>
   );
 }

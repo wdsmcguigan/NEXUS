@@ -537,6 +537,105 @@ function tabReducer(state: TabState, action: TabAction): TabState {
       
       return state;
     }
+    
+    case 'CHANGE_TAB_COMPONENT': {
+      const { tabId, componentId } = action.payload;
+      const tab = state.tabs[tabId];
+      
+      if (!tab) {
+        console.error(`Tab ${tabId} not found`);
+        return state;
+      }
+      
+      // Verify the component exists in the registry
+      const component = componentRegistry.getComponent(componentId);
+      if (!component) {
+        console.error(`Component with ID ${componentId} not found in registry`);
+        return state;
+      }
+      
+      // Update the tab with the new component
+      return {
+        ...state,
+        tabs: {
+          ...state.tabs,
+          [tabId]: {
+            ...tab,
+            componentId,
+            icon: component.icon ? React.createElement(component.icon, { size: 16 }) : tab.icon,
+            // Keep existing props or use new component's default props
+            props: tab.props || component.defaultConfig || {},
+          },
+        },
+      };
+    }
+    
+    case 'TOGGLE_TAB_PIN': {
+      const { tabId } = action.payload;
+      const tab = state.tabs[tabId];
+      
+      if (!tab) {
+        console.error(`Tab ${tabId} not found`);
+        return state;
+      }
+      
+      const panelId = tab.panelId;
+      const panel = state.panels[panelId];
+      
+      if (!panel) {
+        console.error(`Panel ${panelId} not found`);
+        return state;
+      }
+      
+      // Toggle the pin state
+      const newPinState = !tab.pinned;
+      
+      // Reorder tabs if necessary (pinned tabs go first)
+      let newTabOrder = [...panel.tabs];
+      
+      if (newPinState) {
+        // If pinning, move to the front of pinned section
+        const pinnedTabs = panel.tabs
+          .filter(id => state.tabs[id]?.pinned)
+          .filter(id => id !== tabId);
+          
+        const unpinnedTabs = panel.tabs
+          .filter(id => !state.tabs[id]?.pinned)
+          .filter(id => id !== tabId);
+          
+        newTabOrder = [...pinnedTabs, tabId, ...unpinnedTabs];
+      } else {
+        // If unpinning, move to the front of unpinned section
+        const pinnedTabs = panel.tabs
+          .filter(id => state.tabs[id]?.pinned && id !== tabId);
+          
+        const unpinnedTabs = panel.tabs
+          .filter(id => !state.tabs[id]?.pinned && id !== tabId);
+          
+        newTabOrder = [...pinnedTabs, ...unpinnedTabs];
+        
+        // Insert at beginning of unpinned section
+        newTabOrder.splice(pinnedTabs.length, 0, tabId);
+      }
+      
+      return {
+        ...state,
+        tabs: {
+          ...state.tabs,
+          [tabId]: {
+            ...tab,
+            pinned: newPinState,
+          },
+        },
+        panels: {
+          ...state.panels,
+          [panelId]: {
+            ...panel,
+            tabs: newTabOrder,
+          },
+        },
+      };
+    }
 
     default:
       return state;
@@ -666,6 +765,22 @@ export function TabProvider({ children }: TabProviderProps) {
   const closePanel = useCallback((panelId: string) => {
     removePanel(panelId);
   }, [removePanel]);
+  
+  // Change tab component type
+  const changeTabComponent = useCallback((tabId: string, componentId: string) => {
+    dispatch({
+      type: 'CHANGE_TAB_COMPONENT',
+      payload: { tabId, componentId },
+    });
+  }, []);
+  
+  // Toggle tab pin state
+  const toggleTabPin = useCallback((tabId: string) => {
+    dispatch({
+      type: 'TOGGLE_TAB_PIN',
+      payload: { tabId },
+    });
+  }, []);
 
   const value: TabContextType = {
     state,
@@ -686,6 +801,8 @@ export function TabProvider({ children }: TabProviderProps) {
     restorePanel,
     restoreMaximizedPanel,
     closePanel,
+    changeTabComponent,
+    toggleTabPin,
   };
 
   return <TabContext.Provider value={value}>{children}</TabContext.Provider>;

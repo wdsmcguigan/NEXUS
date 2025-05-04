@@ -3,6 +3,7 @@ import { useDragContext } from '../context/DragContext';
 import { X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAppContext } from '../context/AppContext';
+import { TabContextMenu } from './TabContextMenu';
 
 interface TabProps {
   id: string;
@@ -151,44 +152,46 @@ export function DraggableTab({
     onClick();
   }, [onClick]);
   
-  // Use simple approach without context menu for now to fix the drag and drop
+  // Use TabContextMenu to enhance functionality
   return (
-    <div
-      ref={tabRef}
-      className={cn(
-        "flex items-center h-[40px] cursor-pointer shrink-0",
-        isActive 
-          ? "text-white bg-neutral-800 border-t-2 border-t-blue-500" 
-          : "text-neutral-400 hover:text-white hover:bg-neutral-800/50 border-t-2 border-t-transparent",
-        "select-none transition-colors"
-      )}
-      style={{ width: `${settings.tabSize}px` }}
-      data-tab-id={id}
-      data-panel-id={panelId}
-      data-tab-index={index}
-      onMouseDown={handleMouseDown}
-      onContextMenu={handleContextMenu}
-      draggable={closeable}
-      onDragStart={handleDragStart}
-    >
-      <div className="flex items-center justify-between w-full px-4">
-        <div className="flex items-center overflow-hidden">
-          {icon && <span className="mr-2 flex-shrink-0 text-blue-400">{icon}</span>}
-          <span className="truncate">{title}</span>
-        </div>
-        
-        {closeable && onClose && (
-          <div
-            className="ml-2 text-neutral-500 hover:text-white p-1 rounded-sm hover:bg-neutral-700"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
-          >
-            <X size={14} />
-          </div>
+    <TabContextMenu tabId={id} panelId={panelId} title={title}>
+      <div
+        ref={tabRef}
+        className={cn(
+          "flex items-center h-[40px] cursor-pointer shrink-0",
+          isActive 
+            ? "text-white bg-neutral-800 border-t-2 border-t-blue-500" 
+            : "text-neutral-400 hover:text-white hover:bg-neutral-800/50 border-t-2 border-t-transparent",
+          "select-none transition-colors"
         )}
+        style={{ width: `${settings.tabSize}px` }}
+        data-tab-id={id}
+        data-panel-id={panelId}
+        data-tab-index={index}
+        onMouseDown={handleMouseDown}
+        onContextMenu={handleContextMenu}
+        draggable={closeable}
+        onDragStart={handleDragStart}
+      >
+        <div className="flex items-center justify-between w-full px-4">
+          <div className="flex items-center overflow-hidden">
+            {icon && <span className="mr-2 flex-shrink-0 text-blue-400">{icon}</span>}
+            <span className="truncate">{title}</span>
+          </div>
+          
+          {closeable && onClose && (
+            <div
+              className="ml-2 text-neutral-500 hover:text-white p-1 rounded-sm hover:bg-neutral-700"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+            >
+              <X size={14} />
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </TabContextMenu>
   );
 }

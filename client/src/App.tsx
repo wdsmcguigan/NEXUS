@@ -8,6 +8,9 @@ import { EmailProvider } from "@/context/EmailContext";
 import { TagProvider } from "@/context/TagContext";
 import { AppProvider } from "@/context/AppContext";
 import { DragProvider } from "./context/DragContext";
+import { TabProvider } from "./context/TabContext";
+import { PanelProvider } from "./context/PanelContext";
+import { ComponentProvider } from "./context/ComponentContext";
 import { SimplePanelLayout } from "./components/SimplePanelLayout";
 import { TabbedPanelLayout } from "./components/TabbedPanelLayout";
 import { AdvancedPanelLayout } from "./components/AdvancedPanelLayout";
@@ -46,14 +49,20 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AppProvider>
-        <EmailProvider>
-          <DragProvider>
-            <TagProvider>
-              <Router />
-              <Toaster />
-            </TagProvider>
-          </DragProvider>
-        </EmailProvider>
+        <ComponentProvider>
+          <TabProvider>
+            <PanelProvider>
+              <EmailProvider>
+                <DragProvider>
+                  <TagProvider>
+                    <Router />
+                    <Toaster />
+                  </TagProvider>
+                </DragProvider>
+              </EmailProvider>
+            </PanelProvider>
+          </TabProvider>
+        </ComponentProvider>
       </AppProvider>
     </QueryClientProvider>
   );

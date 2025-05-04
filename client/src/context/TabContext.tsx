@@ -558,9 +558,10 @@ function tabReducer(state: TabState, action: TabAction): TabState {
       };
       
       // Second child panel (new empty panel) - this is where we'll move the tab
-      // IMPORTANT: We want to use the user-provided newPanelId here if it's available, since
-      // that's what the drag system will look for when moving tabs
-      const childPanel2Id = options?.newPanelId ? newPanelId : `${panelId}-child2-${timestamp}`;
+      // IMPORTANT: Always use the newPanelId if provided in options
+      const childPanel2Id = options?.newPanelId || `${panelId}-child2-${timestamp}`;
+      console.log(`🔄 [SPLIT_PANEL] Using ID for second panel: ${childPanel2Id} (newPanelId from options: ${options?.newPanelId})`);
+      
       const childPanel2: Panel = {
         id: childPanel2Id,
         type: panel.type,
@@ -760,6 +761,18 @@ export function TabProvider({ children }: TabProviderProps) {
   }, []);
 
   const splitPanel = useCallback((panelId: string, direction: 'horizontal' | 'vertical', options?: { newPanelId?: string; positionAfter?: boolean }) => {
+    console.log('📏 [SPLIT_PANEL] Function called with:', {
+      panelId,
+      direction,
+      options: options ? { ...options } : 'undefined'
+    });
+    
+    if (!options) {
+      console.warn('📏 [SPLIT_PANEL] WARNING: No options provided, using defaults');
+    } else if (!options.newPanelId) {
+      console.warn('📏 [SPLIT_PANEL] WARNING: newPanelId missing from options');
+    }
+    
     dispatch({
       type: 'SPLIT_PANEL',
       payload: { panelId, direction, options },

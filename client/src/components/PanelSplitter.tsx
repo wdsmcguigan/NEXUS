@@ -164,11 +164,15 @@ export function PanelSplitter() {
       // Step 4: Execute the panel split with new panel ID
       console.log(`🔧 [EDGE DROP HANDLER] Calling splitPanel(${targetPanelId}, ${splitDirection}, { newPanelId:${newPanelId}, positionAfter:${positionAfter}})`);
       
+      // Create options object exactly as expected by the splitPanel function
+      const splitOptions = {
+        newPanelId: newPanelId,
+        positionAfter: positionAfter
+      };
+      console.log(`🔧 [EDGE DROP HANDLER] Split options (full object):`, splitOptions);
+      
       // Execute split panel action synchronously
-      splitPanel(targetPanelId, splitDirection, {
-        newPanelId,
-        positionAfter
-      });
+      splitPanel(targetPanelId, splitDirection, splitOptions);
       
       // Step 5: Verify the panel was created
       console.log('🔧 [EDGE DROP HANDLER] Checking if new panel exists in state:', 

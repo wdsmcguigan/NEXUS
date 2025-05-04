@@ -30,7 +30,8 @@ interface PanelContextType {
   removeTab: (panelId: string, tabId: string) => void;
   changeTab: (panelId: string, tabId: string) => void;
   moveTab: (sourceId: string, sourceTabId: string, targetId: string) => void;
-  splitPanel: (panelId: string, direction: PanelDirection, newPanel: PanelConfig) => void;
+  splitPanel: (panelId: string, direction: PanelDirection, options?: { newPanelId?: string; positionAfter?: boolean }) => void;
+  closePanel: (panelId: string) => void;
   savedLayouts: { name: string; data: PanelConfig }[];
   saveLayout: (name: string) => void;
   loadLayout: (name: string) => void;
@@ -351,13 +352,26 @@ export function PanelProvider({ children }: { children: React.ReactNode }) {
   }, [findPanel, updatePanelInLayout]);
 
   // Split a panel in a certain direction and add a new panel
-  const splitPanel = useCallback((panelId: string, direction: PanelDirection, newPanel: PanelConfig) => {
+  const splitPanel = useCallback((panelId: string, direction: PanelDirection, options?: { newPanelId?: string; positionAfter?: boolean }) => {
     setLayout(prevLayout => {
       const panel = findPanel(prevLayout, panelId);
       if (!panel) {
         console.error(`Panel with ID ${panelId} not found for split operation`);
         return prevLayout;
       }
+      
+      // Create a new panel with optional id or generate one
+      const newPanelId = options?.newPanelId || nanoid();
+      const positionAfter = options?.positionAfter || false;
+      
+      // Create empty new panel
+      const newPanel: PanelConfig = {
+        id: newPanelId,
+        type: 'panel',
+        size: 50,
+        tabs: [],
+        contents: []
+      };
 
       // If the panel is already a split in the same direction, add the new panel as a child
       if (panel.type === 'split' && panel.direction === direction) {
@@ -463,6 +477,104 @@ export function PanelProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Close a panel and remove it from the layout
+  const closePanel = useCallback((panelId: string) => {
+    setLayout(prevLayout => {
+      // Cannot close the root panel
+      if (panelId === prevLayout.id) {
+        console.warn('Cannot close the root panel');
+        return prevLayout;
+      }
+
+      // Find the parent of the panel to close
+      const removeFromParent = (layout: PanelConfig): PanelConfig | null => {
+        if (layout.children) {
+          const index = layout.children.findIndex(child => child.id === panelId);
+          
+          // If this layout is the direct parent of the panel to close
+          if (index !== -1) {
+            // If there's only one child, replace the parent with the remaining child
+            if (layout.children.length === 2) {
+              const otherChildIndex = index === 0 ? 1 : 0;
+              const otherChild = layout.children[otherChildIndex];
+              
+              // If the parent is the root, we need to keep the root ID
+              if (layout.id === 'root') {
+                return {
+                  ...otherChild,
+                  id: 'root'
+                };
+              }
+              
+              // Otherwise we can just replace the parent with the other child
+              return otherChild;
+            } 
+            // If there are more children, just remove this one
+            else if (layout.children.length > 2) {
+              const newChildren = layout.children.filter((_, i) => i !== index);
+              
+              // Recalculate sizes for remaining children
+              const totalSize = 100;
+              const sizePerChild = totalSize / newChildren.length;
+              
+              const childrenWithNewSizes = newChildren.map(child => ({
+                ...child,
+                size: sizePerChild
+              }));
+              
+              return {
+                ...layout,
+                children: childrenWithNewSizes
+              };
+            }
+            // If there's only one child (which shouldn't happen in a well-formed layout),
+            // just return the parent without children
+            else {
+              return {
+                ...layout,
+                children: undefined,
+                type: 'panel'
+              };
+            }
+          }
+          
+          // Recursively look for the panel in children
+          const newChildren = [];
+          for (const child of layout.children) {
+            const result = removeFromParent(child);
+            if (result) {
+              newChildren.push(result);
+            }
+          }
+          
+          // If all children were removed, just return null
+          if (newChildren.length === 0) {
+            return null;
+          }
+          
+          // If some children were changed, return updated layout
+          if (newChildren.length !== layout.children.length) {
+            return {
+              ...layout,
+              children: newChildren
+            };
+          }
+        }
+        
+        // If we didn't find the panel in this branch, return the layout unchanged
+        return layout;
+      };
+      
+      const result = removeFromParent(prevLayout);
+      return result || prevLayout;
+    });
+    
+    // If the closed panel was maximized, restore the layout
+    if (maximizedPanelId === panelId) {
+      restorePanel();
+    }
+  }, [maximizedPanelId, restorePanel]);
+
   const contextValue: PanelContextType = {
     layout,
     updateLayout,
@@ -474,6 +586,7 @@ export function PanelProvider({ children }: { children: React.ReactNode }) {
     changeTab,
     moveTab,
     splitPanel,
+    closePanel,
     savedLayouts,
     saveLayout,
     loadLayout,

@@ -1,820 +1,265 @@
-import React, { createContext, useContext, useReducer, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { nanoid } from 'nanoid';
-import { LucideIcon } from 'lucide-react';
-import componentRegistry, { ComponentDefinition } from '../lib/componentRegistry';
+import { usePanelContext } from './PanelContext';
 
-// Define the types for tab state
+// Define tab interface
 export interface Tab {
   id: string;
-  componentId: string;
   title: string;
   icon?: React.ReactNode;
-  props?: Record<string, any>;
-  closeable: boolean;
-  panelId: string;
-  active: boolean;
+  closeable?: boolean;
   pinned?: boolean;
-  lastActive?: number; // Timestamp for tracking most recently used tabs
 }
 
-// Panel types
-export type PanelType = 'main' | 'sidebar' | 'bottom';
-
-export interface Panel {
-  id: string;
-  type: PanelType;
-  tabs: string[]; // Tab IDs
-  activeTabId?: string;
-  parentId?: string; // For nested panels
-  direction?: 'horizontal' | 'vertical'; // For split panels
-  size?: number; // Flex size (0-100)
+// Define tab drop target
+export interface DropTarget {
+  panelId: string;
+  targetZone: 'before' | 'after' | 'inside' | 'edge';
+  tabId?: string;
+  edge?: 'top' | 'right' | 'bottom' | 'left';
 }
 
-// State structure
-interface TabState {
-  tabs: Record<string, Tab>;
-  panels: Record<string, Panel>;
-  activeTabId?: string;
-  activePanelId?: string;
-  tabHistory: string[]; // Track tab activation history for navigation
-}
-
-// Action types
-type TabAction =
-  | { type: 'ADD_TAB'; payload: { componentId: string; panelId: string; props?: any; title?: string; icon?: React.ReactNode; closeable?: boolean } }
-  | { type: 'CLOSE_TAB'; payload: { tabId: string } }
-  | { type: 'ACTIVATE_TAB'; payload: { tabId: string; panelId: string } }
-  | { type: 'UPDATE_TAB_PROPS'; payload: { tabId: string; props: any } }
-  | { type: 'RENAME_TAB'; payload: { tabId: string; title: string } }
-  | { type: 'MOVE_TAB'; payload: { tabId: string; sourcePanelId: string; toPanelId: string; index?: number } }
-  | { type: 'ADD_PANEL'; payload: { type: PanelType; parentId?: string; direction?: 'horizontal' | 'vertical'; size?: number } }
-  | { type: 'REMOVE_PANEL'; payload: { panelId: string } }
-  | { type: 'SPLIT_PANEL'; payload: { panelId: string; direction: 'horizontal' | 'vertical'; options?: { newPanelId?: string; positionAfter?: boolean } } }
-  | { type: 'MOVE_PANEL'; payload: { panelId: string; targetId: string; position: 'before' | 'after' | 'inside' } }
-  | { type: 'CHANGE_TAB_COMPONENT'; payload: { tabId: string; componentId: string } }
-  | { type: 'TOGGLE_TAB_PIN'; payload: { tabId: string } };
-
-// Context type
+// Define TabContext type
 interface TabContextType {
-  state: TabState;
-  dispatch: React.Dispatch<TabAction>;
-  addTab: (componentId: string, panelId: string, props?: any, options?: { title?: string; icon?: React.ReactNode; closeable?: boolean }) => string;
-  closeTab: (tabId: string) => void;
-  activateTab: (tabId: string, panelId: string) => void;
-  updateTabProps: (tabId: string, props: any) => void;
-  renameTab: (tabId: string, title: string) => void;
-  moveTab: (tabId: string, sourcePanelId: string, toPanelId: string, index?: number) => void;
-  addPanel: (type: PanelType, parentId?: string, options?: { direction?: 'horizontal' | 'vertical', size?: number }) => string;
-  removePanel: (panelId: string) => void;
-  splitPanel: (panelId: string, direction: 'horizontal' | 'vertical', options?: { newPanelId?: string; positionAfter?: boolean }) => void;
-  movePanel: (panelId: string, targetId: string, position: 'before' | 'after' | 'inside') => void;
-  getComponentForTab: (tabId: string) => ComponentDefinition | undefined;
-  isPanelMaximized: boolean;
-  maximizePanel: (panelId: string) => void;
-  restorePanel: () => void;
-  closePanel: (panelId: string) => void;
-  restoreMaximizedPanel: () => void;
-  changeTabComponent: (tabId: string, componentId: string) => void;
-  toggleTabPin: (tabId: string) => void;
+  addTab: (componentId: string, panelId: string, props?: any, tabOptions?: Partial<Tab>) => void;
+  closeTab: (panelId: string, tabId: string) => void;
+  activateTab: (panelId: string, tabId: string) => void;
+  moveTabToPanel: (sourceTabId: string, sourcePanelId: string, targetPanelId: string) => void;
+  pinTab: (panelId: string, tabId: string, pinned: boolean) => void;
+  duplicateTab: (panelId: string, tabId: string) => void;
+  handleTabDrop: (target: DropTarget, tabId: string, sourcePanelId: string) => void;
 }
 
-// Initial state
-const initialState: TabState = {
-  tabs: {},
-  panels: {
-    mainPanel: {
-      id: 'mainPanel',
-      type: 'main',
-      tabs: [],
-    },
-    leftSidebar: {
-      id: 'leftSidebar',
-      type: 'sidebar',
-      tabs: [],
-    },
-    rightSidebar: {
-      id: 'rightSidebar',
-      type: 'sidebar',
-      tabs: [],
-    },
-    bottomPanel: {
-      id: 'bottomPanel',
-      type: 'bottom',
-      tabs: [],
-    }
-  },
-  tabHistory: [],
-};
-
-// Reducer function
-function tabReducer(state: TabState, action: TabAction): TabState {
-  switch (action.type) {
-    case 'ADD_TAB': {
-      const { componentId, panelId, props = {}, title, icon, closeable = true } = action.payload;
-      
-      // Verify the component exists in the registry
-      const component = componentRegistry.getComponent(componentId);
-      if (!component) {
-        console.error(`Component with ID ${componentId} not found in registry`);
-        return state;
-      }
-
-      // Generate a unique ID for the tab
-      const tabId = nanoid();
-      
-      // Create the new tab
-      const newTab: Tab = {
-        id: tabId,
-        componentId,
-        title: title || component.displayName,
-        icon: icon || (component.icon ? React.createElement(component.icon, { size: 16 }) : undefined),
-        props: props || component.defaultConfig || {},
-        closeable,
-        panelId,
-        active: false,
-        lastActive: Date.now(),
-      };
-
-      // Update the panel's tabs list
-      const panel = state.panels[panelId];
-      if (!panel) {
-        console.error(`Panel with ID ${panelId} not found`);
-        return state;
-      }
-
-      // Check if component is singleton and already open
-      if (component.singleton) {
-        const existingTabId = Object.values(state.tabs).find(tab => 
-          tab.componentId === componentId && tab.panelId === panelId
-        )?.id;
-
-        if (existingTabId) {
-          // Update the existing tab's props and activate it
-          return {
-            ...state,
-            tabs: {
-              ...state.tabs,
-              [existingTabId]: {
-                ...state.tabs[existingTabId],
-                props: props || state.tabs[existingTabId].props,
-                active: true,
-                lastActive: Date.now(),
-              }
-            },
-            panels: {
-              ...state.panels,
-              [panelId]: {
-                ...panel,
-                activeTabId: existingTabId,
-              }
-            },
-            activeTabId: existingTabId,
-            activePanelId: panelId,
-            tabHistory: [existingTabId, ...state.tabHistory.filter(id => id !== existingTabId)],
-          };
-        }
-      }
-
-      // Add the new tab
-      return {
-        ...state,
-        tabs: {
-          ...state.tabs,
-          [tabId]: {
-            ...newTab,
-            active: true,
-          },
-        },
-        panels: {
-          ...state.panels,
-          [panelId]: {
-            ...panel,
-            tabs: [...panel.tabs, tabId],
-            activeTabId: tabId,
-          },
-        },
-        activeTabId: tabId,
-        activePanelId: panelId,
-        tabHistory: [tabId, ...state.tabHistory],
-      };
-    }
-
-    case 'CLOSE_TAB': {
-      const { tabId } = action.payload;
-      const tab = state.tabs[tabId];
-      
-      if (!tab) {
-        return state;
-      }
-
-      const { panelId } = tab;
-      const panel = state.panels[panelId];
-      
-      if (!panel) {
-        return state;
-      }
-
-      // Remove the tab
-      const { [tabId]: removedTab, ...remainingTabs } = state.tabs;
-      
-      // Update the panel's tabs
-      const updatedPanelTabs = panel.tabs.filter(id => id !== tabId);
-      
-      // Determine new active tab in the panel
-      let newActiveTabId = panel.activeTabId;
-      
-      if (panel.activeTabId === tabId && updatedPanelTabs.length > 0) {
-        // Find the most recently active tab to activate
-        const lastActiveTimes = updatedPanelTabs
-          .map(id => ({ id, time: state.tabs[id]?.lastActive || 0 }))
-          .sort((a, b) => b.time - a.time);
-        
-        newActiveTabId = lastActiveTimes[0]?.id || undefined;
-      } else if (updatedPanelTabs.length === 0) {
-        newActiveTabId = undefined;
-      }
-
-      // Update tab history
-      const updatedHistory = state.tabHistory.filter(id => id !== tabId);
-
-      // Update the global active tab if the closed tab was active
-      const newGlobalActiveTabId = state.activeTabId === tabId
-        ? (updatedHistory[0] || undefined)
-        : state.activeTabId;
-
-      // Determine new active panel
-      let newActivePanelId = state.activePanelId;
-      if (state.activePanelId === panelId && newActiveTabId === undefined) {
-        // If panel has no tabs, find another panel with tabs
-        const panelsWithTabs = Object.values(state.panels)
-          .filter(p => p.tabs.length > 0 && p.id !== panelId);
-
-        if (panelsWithTabs.length > 0) {
-          const newActivePanel = panelsWithTabs[0];
-          newActivePanelId = newActivePanel.id;
-        } else {
-          newActivePanelId = undefined;
-        }
-      }
-
-      return {
-        ...state,
-        tabs: remainingTabs,
-        panels: {
-          ...state.panels,
-          [panelId]: {
-            ...panel,
-            tabs: updatedPanelTabs,
-            activeTabId: newActiveTabId,
-          },
-        },
-        activeTabId: newGlobalActiveTabId,
-        activePanelId: newActivePanelId,
-        tabHistory: updatedHistory,
-      };
-    }
-
-    case 'ACTIVATE_TAB': {
-      const { tabId, panelId } = action.payload;
-      
-      // Make sure the tab exists and is in the specified panel
-      const tab = state.tabs[tabId];
-      const panel = state.panels[panelId];
-      
-      if (!tab || !panel || !panel.tabs.includes(tabId)) {
-        return state;
-      }
-
-      // Update all tabs in the panel to be inactive
-      const updatedTabs = { ...state.tabs };
-      panel.tabs.forEach(id => {
-        if (updatedTabs[id]) {
-          updatedTabs[id] = {
-            ...updatedTabs[id],
-            active: id === tabId,
-            ...(id === tabId ? { lastActive: Date.now() } : {})
-          };
-        }
-      });
-
-      // Update tab history
-      const updatedHistory = [
-        tabId,
-        ...state.tabHistory.filter(id => id !== tabId)
-      ];
-
-      return {
-        ...state,
-        tabs: updatedTabs,
-        panels: {
-          ...state.panels,
-          [panelId]: {
-            ...panel,
-            activeTabId: tabId,
-          },
-        },
-        activeTabId: tabId,
-        activePanelId: panelId,
-        tabHistory: updatedHistory,
-      };
-    }
-
-    case 'UPDATE_TAB_PROPS': {
-      const { tabId, props } = action.payload;
-      const tab = state.tabs[tabId];
-      
-      if (!tab) {
-        return state;
-      }
-
-      return {
-        ...state,
-        tabs: {
-          ...state.tabs,
-          [tabId]: {
-            ...tab,
-            props: {
-              ...tab.props,
-              ...props,
-            },
-          },
-        },
-      };
-    }
-
-    case 'RENAME_TAB': {
-      const { tabId, title } = action.payload;
-      const tab = state.tabs[tabId];
-      
-      if (!tab) {
-        return state;
-      }
-
-      return {
-        ...state,
-        tabs: {
-          ...state.tabs,
-          [tabId]: {
-            ...tab,
-            title,
-          },
-        },
-      };
-    }
-
-    case 'MOVE_TAB': {
-      const { tabId, sourcePanelId, toPanelId, index } = action.payload;
-      const tab = state.tabs[tabId];
-      
-      if (!tab) {
-        return state;
-      }
-
-      const sourcePanel = state.panels[sourcePanelId];
-      const targetPanel = state.panels[toPanelId];
-      
-      if (!sourcePanel || !targetPanel) {
-        return state;
-      }
-
-      // Check if tab is in the source panel
-      if (!sourcePanel.tabs.includes(tabId)) {
-        console.error(`Tab ${tabId} not found in source panel ${sourcePanelId}`);
-        return state;
-      }
-
-      // Remove from source panel
-      const sourceTabsUpdated = sourcePanel.tabs.filter(id => id !== tabId);
-      
-      // Add to target panel at specified index or end
-      let targetTabsUpdated = [...targetPanel.tabs];
-      if (typeof index === 'number') {
-        targetTabsUpdated.splice(index, 0, tabId);
-      } else {
-        targetTabsUpdated.push(tabId);
-      }
-
-      // Update the tab with new panel ID
-      const updatedTab: Tab = {
-        ...tab,
-        panelId: toPanelId,
-      };
-
-      // Update source panel's active tab if needed
-      let updatedSourcePanel = { ...sourcePanel, tabs: sourceTabsUpdated };
-      if (sourcePanel.activeTabId === tabId) {
-        updatedSourcePanel.activeTabId = sourceTabsUpdated.length > 0 
-          ? sourceTabsUpdated[0]
-          : undefined;
-      }
-
-      return {
-        ...state,
-        tabs: {
-          ...state.tabs,
-          [tabId]: updatedTab,
-        },
-        panels: {
-          ...state.panels,
-          [sourcePanel.id]: updatedSourcePanel,
-          [targetPanel.id]: {
-            ...targetPanel,
-            tabs: targetTabsUpdated,
-            activeTabId: tabId, // Activate the moved tab in the target panel
-          },
-        },
-        // If tab was active, activate it in the new panel
-        activeTabId: state.activeTabId === tabId ? tabId : state.activeTabId,
-        activePanelId: state.activeTabId === tabId ? toPanelId : state.activePanelId,
-      };
-    }
-
-    case 'ADD_PANEL': {
-      const { type, parentId, direction, size } = action.payload;
-      const panelId = nanoid();
-      
-      const newPanel: Panel = {
-        id: panelId,
-        type,
-        tabs: [],
-        parentId,
-        direction,
-        size,
-      };
-
-      return {
-        ...state,
-        panels: {
-          ...state.panels,
-          [panelId]: newPanel,
-        },
-      };
-    }
-
-    case 'REMOVE_PANEL': {
-      const { panelId } = action.payload;
-      const panel = state.panels[panelId];
-      
-      if (!panel) {
-        return state;
-      }
-
-      // Close all tabs in the panel
-      const tabsToClose = panel.tabs;
-      const remainingTabs = { ...state.tabs };
-      tabsToClose.forEach(tabId => {
-        delete remainingTabs[tabId];
-      });
-
-      // Remove the panel
-      const { [panelId]: removedPanel, ...remainingPanels } = state.panels;
-
-      // Update tab history
-      const updatedHistory = state.tabHistory.filter(id => !tabsToClose.includes(id));
-
-      // Update active tab and panel if needed
-      const newActiveTabId = state.activeTabId && 
-        tabsToClose.includes(state.activeTabId) ? 
-        updatedHistory[0] || undefined : 
-        state.activeTabId;
-
-      const newActivePanelId = state.activePanelId === panelId ?
-        undefined :
-        state.activePanelId;
-
-      return {
-        ...state,
-        tabs: remainingTabs,
-        panels: remainingPanels,
-        activeTabId: newActiveTabId,
-        activePanelId: newActivePanelId,
-        tabHistory: updatedHistory,
-      };
-    }
-
-    case 'SPLIT_PANEL': {
-      const { panelId, direction, options } = action.payload;
-      const panel = state.panels[panelId];
-      
-      if (!panel) {
-        return state;
-      }
-
-      // Create a new panel with optional custom ID
-      const newPanelId = options?.newPanelId || nanoid();
-      const newPanel: Panel = {
-        id: newPanelId,
-        type: panel.type,
-        tabs: [],
-        parentId: panel.parentId,
-        direction,
-        size: 50, // Default 50% split
-      };
-
-      // Update the original panel
-      const updatedPanel: Panel = {
-        ...panel,
-        size: 50, // Adjust size of original panel
-      };
-
-      return {
-        ...state,
-        panels: {
-          ...state.panels,
-          [panelId]: updatedPanel,
-          [newPanelId]: newPanel,
-        },
-      };
-    }
-
-    case 'MOVE_PANEL': {
-      // Simplified implementation - full implementation would need to handle 
-      // complex reorganization of the panel tree
-      const { panelId, targetId, position } = action.payload;
-      
-      // This would require a more complex implementation that updates the 
-      // hierarchy of panels. For now, this is a placeholder.
-      
-      return state;
-    }
-    
-    case 'CHANGE_TAB_COMPONENT': {
-      const { tabId, componentId } = action.payload;
-      const tab = state.tabs[tabId];
-      
-      if (!tab) {
-        console.error(`Tab ${tabId} not found`);
-        return state;
-      }
-      
-      // Verify the component exists in the registry
-      const component = componentRegistry.getComponent(componentId);
-      if (!component) {
-        console.error(`Component with ID ${componentId} not found in registry`);
-        return state;
-      }
-      
-      // Update the tab with the new component
-      return {
-        ...state,
-        tabs: {
-          ...state.tabs,
-          [tabId]: {
-            ...tab,
-            componentId,
-            icon: component.icon ? React.createElement(component.icon, { size: 16 }) : tab.icon,
-            // Keep existing props or use new component's default props
-            props: tab.props || component.defaultConfig || {},
-          },
-        },
-      };
-    }
-    
-    case 'TOGGLE_TAB_PIN': {
-      const { tabId } = action.payload;
-      const tab = state.tabs[tabId];
-      
-      if (!tab) {
-        console.error(`Tab ${tabId} not found`);
-        return state;
-      }
-      
-      const panelId = tab.panelId;
-      const panel = state.panels[panelId];
-      
-      if (!panel) {
-        console.error(`Panel ${panelId} not found`);
-        return state;
-      }
-      
-      // Toggle the pin state
-      const newPinState = !tab.pinned;
-      
-      // Reorder tabs if necessary (pinned tabs go first)
-      let newTabOrder = [...panel.tabs];
-      
-      if (newPinState) {
-        // If pinning, move to the front of pinned section
-        const pinnedTabs = panel.tabs
-          .filter(id => state.tabs[id]?.pinned)
-          .filter(id => id !== tabId);
-          
-        const unpinnedTabs = panel.tabs
-          .filter(id => !state.tabs[id]?.pinned)
-          .filter(id => id !== tabId);
-          
-        newTabOrder = [...pinnedTabs, tabId, ...unpinnedTabs];
-      } else {
-        // If unpinning, move to the front of unpinned section
-        const pinnedTabs = panel.tabs
-          .filter(id => state.tabs[id]?.pinned && id !== tabId);
-          
-        const unpinnedTabs = panel.tabs
-          .filter(id => !state.tabs[id]?.pinned && id !== tabId);
-          
-        newTabOrder = [...pinnedTabs, ...unpinnedTabs];
-        
-        // Insert at beginning of unpinned section
-        newTabOrder.splice(pinnedTabs.length, 0, tabId);
-      }
-      
-      return {
-        ...state,
-        tabs: {
-          ...state.tabs,
-          [tabId]: {
-            ...tab,
-            pinned: newPinState,
-          },
-        },
-        panels: {
-          ...state.panels,
-          [panelId]: {
-            ...panel,
-            tabs: newTabOrder,
-          },
-        },
-      };
-    }
-
-    default:
-      return state;
-  }
-}
-
-// Create context
+// Create TabContext
 const TabContext = createContext<TabContextType | undefined>(undefined);
 
-// Create provider
-interface TabProviderProps {
-  children: ReactNode;
-}
-
-export function TabProvider({ children }: TabProviderProps) {
-  const [state, dispatch] = useReducer(tabReducer, initialState);
-  const [maximizedPanelId, setMaximizedPanelId] = React.useState<string | null>(null);
-
-  const addTab = useCallback((componentId: string, panelId: string, props?: any, options?: { title?: string; icon?: React.ReactNode; closeable?: boolean }): string => {
-    const tabId = nanoid();
-    dispatch({
-      type: 'ADD_TAB',
-      payload: {
-        componentId,
-        panelId,
-        props,
-        title: options?.title,
-        icon: options?.icon,
-        closeable: options?.closeable,
-      },
-    });
-    return tabId;
-  }, []);
-
-  const closeTab = useCallback((tabId: string) => {
-    dispatch({
-      type: 'CLOSE_TAB',
-      payload: { tabId },
-    });
-  }, []);
-
-  const activateTab = useCallback((tabId: string, panelId: string) => {
-    dispatch({
-      type: 'ACTIVATE_TAB',
-      payload: { tabId, panelId },
-    });
-  }, []);
-
-  const updateTabProps = useCallback((tabId: string, props: any) => {
-    dispatch({
-      type: 'UPDATE_TAB_PROPS',
-      payload: { tabId, props },
-    });
-  }, []);
-
-  const renameTab = useCallback((tabId: string, title: string) => {
-    dispatch({
-      type: 'RENAME_TAB',
-      payload: { tabId, title },
-    });
-  }, []);
-
-  const moveTab = useCallback((tabId: string, sourcePanelId: string, toPanelId: string, index?: number) => {
-    dispatch({
-      type: 'MOVE_TAB',
-      payload: { tabId, sourcePanelId, toPanelId, index },
-    });
-  }, []);
-
-  const addPanel = useCallback((type: PanelType, parentId?: string, options?: { direction?: 'horizontal' | 'vertical', size?: number }) => {
-    const panelId = nanoid();
-    dispatch({
-      type: 'ADD_PANEL',
-      payload: {
-        type,
-        parentId,
-        direction: options?.direction,
-        size: options?.size,
-      },
-    });
-    return panelId;
-  }, []);
-
-  const removePanel = useCallback((panelId: string) => {
-    dispatch({
-      type: 'REMOVE_PANEL',
-      payload: { panelId },
-    });
-  }, []);
-
-  const splitPanel = useCallback((panelId: string, direction: 'horizontal' | 'vertical', options?: { newPanelId?: string; positionAfter?: boolean }) => {
-    dispatch({
-      type: 'SPLIT_PANEL',
-      payload: { panelId, direction, options },
-    });
-  }, []);
-
-  const movePanel = useCallback((panelId: string, targetId: string, position: 'before' | 'after' | 'inside') => {
-    dispatch({
-      type: 'MOVE_PANEL',
-      payload: { panelId, targetId, position },
-    });
-  }, []);
-
-  const getComponentForTab = useCallback((tabId: string): ComponentDefinition | undefined => {
-    const tab = state.tabs[tabId];
-    if (!tab) return undefined;
+// TabProvider component
+export function TabProvider({ children }: { children: ReactNode }) {
+  const panelContext = usePanelContext();
+  
+  // Add a new tab to a panel
+  const addTab = useCallback((componentId: string, panelId: string, props: any = {}, tabOptions: Partial<Tab> = {}) => {
+    // Create a unique tab ID
+    const tabId = tabOptions.id || `tab-${nanoid(6)}`;
     
-    return componentRegistry.getComponent(tab.componentId);
-  }, [state.tabs]);
-
-  const maximizePanel = useCallback((panelId: string) => {
-    setMaximizedPanelId(panelId);
-  }, []);
+    // Create the tab object
+    const tab: Tab = {
+      id: tabId,
+      title: tabOptions.title || 'New Tab',
+      icon: tabOptions.icon,
+      closeable: tabOptions.closeable !== undefined ? tabOptions.closeable : true,
+      pinned: tabOptions.pinned || false
+    };
+    
+    // Create tab content
+    const content = {
+      id: tabId,
+      type: componentId,
+      props
+    };
+    
+    // Add the tab to the panel
+    panelContext.addTab(panelId, tab, content);
+  }, [panelContext]);
   
-  // Reset the maximized panel to normal view
-  const restorePanel = useCallback(() => {
-    setMaximizedPanelId(null);
-  }, []);
+  // Close a tab
+  const closeTab = useCallback((panelId: string, tabId: string) => {
+    panelContext.removeTab(panelId, tabId);
+  }, [panelContext]);
   
-  // Alias for restorePanel for backward compatibility
-  const restoreMaximizedPanel = useCallback(() => {
-    setMaximizedPanelId(null);
-  }, []);
+  // Activate a tab
+  const activateTab = useCallback((panelId: string, tabId: string) => {
+    panelContext.changeTab(panelId, tabId);
+  }, [panelContext]);
   
-  // Close a panel and all its tabs
-  const closePanel = useCallback((panelId: string) => {
-    removePanel(panelId);
-  }, [removePanel]);
+  // Move a tab to another panel
+  const moveTabToPanel = useCallback((sourceTabId: string, sourcePanelId: string, targetPanelId: string) => {
+    panelContext.moveTab(sourcePanelId, sourceTabId, targetPanelId);
+  }, [panelContext]);
   
-  // Change tab component type
-  const changeTabComponent = useCallback((tabId: string, componentId: string) => {
-    dispatch({
-      type: 'CHANGE_TAB_COMPONENT',
-      payload: { tabId, componentId },
-    });
-  }, []);
+  // Pin/unpin a tab
+  const pinTab = useCallback((panelId: string, tabId: string, pinned: boolean) => {
+    const panel = panelContext.layout;
+    
+    // Find the panel and update the tab
+    const findAndUpdateTab = (layout: any, panelId: string, tabId: string, pinned: boolean): any => {
+      if (layout.id === panelId) {
+        if (layout.tabs) {
+          const tabs = [...layout.tabs];
+          const tabIndex = tabs.findIndex(t => t.id === tabId);
+          
+          if (tabIndex !== -1) {
+            // Update the tab
+            tabs[tabIndex] = { ...tabs[tabIndex], pinned };
+            
+            // Re-order tabs if pinned (move to front) or unpinned (move after pinned)
+            if (pinned) {
+              // Count pinned tabs
+              const pinnedCount = tabs.filter((t, i) => i < tabIndex && t.pinned).length;
+              // Move to end of pinned section
+              const tab = tabs.splice(tabIndex, 1)[0];
+              tabs.splice(pinnedCount, 0, tab);
+            } else {
+              // Find the last pinned tab
+              const lastPinnedIndex = tabs.findLastIndex(t => t.pinned);
+              // If this tab is before that, move it after
+              if (tabIndex <= lastPinnedIndex) {
+                const tab = tabs.splice(tabIndex, 1)[0];
+                tabs.splice(lastPinnedIndex + 1, 0, tab);
+              }
+            }
+            
+            return {
+              ...layout,
+              tabs
+            };
+          }
+        }
+        return layout;
+      }
+      
+      if (layout.children) {
+        return {
+          ...layout,
+          children: layout.children.map((child: any) => 
+            findAndUpdateTab(child, panelId, tabId, pinned)
+          )
+        };
+      }
+      
+      return layout;
+    };
+    
+    // Update the layout
+    const newLayout = findAndUpdateTab(panel, panelId, tabId, pinned);
+    panelContext.updateLayout(newLayout);
+  }, [panelContext]);
   
-  // Toggle tab pin state
-  const toggleTabPin = useCallback((tabId: string) => {
-    dispatch({
-      type: 'TOGGLE_TAB_PIN',
-      payload: { tabId },
-    });
-  }, []);
-
-  const value: TabContextType = {
-    state,
-    dispatch,
+  // Duplicate a tab
+  const duplicateTab = useCallback((panelId: string, tabId: string) => {
+    const panel = panelContext.layout;
+    
+    // Find the panel and the tab to duplicate
+    const findTab = (layout: any, panelId: string, tabId: string): { tab: Tab, content: any } | null => {
+      if (layout.id === panelId) {
+        if (layout.tabs && layout.contents) {
+          const tabIndex = layout.tabs.findIndex((t: Tab) => t.id === tabId);
+          const contentIndex = layout.contents.findIndex((c: any) => c.id === tabId);
+          
+          if (tabIndex !== -1 && contentIndex !== -1) {
+            return {
+              tab: layout.tabs[tabIndex],
+              content: layout.contents[contentIndex]
+            };
+          }
+        }
+        return null;
+      }
+      
+      if (layout.children) {
+        for (const child of layout.children) {
+          const result = findTab(child, panelId, tabId);
+          if (result) return result;
+        }
+      }
+      
+      return null;
+    };
+    
+    // Find the tab to duplicate
+    const tabData = findTab(panel, panelId, tabId);
+    
+    if (tabData) {
+      // Create a new ID for the duplicated tab
+      const newTabId = `tab-${nanoid(6)}`;
+      
+      // Create a duplicate tab with the new ID
+      const newTab: Tab = {
+        ...tabData.tab,
+        id: newTabId,
+        title: `${tabData.tab.title} (Copy)`,
+        pinned: false // Don't copy pinned status
+      };
+      
+      // Create duplicate content with the new ID
+      const newContent = {
+        ...tabData.content,
+        id: newTabId
+      };
+      
+      // Add the duplicated tab to the panel
+      panelContext.addTab(panelId, newTab, newContent);
+    }
+  }, [panelContext]);
+  
+  // Handle tab drop to various targets
+  const handleTabDrop = useCallback((target: DropTarget, tabId: string, sourcePanelId: string) => {
+    const { panelId, targetZone, tabId: targetTabId, edge } = target;
+    
+    // If dropping inside the same panel or onto a tab in the same panel, just change tab order
+    if (targetZone === 'inside' && panelId === sourcePanelId) {
+      // This would just be a tab reordering within the same panel
+      // Implementation depends on how you handle tab ordering
+      console.log('Tab reordering not implemented yet');
+      return;
+    }
+    
+    // If dropping on an edge, create a new panel in that direction
+    if (targetZone === 'edge' && edge) {
+      const direction = edge === 'left' || edge === 'right' ? 'horizontal' : 'vertical';
+      const positionAfter = edge === 'right' || edge === 'bottom';
+      const newPanelId = `panel-${nanoid(6)}`;
+      
+      // First create the new panel
+      panelContext.splitPanel(panelId, direction, { 
+        newPanelId, 
+        positionAfter 
+      });
+      
+      // Then move the tab to the new panel
+      panelContext.moveTab(sourcePanelId, tabId, newPanelId);
+      return;
+    }
+    
+    // If dropping before/after a tab, we need to reorder
+    if ((targetZone === 'before' || targetZone === 'after') && targetTabId) {
+      // For now, just move the tab to the target panel
+      // In a full implementation, you'd reorder the tabs too
+      if (panelId !== sourcePanelId) {
+        panelContext.moveTab(sourcePanelId, tabId, panelId);
+      }
+      return;
+    }
+    
+    // Default case - just move the tab to the target panel
+    if (panelId !== sourcePanelId) {
+      panelContext.moveTab(sourcePanelId, tabId, panelId);
+    }
+  }, [panelContext]);
+  
+  // Create context value
+  const contextValue = {
     addTab,
     closeTab,
     activateTab,
-    updateTabProps,
-    renameTab,
-    moveTab,
-    addPanel,
-    removePanel,
-    splitPanel,
-    movePanel,
-    getComponentForTab,
-    isPanelMaximized: maximizedPanelId !== null,
-    maximizePanel,
-    restorePanel,
-    restoreMaximizedPanel,
-    closePanel,
-    changeTabComponent,
-    toggleTabPin,
+    moveTabToPanel,
+    pinTab,
+    duplicateTab,
+    handleTabDrop
   };
-
-  return <TabContext.Provider value={value}>{children}</TabContext.Provider>;
+  
+  return (
+    <TabContext.Provider value={contextValue}>
+      {children}
+    </TabContext.Provider>
+  );
 }
 
-// Custom hook to use the context
-export function useTabContext(): TabContextType {
+// Custom hook to use the tab context
+export function useTabContext() {
   const context = useContext(TabContext);
   if (context === undefined) {
     throw new Error('useTabContext must be used within a TabProvider');
   }
   return context;
 }
-
-export default TabContext;

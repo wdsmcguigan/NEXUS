@@ -1,167 +1,149 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Mail, Inbox, FolderOpen, Settings, User, FileText, Palette, Hash, Zap } from 'lucide-react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
+import { 
+  ListFilter, 
+  Mail, 
+  FolderOpen, 
+  User, 
+  Tag, 
+  Settings, 
+  Plug, 
+  FileText,
+  Save
+} from 'lucide-react';
 
-// Define types for component registry
-export interface RegisteredComponent {
+// Define Component interface
+export interface Component {
   id: string;
   name: string;
-  description?: string;
-  category?: string;
   icon?: React.ReactNode;
   component: React.ComponentType<any>;
   defaultProps?: Record<string, any>;
 }
 
-export interface ComponentContextType {
-  registerComponent: (component: RegisteredComponent) => void;
+// Define Component registry context type
+interface ComponentContextType {
+  registerComponent: (component: Component) => void;
   unregisterComponent: (id: string) => void;
-  getComponent: (id: string) => RegisteredComponent | undefined;
-  getComponents: () => RegisteredComponent[];
-  getComponentsByCategory: (category: string) => RegisteredComponent[];
+  getComponent: (id: string) => Component | undefined;
+  getComponents: () => Component[];
 }
 
-// Create the context
+// Create component context
 const ComponentContext = createContext<ComponentContextType | undefined>(undefined);
 
-export function ComponentProvider({ children }: { children: React.ReactNode }) {
-  const [components, setComponents] = useState<Map<string, RegisteredComponent>>(new Map());
-  
+// Provider component
+export function ComponentProvider({ children }: { children: ReactNode }) {
+  const [components, setComponents] = useState<Map<string, Component>>(new Map());
+
   // Register a component
-  const registerComponent = (component: RegisteredComponent) => {
+  const registerComponent = useCallback((component: Component) => {
     setComponents(prev => {
       const newMap = new Map(prev);
       newMap.set(component.id, component);
-      
       console.log(`Registered component: ${component.id}`);
       return newMap;
     });
-  };
-  
+  }, []);
+
   // Unregister a component
-  const unregisterComponent = (id: string) => {
+  const unregisterComponent = useCallback((id: string) => {
     setComponents(prev => {
       const newMap = new Map(prev);
-      newMap.delete(id);
+      if (newMap.has(id)) {
+        newMap.delete(id);
+        console.log(`Unregistered component: ${id}`);
+      }
       return newMap;
     });
-  };
-  
+  }, []);
+
   // Get a component by ID
-  const getComponent = (id: string) => {
+  const getComponent = useCallback((id: string) => {
     return components.get(id);
-  };
-  
+  }, [components]);
+
   // Get all components
-  const getComponents = () => {
+  const getComponents = useCallback(() => {
     return Array.from(components.values());
-  };
-  
-  // Get components by category
-  const getComponentsByCategory = (category: string) => {
-    return Array.from(components.values()).filter(
-      component => component.category === category
-    );
-  };
-  
-  // Register built-in components on mount
+  }, [components]);
+
+  // Register default components on mount
   useEffect(() => {
-    // These are example registrations - the actual components would be imported
-    // and used here instead of placeholders
-    
-    const registerDefaultComponents = () => {
-      // Email-related components
-      registerComponent({
+    // Define our default components
+    // In a real app, you'd import actual components here
+    const defaultComponents: Component[] = [
+      {
         id: 'email-list',
         name: 'Email List',
-        description: 'Display a list of emails',
-        category: 'email',
-        icon: <Mail size={16} className="text-blue-400" />,
-        component: () => <div>Email List</div>,
-      });
-      
-      registerComponent({
+        icon: <Mail size={16} className="text-blue-400 mr-2" />,
+        component: () => <div>Email List Component</div>,
+        defaultProps: { view: 'inbox' }
+      },
+      {
         id: 'email-detail',
-        name: 'Email Viewer',
-        description: 'View email content',
-        category: 'email',
-        icon: <FileText size={16} className="text-blue-400" />,
-        component: () => <div>Email Detail</div>,
-      });
-      
-      // Folder components
-      registerComponent({
+        name: 'Email Detail',
+        icon: <Mail size={16} className="text-green-400 mr-2" />,
+        component: () => <div>Email Detail Component</div>
+      },
+      {
         id: 'folder-explorer',
         name: 'Folder Explorer',
-        description: 'Navigate email folders',
-        category: 'navigation',
-        icon: <FolderOpen size={16} className="text-blue-400" />,
-        component: () => <div>Folder Explorer</div>,
-      });
-      
-      // Contact components
-      registerComponent({
+        icon: <FolderOpen size={16} className="text-yellow-400 mr-2" />,
+        component: () => <div>Folder Explorer Component</div>
+      },
+      {
         id: 'contact-details',
         name: 'Contact Details',
-        description: 'View contact information',
-        category: 'contacts',
-        icon: <User size={16} className="text-blue-400" />,
-        component: () => <div>Contact Details</div>,
-      });
-      
-      // Tag components
-      registerComponent({
+        icon: <User size={16} className="text-purple-400 mr-2" />,
+        component: () => <div>Contact Details Component</div>
+      },
+      {
         id: 'tag-manager',
         name: 'Tag Manager',
-        description: 'Manage email tags',
-        category: 'organization',
-        icon: <Hash size={16} className="text-blue-400" />,
-        component: () => <div>Tag Manager</div>,
-      });
-      
-      // Settings components
-      registerComponent({
+        icon: <Tag size={16} className="text-pink-400 mr-2" />,
+        component: () => <div>Tag Manager Component</div>
+      },
+      {
         id: 'settings',
         name: 'Settings',
-        description: 'Configure application settings',
-        category: 'settings',
-        icon: <Settings size={16} className="text-blue-400" />,
-        component: () => <div>Settings</div>,
-      });
-      
-      // Integration components
-      registerComponent({
+        icon: <Settings size={16} className="text-gray-400 mr-2" />,
+        component: () => <div>Settings Component</div>
+      },
+      {
         id: 'integrations',
         name: 'Integrations',
-        description: 'Manage application integrations',
-        category: 'settings',
-        icon: <Zap size={16} className="text-blue-400" />,
-        component: () => <div>Integrations</div>,
-      });
-      
-      // Template components
-      registerComponent({
+        icon: <Plug size={16} className="text-indigo-400 mr-2" />,
+        component: () => <div>Integrations Component</div>
+      },
+      {
         id: 'templates',
         name: 'Templates',
-        description: 'Manage email templates',
-        category: 'tools',
-        icon: <Palette size={16} className="text-blue-400" />,
-        component: () => <div>Templates</div>,
+        icon: <FileText size={16} className="text-orange-400 mr-2" />,
+        component: () => <div>Templates Component</div>
+      }
+    ];
+
+    // Register all default components
+    defaultComponents.forEach(component => {
+      registerComponent(component);
+    });
+
+    // Cleanup on unmount
+    return () => {
+      defaultComponents.forEach(component => {
+        unregisterComponent(component.id);
       });
     };
-    
-    registerDefaultComponents();
-    
-    // Cleanup function not needed as components persist for application lifetime
-  }, []);
-  
-  const contextValue: ComponentContextType = {
+  }, [registerComponent, unregisterComponent]);
+
+  // Create context value object
+  const contextValue = {
     registerComponent,
     unregisterComponent,
     getComponent,
-    getComponents,
-    getComponentsByCategory,
+    getComponents
   };
-  
+
   return (
     <ComponentContext.Provider value={contextValue}>
       {children}
@@ -169,14 +151,11 @@ export function ComponentProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Custom hook to use the component context
+// Custom hook to use the component registry context
 export function useComponentRegistry() {
   const context = useContext(ComponentContext);
-  
   if (context === undefined) {
-    console.warn('useComponentRegistry must be used within a ComponentProvider');
-    return null;
+    throw new Error('useComponentRegistry must be used within a ComponentProvider');
   }
-  
   return context;
 }

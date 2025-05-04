@@ -55,23 +55,13 @@ export function PanelContextMenu({
     saveLayout,
   } = usePanelContext();
   
-  // Create a safe wrapper for component registry
-  const componentContext = React.useContext(React.createContext<{
-    components: Record<string, any>;
-    createComponent: (componentId: string, panelId: string, props?: Record<string, any>) => string;
-  }>({
+  // Access component registry from context
+  const componentContext = React.useContext(ComponentContext) || {
     components: {},
     createComponent: () => '',
-  }));
-  
-  // Attempt to load real component registry
-  try {
-    const registry = useComponentRegistry();
-    componentContext.components = registry.components;
-    componentContext.createComponent = registry.createComponent;
-  } catch (error) {
-    console.warn('Component registry not available:', error);
-  }
+    registerComponent: () => {},
+    unregisterComponent: () => {}
+  };
   const { registerShortcut } = useShortcutContext();
   
   // Check if this panel is currently maximized
@@ -392,6 +382,40 @@ export function PanelContextMenu({
         )}
         
         <ContextMenuSeparator className="bg-neutral-700" />
+        
+        {/* Add component submenu */}
+        <ContextMenuSub>
+          <ContextMenuSubTrigger className="flex items-center focus:bg-neutral-700">
+            <Plus size={16} className="mr-2 text-neutral-400" />
+            <span>Add component</span>
+            <ContextMenuShortcut>→</ContextMenuShortcut>
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent className="bg-neutral-800 border-neutral-700 w-64 max-h-80 overflow-y-auto">
+            {availableComponents.length > 0 ? (
+              availableComponents.map(component => (
+                <ContextMenuItem 
+                  key={component.id} 
+                  className="flex items-center focus:bg-neutral-700"
+                  onClick={() => handleAddTab(component.id)}
+                >
+                  <div className="mr-2 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs">
+                    {component.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm">{component.name}</span>
+                    {component.description && (
+                      <span className="text-xs text-neutral-400">{component.description}</span>
+                    )}
+                  </div>
+                </ContextMenuItem>
+              ))
+            ) : (
+              <ContextMenuItem disabled className="text-neutral-500">
+                No components available
+              </ContextMenuItem>
+            )}
+          </ContextMenuSubContent>
+        </ContextMenuSub>
         
         {/* Additional controls section */}
         <div className="px-2 py-1.5 text-sm text-neutral-400">

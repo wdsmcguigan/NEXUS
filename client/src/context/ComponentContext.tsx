@@ -28,7 +28,7 @@ interface ComponentContextType {
 }
 
 // Create the context
-const ComponentContext = createContext<ComponentContextType | undefined>(undefined);
+export const ComponentContext = createContext<ComponentContextType | undefined>(undefined);
 
 // Provider component
 export function ComponentProvider({ children }: { children: React.ReactNode }) {

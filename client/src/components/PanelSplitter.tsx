@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react';
-import { useDragContext, DropDirection } from '../context/DragContext';
+import { useDragContext, DropDirection, DropTarget } from '../context/DragContext';
 import { useTabContext } from '../context/TabContext';
 import { nanoid } from 'nanoid';
 

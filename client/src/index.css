@@ -125,4 +125,37 @@
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 150ms;
   }
+  
+  /* Search highlight styles */
+  .text-search-highlight {
+    @apply bg-blue-500/20 text-blue-300 px-0.5 py-0.5 rounded-sm;
+    transition: all 0.2s ease;
+    animation: highlight-pulse 2s infinite;
+  }
+  
+  .text-search-highlight-active {
+    @apply bg-blue-500/40 text-blue-100 font-medium;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+    animation: highlight-active-pulse 1.5s infinite;
+  }
+  
+  @keyframes highlight-pulse {
+    0%, 100% {
+      @apply bg-blue-500/20;
+    }
+    50% {
+      @apply bg-blue-500/30;
+    }
+  }
+  
+  @keyframes highlight-active-pulse {
+    0%, 100% {
+      @apply bg-blue-500/40;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+    }
+    50% {
+      @apply bg-blue-500/50;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.7);
+    }
+  }
 }

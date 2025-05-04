@@ -68,8 +68,8 @@ export function DraggableTab({
       style={{ width: `${settings.tabSize}px` }}
       onClick={onClick}
       onMouseDown={(e) => {
-        // Middle mouse button to start drag
-        if (e.button === 0 && (e.ctrlKey || e.altKey)) {
+        // Left mouse button (0) to start drag without any modifiers
+        if (e.button === 0) {
           handleDragStart(e);
         }
       }}

@@ -46,155 +46,199 @@ export function PanelSplitter() {
   const handleEdgeDrop = useCallback(() => {
     console.log('🔧 [EDGE DROP HANDLER] START - handleEdgeDrop called');
     
-    // Prevent duplicate processing
+    // Prevent duplicate processing - this is critical for edge drops
     if (processingDragEnd.current) {
-      console.log('🔧 [EDGE DROP HANDLER] Already processing a drag end, skipping');
+      console.error('🔧 [EDGE DROP HANDLER] ERROR: Already processing a drag end, skipping to prevent duplicates');
       return;
     }
     
+    // Set processing flag immediately to prevent multiple calls
     processingDragEnd.current = true;
-    console.log('🔧 [EDGE DROP HANDLER] Current state:', { dragItem, dropTarget });
     
-    if (!dragItem || !dropTarget) {
-      console.error('🔧 [EDGE DROP HANDLER] ERROR: Missing dragItem or dropTarget', { dragItem, dropTarget });
+    // Make sure we reset the processing flag even if something fails
+    const safeEndDrag = (success: boolean = false) => {
+      console.log(`🔧 [EDGE DROP HANDLER] Safely ending drag (success: ${success})`);
+      endDrag(success);
       processingDragEnd.current = false;
+      setSplitPreview(null);
+    };
+    
+    console.log('🔧 [EDGE DROP HANDLER] Current state:', { 
+      dragItem, 
+      dropTarget,
+      isDragItem: !!dragItem,
+      isDropTarget: !!dropTarget,
+      dragType: dragItem?.type,
+      dropType: dropTarget?.type
+    });
+    
+    // Check if we have valid drag and drop state
+    if (!dragItem || !dropTarget) {
+      console.error('🔧 [EDGE DROP HANDLER] ERROR: Missing dragItem or dropTarget');
+      safeEndDrag(false);
       return;
     }
     
+    // Validate drop target is an edge
     if (dropTarget.type !== 'edge' || !dropTarget.direction) {
       console.error('🔧 [EDGE DROP HANDLER] ERROR: Invalid dropTarget type or missing direction', dropTarget);
-      processingDragEnd.current = false;
+      safeEndDrag(false);
       return;
     }
     
     // Only handle tab drops
     if (dragItem.type !== 'tab') {
       console.error('🔧 [EDGE DROP HANDLER] ERROR: Not a tab drag operation', dragItem);
-      processingDragEnd.current = false;
+      safeEndDrag(false);
       return;
     }
     
+    // Source panel ID must be present
     if (!dragItem.sourcePanelId) {
       console.error('🔧 [EDGE DROP HANDLER] ERROR: Missing source panel ID', dragItem);
-      processingDragEnd.current = false;
+      safeEndDrag(false);
       return;
     }
     
     console.log('🔧 [EDGE DROP HANDLER] Validation passed, processing valid edge drop');
     
+    // Extract key information from drag item and drop target
     const { id: tabId, sourcePanelId } = dragItem;
     const { id: targetPanelId, direction } = dropTarget;
     
-    // Verify panels exist
-    if (!state.panels[sourcePanelId]) {
-      console.error(`🔧 [EDGE DROP HANDLER] ERROR: Source panel ${sourcePanelId} not found in state`);
-      processingDragEnd.current = false;
-      return;
-    }
-    
-    if (!state.panels[targetPanelId]) {
-      console.error(`🔧 [EDGE DROP HANDLER] ERROR: Target panel ${targetPanelId} not found in state`);
-      processingDragEnd.current = false;
-      return;
-    }
-    
-    // Verify tab exists
-    if (!state.tabs[tabId]) {
-      console.error(`🔧 [EDGE DROP HANDLER] ERROR: Tab ${tabId} not found in state`);
-      processingDragEnd.current = false;
-      return;
-    }
-    
-    // Log the panels involved
-    console.log('🔧 [EDGE DROP HANDLER] Panels involved in splitting:', {
-      sourcePanel: state.panels[sourcePanelId],
-      targetPanel: state.panels[targetPanelId],
-      tabBeingMoved: state.tabs[tabId]
-    });
-    
-    // Determine the split direction based on the edge direction
-    let splitDirection: 'horizontal' | 'vertical';
-    if (direction === 'left' || direction === 'right') {
-      splitDirection = 'horizontal';
-    } else {
-      splitDirection = 'vertical';
-    }
-    
-    // Determine if new panel should be positioned after the current panel
-    const positionAfter = direction === 'right' || direction === 'bottom';
-    
-    console.log(`🔧 [EDGE DROP HANDLER] Creating ${splitDirection} split with new panel ${positionAfter ? 'after' : 'before'} target`);
-    
     try {
-      // Create new panel ID with proper uniqueness
-      const newPanelId = nanoid();
-      console.log(`🔧 [EDGE DROP HANDLER] Generated new panel ID: ${newPanelId}`);
+      // Verify panels exist
+      if (!state.panels[sourcePanelId]) {
+        throw new Error(`Source panel ${sourcePanelId} not found in state`);
+      }
       
-      // Create the panel split first
-      console.log(`🔧 [EDGE DROP HANDLER] About to call splitPanel(${targetPanelId}, ${splitDirection}, { newPanelId: ${newPanelId}, positionAfter: ${positionAfter} })`);
+      if (!state.panels[targetPanelId]) {
+        throw new Error(`Target panel ${targetPanelId} not found in state`);
+      }
       
-      // Store a copy of the state.panels before the split
-      const panelsBefore = {...state.panels};
+      // Verify tab exists
+      if (!state.tabs[tabId]) {
+        throw new Error(`Tab ${tabId} not found in state`);
+      }
       
-      // Directly call splitPanel synchronously and verify the result
+      // Log existing panels
+      console.log('🔧 [EDGE DROP HANDLER] All panels in state:', Object.keys(state.panels));
+      console.log('🔧 [EDGE DROP HANDLER] Panels involved in splitting:', {
+        sourcePanel: state.panels[sourcePanelId],
+        targetPanel: state.panels[targetPanelId],
+        tabBeingMoved: state.tabs[tabId]
+      });
+      
+      // Step 1: Determine the split direction based on the edge
+      let splitDirection: 'horizontal' | 'vertical';
+      if (direction === 'left' || direction === 'right') {
+        splitDirection = 'horizontal';
+      } else {
+        splitDirection = 'vertical';
+      }
+      
+      // Step 2: Determine panel order
+      const positionAfter = direction === 'right' || direction === 'bottom';
+      
+      console.log(`🔧 [EDGE DROP HANDLER] Split direction:${splitDirection}, positionAfter:${positionAfter}`);
+      
+      // Step 3: Generate new panel ID with timestamp for uniqueness
+      const timestamp = Date.now();
+      const newPanelId = `${targetPanelId}-split-${timestamp}`;
+      
+      console.log(`🔧 [EDGE DROP HANDLER] Created new panel ID: ${newPanelId}`);
+      
+      // Step 4: Execute the panel split with new panel ID
+      console.log(`🔧 [EDGE DROP HANDLER] Calling splitPanel(${targetPanelId}, ${splitDirection}, { newPanelId:${newPanelId}, positionAfter:${positionAfter}})`);
+      
+      // Execute split panel action synchronously
       splitPanel(targetPanelId, splitDirection, {
         newPanelId,
         positionAfter
       });
       
-      // Check if the panel was actually created by comparing state
-      const panelsAfter = state.panels;
-      const panelCreated = Object.keys(panelsAfter).some(id => !panelsBefore[id] && id === newPanelId);
+      // Step 5: Verify the panel was created
+      console.log('🔧 [EDGE DROP HANDLER] Checking if new panel exists in state:', 
+                  Object.keys(state.panels).includes(newPanelId));
       
-      console.log(`🔧 [EDGE DROP HANDLER] Panel creation result:`, {
-        created: panelCreated,
-        newPanelExists: !!state.panels[newPanelId]
-      });
-      
-      if (state.panels[newPanelId]) {
-        console.log(`🔧 [EDGE DROP HANDLER] Success! New panel created:`, state.panels[newPanelId]);
-      } else {
-        console.log(`🔧 [EDGE DROP HANDLER] Panel creation may be asynchronous. Will delay tab move.`);
+      if (!state.panels[newPanelId]) {
+        console.log('🔧 [EDGE DROP HANDLER] New panel not immediately available, checking child panels of target');
+        
+        // Check if target panel now has child panels
+        const updatedTargetPanel = state.panels[targetPanelId];
+        console.log('🔧 [EDGE DROP HANDLER] Updated target panel:', updatedTargetPanel);
+        
+        if (updatedTargetPanel.childPanels && updatedTargetPanel.childPanels.length > 0) {
+          console.log('🔧 [EDGE DROP HANDLER] Target panel now has child panels:', updatedTargetPanel.childPanels);
+          
+          // Find the empty child panel (the one without tabs)
+          const emptyChildId = updatedTargetPanel.childPanels.find(
+            childId => state.panels[childId] && state.panels[childId].tabs.length === 0
+          );
+          
+          if (emptyChildId) {
+            console.log(`🔧 [EDGE DROP HANDLER] Found empty child panel ${emptyChildId}, will use this as target for tab move`);
+            
+            // Wait a bit to ensure state is stable, then move the tab
+            setTimeout(() => {
+              try {
+                console.log(`🔧 [EDGE DROP HANDLER] Moving tab ${tabId} from panel ${sourcePanelId} to panel ${emptyChildId}`);
+                moveTab(tabId, sourcePanelId, emptyChildId);
+                console.log(`🔧 [EDGE DROP HANDLER] Tab moved successfully, ending drag`);
+                safeEndDrag(true);
+              } catch (moveError) {
+                console.error('🔧 [EDGE DROP HANDLER] ERROR moving tab to child panel:', moveError);
+                safeEndDrag(false);
+              }
+            }, 100);
+            return;
+          }
+        }
       }
       
-      // Add a longer delay to ensure the panel state update is processed
-      console.log(`🔧 [EDGE DROP HANDLER] Setting timeout to move tab from ${sourcePanelId} to ${newPanelId} in 250ms`);
+      // Step 6: Move the tab to the new panel
+      console.log(`🔧 [EDGE DROP HANDLER] Setting timeout to move tab ${tabId} from ${sourcePanelId} to ${newPanelId}`);
       
+      // Use a delay to ensure the panel state update is processed
       setTimeout(() => {
-        console.log(`🔧 [EDGE DROP HANDLER] Timeout fired. About to move tab ${tabId} to panel ${newPanelId}`);
-        console.log(`🔧 [EDGE DROP HANDLER] Checking again if panel exists:`, !!state.panels[newPanelId]);
-        
         try {
+          console.log(`🔧 [EDGE DROP HANDLER] Executing moveTab(${tabId}, ${sourcePanelId}, ${newPanelId})`);
+          console.log(`🔧 [EDGE DROP HANDLER] Current panels:`, Object.keys(state.panels));
+          
           // Double check the panel exists before moving the tab
           if (state.panels[newPanelId]) {
-            console.log(`🔧 [EDGE DROP HANDLER] Moving tab ${tabId} from panel ${sourcePanelId} to newly created panel ${newPanelId}`);
             moveTab(tabId, sourcePanelId, newPanelId);
-            console.log(`🔧 [EDGE DROP HANDLER] moveTab executed successfully`);
+            console.log(`🔧 [EDGE DROP HANDLER] Tab moved successfully to new panel`);
+            safeEndDrag(true);
           } else {
-            console.error(`🔧 [EDGE DROP HANDLER] ERROR: New panel ${newPanelId} still doesn't exist after delay, cannot move tab`);
+            console.error(`🔧 [EDGE DROP HANDLER] ERROR: Panel ${newPanelId} not found after waiting, attempting fallback`);
+            
+            // Fallback: Try to find a suitable panel to move to
+            const allPanelIds = Object.keys(state.panels);
+            const newPanels = allPanelIds.filter(id => !id.includes(sourcePanelId) && id !== targetPanelId);
+            
+            if (newPanels.length > 0) {
+              const fallbackPanelId = newPanels[0];
+              console.log(`🔧 [EDGE DROP HANDLER] Using fallback panel ${fallbackPanelId}`);
+              moveTab(tabId, sourcePanelId, fallbackPanelId);
+              safeEndDrag(true);
+            } else {
+              console.error(`🔧 [EDGE DROP HANDLER] Fallback failed, no suitable panels found`);
+              safeEndDrag(false);
+            }
           }
-          
-          // End the drag operation
-          console.log('🔧 [EDGE DROP HANDLER] Edge drop operation completed, ending drag');
-          endDrag(true);
-          
-          // Reset processing flag
-          processingDragEnd.current = false;
-        } catch (innerError) {
-          console.error('🔧 [EDGE DROP HANDLER] ERROR during tab move operation:', innerError);
-          endDrag(false);
-          processingDragEnd.current = false;
+        } catch (error) {
+          console.error('🔧 [EDGE DROP HANDLER] ERROR during tab move operation:', error);
+          safeEndDrag(false);
         }
-      }, 250); // Longer timeout for more reliability
+      }, 150);
     } catch (error) {
       console.error('🔧 [EDGE DROP HANDLER] ERROR during panel split operation:', error);
-      endDrag(false);
-      processingDragEnd.current = false;
+      safeEndDrag(false);
     }
     
     // Clear the split preview immediately for better visual feedback
     setSplitPreview(null);
-    console.log('🔧 [EDGE DROP HANDLER] END handleEdgeDrop function');
   }, [dragItem, dropTarget, endDrag, moveTab, splitPanel, state.panels, state.tabs]);
   
   // Monitor for edge drops

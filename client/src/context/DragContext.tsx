@@ -87,31 +87,56 @@ export function DragProvider({ children }: { children: ReactNode }) {
     setDropTarget(null);
   }, []);
   
-  // Method to end a drag operation
+  // Method to end a drag operation with better error handling
   const endDrag = useCallback((dropped: boolean = false) => {
-    console.log('Ending drag operation, dropped:', dropped, 'current dropTarget:', dropTarget);
+    console.log('⏹️ [DRAG_CONTEXT] Ending drag operation, dropped:', dropped, 'current dropTarget:', dropTarget);
     
-    // If this was a successful drop and we have a drop target,
-    // leave the drop target info in place briefly to allow the handler to process it
-    if (dropped && dropTarget) {
-      // Set drag state to inactive but preserve the drop target briefly
-      setIsDragging(false);
-      setDragItem(null);
-      setMousePosition(null);
-      
-      // After a small delay, clean up the drop target
-      // This ensures any effects that depend on the drop target have time to process
-      setTimeout(() => {
+    try {
+      // If this was a successful drop and we have a drop target,
+      // leave the drop target info in place briefly to allow the handler to process it
+      if (dropped && dropTarget) {
+        // Set drag state to inactive but preserve the drop target briefly
+        setIsDragging(false);
+        setDragItem(null);
+        setMousePosition(null);
+        
+        console.log('⏹️ [DRAG_CONTEXT] Successful drop completed, will clear dropTarget in 100ms');
+        
+        // After a small delay, clean up the drop target
+        // This ensures any effects that depend on the drop target have time to process
+        setTimeout(() => {
+          console.log('⏹️ [DRAG_CONTEXT] Delayed cleanup of dropTarget');
+          setDropTarget(null);
+        }, 100);
+      } else {
+        // If not a valid drop or no target, clean up everything immediately
+        console.log('⏹️ [DRAG_CONTEXT] Not a successful drop, cleaning up immediately');
+        setIsDragging(false);
+        setDragItem(null);
+        setMousePosition(null);
         setDropTarget(null);
-      }, 100);
-    } else {
-      // If not a valid drop or no target, clean up everything immediately
+      }
+    } catch (error) {
+      // Last resort error handling - make sure we always clean up drag state
+      console.error('⏹️ [DRAG_CONTEXT] Error during drag end, forcing cleanup:', error);
       setIsDragging(false);
       setDragItem(null);
       setMousePosition(null);
       setDropTarget(null);
     }
-  }, [dropTarget]);
+    
+    // Set a fail-safe cleanup with a longer timeout to ensure drag state is always reset
+    // This helps prevent tabs from getting stuck in a drag state
+    setTimeout(() => {
+      if (isDragging) {
+        console.warn('⏹️ [DRAG_CONTEXT] FAILSAFE: Drag state still active after 500ms, forcing cleanup');
+        setIsDragging(false);
+        setDragItem(null);
+        setMousePosition(null);
+        setDropTarget(null);
+      }
+    }, 500);
+  }, [dropTarget, isDragging]);
   
   // Method to update mouse position
   const updateMousePosition = useCallback((x: number, y: number) => {

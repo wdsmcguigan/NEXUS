@@ -109,47 +109,82 @@ const RightSidebar = ({ ...props }: any) => (
 );
 
 const BottomPane = ({ activeTab, ...props }: { activeTab: string } & any) => (
-  <div className="h-full overflow-auto p-4">
+  <div className="h-full overflow-auto bg-neutral-900 text-neutral-200">
     {activeTab === 'integrations' && (
       <div>
-        <h3 className="text-lg font-semibold mb-4">Integrations</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {['Slack', 'Calendar', 'Tasks', 'Drive', 'Contacts', 'Asana'].map((app) => (
-            <div key={app} className="border border-neutral-200 dark:border-neutral-800 rounded-md p-3 flex items-center gap-2 cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800">
-              <div className="w-8 h-8 rounded bg-primary/20 flex items-center justify-center text-primary">{app[0]}</div>
-              <div>{app}</div>
-            </div>
-          ))}
+        <div className="sticky top-0 z-10 px-4 py-3 border-b border-neutral-800 bg-neutral-900">
+          <div className="text-xs font-medium uppercase tracking-wider text-neutral-400">Integrations</div>
+        </div>
+        <div className="p-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {['Slack', 'Calendar', 'Tasks', 'Drive', 'Contacts', 'Asana'].map((app) => (
+              <div key={app} 
+                className="border border-neutral-800 bg-neutral-800/50 rounded p-3 flex items-center gap-3 cursor-pointer hover:bg-neutral-800 transition-colors"
+              >
+                <div className="w-8 h-8 rounded bg-blue-500/20 flex items-center justify-center text-blue-400 text-sm font-medium">{app[0]}</div>
+                <div className="text-sm">{app}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     )}
     {activeTab === 'templates' && (
       <div>
-        <h3 className="text-lg font-semibold mb-4">Email Templates</h3>
-        <div className="space-y-2">
-          {['Meeting Request', 'Follow Up', 'Thank You', 'Project Update', 'Introduction'].map((template) => (
-            <div key={template} className="border border-neutral-200 dark:border-neutral-800 rounded-md p-3 cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800">
-              {template}
-            </div>
-          ))}
+        <div className="sticky top-0 z-10 px-4 py-3 border-b border-neutral-800 bg-neutral-900">
+          <div className="text-xs font-medium uppercase tracking-wider text-neutral-400">Email Templates</div>
+        </div>
+        <div className="p-4">
+          <div className="space-y-2">
+            {['Meeting Request', 'Follow Up', 'Thank You', 'Project Update', 'Introduction'].map((template) => (
+              <div 
+                key={template} 
+                className="border border-neutral-800 bg-neutral-800/50 rounded p-3 cursor-pointer hover:bg-neutral-800 transition-colors text-sm flex justify-between items-center"
+              >
+                <span>{template}</span>
+                <button className="text-xs px-2 py-1 rounded bg-neutral-700 hover:bg-neutral-600 transition-colors text-neutral-200">
+                  Use
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     )}
     {activeTab === 'settings' && (
       <div>
-        <h3 className="text-lg font-semibold mb-4">Settings</h3>
-        <div className="space-y-4">
-          <div>
-            <div className="font-medium mb-1">Display Settings</div>
-            <div className="text-sm text-neutral-500">Configure theme, layout, and appearance.</div>
-          </div>
-          <div>
-            <div className="font-medium mb-1">Account Settings</div>
-            <div className="text-sm text-neutral-500">Manage your email accounts and signatures.</div>
-          </div>
-          <div>
-            <div className="font-medium mb-1">Notification Preferences</div>
-            <div className="text-sm text-neutral-500">Configure email and sound alerts.</div>
+        <div className="sticky top-0 z-10 px-4 py-3 border-b border-neutral-800 bg-neutral-900">
+          <div className="text-xs font-medium uppercase tracking-wider text-neutral-400">Settings</div>
+        </div>
+        <div className="p-4">
+          <div className="space-y-5">
+            <div className="border border-neutral-800 bg-neutral-800/50 rounded p-3">
+              <div className="font-medium text-sm mb-1">Display Settings</div>
+              <div className="text-xs text-neutral-400">Configure theme, layout, and appearance.</div>
+              <div className="mt-2 pt-2 border-t border-neutral-800 flex justify-end">
+                <button className="text-xs px-3 py-1 rounded bg-neutral-700 hover:bg-neutral-600 transition-colors text-neutral-200">
+                  Configure
+                </button>
+              </div>
+            </div>
+            <div className="border border-neutral-800 bg-neutral-800/50 rounded p-3">
+              <div className="font-medium text-sm mb-1">Account Settings</div>
+              <div className="text-xs text-neutral-400">Manage your email accounts and signatures.</div>
+              <div className="mt-2 pt-2 border-t border-neutral-800 flex justify-end">
+                <button className="text-xs px-3 py-1 rounded bg-neutral-700 hover:bg-neutral-600 transition-colors text-neutral-200">
+                  Configure
+                </button>
+              </div>
+            </div>
+            <div className="border border-neutral-800 bg-neutral-800/50 rounded p-3">
+              <div className="font-medium text-sm mb-1">Notification Preferences</div>
+              <div className="text-xs text-neutral-400">Configure email and sound alerts.</div>
+              <div className="mt-2 pt-2 border-t border-neutral-800 flex justify-end">
+                <button className="text-xs px-3 py-1 rounded bg-neutral-700 hover:bg-neutral-600 transition-colors text-neutral-200">
+                  Configure
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

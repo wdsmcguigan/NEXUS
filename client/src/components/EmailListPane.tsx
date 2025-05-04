@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Mail, Star, Paperclip, Tag, Clock, Trash, Archive } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { apiRequest } from '../lib/queryClient';
@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { StarColor } from '../../shared/schema';
+import ItemContextMenu from './ContextMenu';
+import { useTabContext } from '../context/TabContext';
+import tabFactory from '../services/TabFactory';
 
 interface EmailListPaneProps {
   tabId?: string;
@@ -20,6 +23,7 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedEmailId, setSelectedEmailId] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState('primary');
+  const tabContext = useTabContext();
 
   // Fetch emails for the current view/category
   useEffect(() => {
@@ -218,6 +222,25 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
       default: return 'text-neutral-500';
     }
   };
+  
+  // Handle email click with keyboard modifiers
+  const handleEmailClick = (e: React.MouseEvent, emailId: number) => {
+    if (e.ctrlKey || e.metaKey) {
+      // If Ctrl/Cmd key is pressed, open in new tab
+      e.preventDefault();
+      tabFactory.createTab(
+        tabContext,
+        {
+          componentId: 'email-detail',
+          props: { emailId },
+          title: `Email: ${emails.find(email => email.id === emailId)?.subject || 'Email'}`
+        }
+      );
+    } else {
+      // Normal click behavior
+      setSelectedEmailId(emailId);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-neutral-950 text-white">
@@ -272,92 +295,100 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
           ) : (
             <ul className="divide-y divide-neutral-800">
               {filteredEmails.map((email) => (
-                <li 
+                <ItemContextMenu
                   key={email.id}
-                  className={`
-                    p-3 flex items-start gap-3 cursor-pointer hover:bg-neutral-900
-                    ${selectedEmailId === email.id ? 'bg-neutral-900' : ''}
-                    ${!email.isRead ? 'bg-neutral-900/30' : ''}
-                  `}
-                  onClick={() => setSelectedEmailId(email.id)}
+                  actionData={{
+                    componentId: 'email-detail',
+                    props: { emailId: email.id },
+                    title: `Email: ${email.subject}`
+                  }}
                 >
-                  {/* Email actions */}
-                  <div className="flex flex-col items-center gap-2 pt-1">
-                    <button 
-                      className={`${getStarColorClass(email.starColor)}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStarClick(email.id, email.starColor);
-                      }}
-                    >
-                      <Star size={18} fill={email.starColor !== 'none' ? 'currentColor' : 'none'} />
-                    </button>
-                  </div>
-                  
-                  {/* Email content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={`font-semibold ${!email.isRead ? 'text-white' : 'text-neutral-300'}`}>
-                        {email.fromContact?.name || 'Unknown Sender'}
-                      </span>
-                      <span className="text-xs text-neutral-500">
-                        {email.timestamp && formatDistanceToNow(new Date(email.timestamp), { addSuffix: true })}
-                      </span>
+                  <li 
+                    className={`
+                      p-3 flex items-start gap-3 cursor-pointer hover:bg-neutral-900
+                      ${selectedEmailId === email.id ? 'bg-neutral-900' : ''}
+                      ${!email.isRead ? 'bg-neutral-900/30' : ''}
+                    `}
+                    onClick={(e) => handleEmailClick(e, email.id)}
+                  >
+                    {/* Email actions */}
+                    <div className="flex flex-col items-center gap-2 pt-1">
+                      <button 
+                        className={`${getStarColorClass(email.starColor)}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStarClick(email.id, email.starColor);
+                        }}
+                      >
+                        <Star size={18} fill={email.starColor !== 'none' ? 'currentColor' : 'none'} />
+                      </button>
                     </div>
                     
-                    <div className={`${!email.isRead ? 'font-semibold text-white' : 'text-neutral-300'}`}>
-                      {email.subject}
-                    </div>
-                    
-                    <div className="text-sm text-neutral-400 truncate mt-1">
-                      {email.body?.substring(0, 100)}...
-                    </div>
-                    
-                    {/* Tags and indicators */}
-                    <div className="flex items-center gap-2 mt-2">
-                      {email.tags?.map((tag) => (
-                        <Badge 
-                          key={tag.id} 
-                          variant="outline"
-                          className="flex items-center gap-1 px-2 py-0 text-xs" 
-                          style={{ 
-                            backgroundColor: tag.bgColor || '#e2e8f0', 
-                            color: tag.textColor || '#1e293b',
-                            borderColor: 'transparent' 
-                          }}
-                        >
-                          {tag.emoji && <span>{tag.emoji}</span>}
-                          {tag.name}
-                        </Badge>
-                      ))}
+                    {/* Email content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`font-semibold ${!email.isRead ? 'text-white' : 'text-neutral-300'}`}>
+                          {email.fromContact?.name || 'Unknown Sender'}
+                        </span>
+                        <span className="text-xs text-neutral-500">
+                          {email.timestamp && formatDistanceToNow(new Date(email.timestamp), { addSuffix: true })}
+                        </span>
+                      </div>
                       
-                      {email.todoText && (
-                        <Badge 
-                          variant="outline" 
-                          className="flex items-center gap-1 bg-amber-950/30 text-amber-400 border-amber-800 text-xs"
-                        >
-                          <Clock size={12} />
-                          Todo
-                        </Badge>
-                      )}
+                      <div className={`${!email.isRead ? 'font-semibold text-white' : 'text-neutral-300'}`}>
+                        {email.subject}
+                      </div>
+                      
+                      <div className="text-sm text-neutral-400 truncate mt-1">
+                        {email.body?.substring(0, 100)}...
+                      </div>
+                      
+                      {/* Tags and indicators */}
+                      <div className="flex items-center gap-2 mt-2">
+                        {email.tags?.map((tag) => (
+                          <Badge 
+                            key={tag.id} 
+                            variant="outline"
+                            className="flex items-center gap-1 px-2 py-0 text-xs" 
+                            style={{ 
+                              backgroundColor: tag.bgColor || '#e2e8f0', 
+                              color: tag.textColor || '#1e293b',
+                              borderColor: 'transparent' 
+                            }}
+                          >
+                            {tag.emoji && <span>{tag.emoji}</span>}
+                            {tag.name}
+                          </Badge>
+                        ))}
+                        
+                        {email.todoText && (
+                          <Badge 
+                            variant="outline" 
+                            className="flex items-center gap-1 bg-amber-950/30 text-amber-400 border-amber-800 text-xs"
+                          >
+                            <Clock size={12} />
+                            Todo
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  
-                  {/* Email actions */}
-                  <div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-neutral-500 hover:text-white hover:bg-neutral-800"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleReadStatusToggle(email.id, email.isRead);
-                      }}
-                    >
-                      <Mail size={16} className={email.isRead ? 'opacity-50' : ''} />
-                    </Button>
-                  </div>
-                </li>
+                    
+                    {/* Email actions */}
+                    <div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-neutral-500 hover:text-white hover:bg-neutral-800"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleReadStatusToggle(email.id, email.isRead);
+                        }}
+                      >
+                        <Mail size={16} className={email.isRead ? 'opacity-50' : ''} />
+                      </Button>
+                    </div>
+                  </li>
+                </ItemContextMenu>
               ))}
             </ul>
           )}

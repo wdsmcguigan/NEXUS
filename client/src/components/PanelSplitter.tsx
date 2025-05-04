@@ -39,16 +39,26 @@ export function PanelSplitter() {
   // Handle the drop operation when a tab is dropped onto a panel edge
   const handleEdgeDrop = useCallback(() => {
     if (!dragItem || !dropTarget || dropTarget.type !== 'edge' || !dropTarget.direction) {
+      console.error('PanelSplitter: Cannot process edge drop - invalid drop data', { dragItem, dropTarget });
       return;
     }
     
     // Only handle tab drops
     if (dragItem.type !== 'tab' || !dragItem.sourcePanelId) {
+      console.error('PanelSplitter: Cannot process edge drop - not a tab or missing source panel', dragItem);
       return;
     }
     
+    console.log('PanelSplitter: Processing edge drop with valid data', { dragItem, dropTarget });
+    
     const { id: tabId, sourcePanelId } = dragItem;
     const { id: targetPanelId, direction } = dropTarget;
+    
+    // Log the panels involved
+    console.log('Panels involved in splitting:', {
+      sourcePanel: state.panels[sourcePanelId],
+      targetPanel: state.panels[targetPanelId]
+    });
     
     // Determine the split direction based on the edge direction
     let splitDirection: 'horizontal' | 'vertical';
@@ -58,29 +68,40 @@ export function PanelSplitter() {
       splitDirection = 'vertical';
     }
     
-    // Create new panel ID
-    const newPanelId = nanoid();
-    
     // Determine if new panel should be positioned after the current panel
     const positionAfter = direction === 'right' || direction === 'bottom';
     
-    // Create the panel split
-    splitPanel(targetPanelId, splitDirection, {
-      newPanelId,
-      positionAfter
-    });
+    console.log(`PanelSplitter: Creating ${splitDirection} split with new panel ${positionAfter ? 'after' : 'before'} target`);
     
-    // Move the tab to the new panel with a small delay to ensure panel is created
-    setTimeout(() => {
-      moveTab(tabId, sourcePanelId, newPanelId);
-    }, 50);
+    try {
+      // Create new panel ID with proper uniqueness
+      const newPanelId = nanoid();
+      console.log(`PanelSplitter: Generated new panel ID: ${newPanelId}`);
+      
+      // Create the panel split first
+      console.log(`PanelSplitter: Splitting panel ${targetPanelId} ${splitDirection}ly`);
+      splitPanel(targetPanelId, splitDirection, {
+        newPanelId,
+        positionAfter
+      });
+      
+      // Add a slight delay to ensure the panel is created in state before moving the tab
+      setTimeout(() => {
+        console.log(`PanelSplitter: Moving tab ${tabId} from panel ${sourcePanelId} to newly created panel ${newPanelId}`);
+        moveTab(tabId, sourcePanelId, newPanelId);
+        
+        // End the drag operation after the tab is moved
+        console.log('PanelSplitter: Edge drop completed successfully');
+        endDrag(true);
+      }, 50);
+    } catch (error) {
+      console.error('PanelSplitter: Error during panel split operation', error);
+      endDrag(false);
+    }
     
-    // End the drag operation
-    endDrag(true);
-    
-    // Clear the split preview
+    // Clear the split preview immediately for better visual feedback
     setSplitPreview(null);
-  }, [dragItem, dropTarget, endDrag, moveTab, splitPanel]);
+  }, [dragItem, dropTarget, endDrag, moveTab, splitPanel, state.panels]);
   
   // Monitor for edge drops
   useEffect(() => {
@@ -96,12 +117,14 @@ export function PanelSplitter() {
       
       // Add a mouse up listener to handle the actual drop
       const handleMouseUp = () => {
-        if (dropTarget.type === 'edge') {
+        console.log('PanelSplitter: Mouse up detected with dropTarget:', dropTarget);
+        if (dropTarget?.type === 'edge') {
+          console.log('PanelSplitter: Executing panel split with direction:', dropTarget.direction);
           handleEdgeDrop();
         }
       };
       
-      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('mouseup', handleMouseUp, { once: true });
       return () => {
         window.removeEventListener('mouseup', handleMouseUp);
       };
@@ -151,16 +174,32 @@ export function PanelSplitter() {
       });
     }
     
-    // Render split preview
+    // Render split preview with enhanced visual feedback
     return (
       <div 
         className="animate-pulse" 
         style={previewStyle}
         onClick={handleEdgeDrop}
       >
-        <div className="w-full h-full flex items-center justify-center text-blue-300 text-opacity-80 text-sm font-medium">
-          {isHorizontal ? 'Horizontal Split' : 'Vertical Split'}
+        {/* Split direction indicator */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="bg-blue-500 bg-opacity-80 text-white px-3 py-1.5 rounded-md text-sm font-medium shadow-lg">
+            {isHorizontal ? 'Horizontal Split' : 'Vertical Split'}
+          </div>
         </div>
+        
+        {/* Split direction arrows */}
+        <div className="absolute inset-0 flex items-center justify-center text-blue-200 text-2xl font-bold">
+          <span className="bg-blue-500 bg-opacity-20 p-2 rounded-full">
+            {isHorizontal ? '⇔' : '⇕'}
+          </span>
+        </div>
+        
+        {/* Animated highlight borders */}
+        <div className="absolute inset-1 border-2 border-blue-400 rounded-md opacity-60 animate-pulse" 
+             style={{ animationDuration: '1.5s' }}></div>
+        <div className="absolute inset-3 border border-blue-300 rounded-md opacity-40 animate-pulse" 
+             style={{ animationDuration: '2s', animationDelay: '0.2s' }}></div>
       </div>
     );
   }

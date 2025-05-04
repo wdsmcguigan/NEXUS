@@ -83,10 +83,16 @@ export function DragManager() {
           }
           break;
         case 'edge':
-          // Let the PanelSplitter handle this
-          // Do not end drag here as it'll be handled by the PanelSplitter
-          console.log(`Edge drop detected on ${target.id} - letting PanelSplitter handle it`);
-          return;
+          // Let the PanelSplitter handle this but ensure the drop target is set
+          if (target.direction) {
+            console.log(`Edge drop detected on ${target.id} with direction ${target.direction} - letting PanelSplitter handle it`);
+            // Important: We need to keep the dropTarget set for PanelSplitter
+            // But we don't call endDrag() here since PanelSplitter will do that
+            return;
+          } else {
+            console.error('Edge drop target missing direction');
+            endDrag(false);
+          }
       }
     }
   }, [dragItem, setDropTarget, moveTab, endDrag]);

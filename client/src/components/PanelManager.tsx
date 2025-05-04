@@ -69,7 +69,7 @@ function PanelLayout({ panelId, maximizedPanelId, onMaximizePanel, onRestorePane
 
   // For leaf panels (panels with tabs)
   return (
-    <div className="h-full w-full">
+    <div className="h-full w-full" data-panel-id={panelId}>
       <UniversalTabPanel
         panelId={panelId}
         onAddTab={handleAddTab}

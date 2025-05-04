@@ -151,13 +151,27 @@ export function AdvancedTabBar({
       
       {/* Drop indicators for tab positions */}
       {isDragging && dragItem?.type === 'tab' && dropTarget?.type === 'position' && dropTarget.id.startsWith(`${panelId}-position-`) && (
-        <div 
-          className="absolute h-[40px] w-2 bg-blue-500 rounded-full opacity-50 transition-all"
+        <div className="absolute top-0 bottom-0 flex items-center justify-center transition-all duration-150" 
           style={{
             left: dropZones[dropTarget.position?.index || 0]?.rect.left - tabBarRef.current!.getBoundingClientRect().left,
-            transform: 'translateX(-50%)'
+            transform: 'translateX(-50%)',
+            zIndex: 60
           }}
-        />
+        >
+          {/* Line indicator */}
+          <div className="absolute h-[30px] w-[3px] bg-blue-500 rounded-full animate-pulse" />
+          
+          {/* Circle top */}
+          <div className="absolute top-[5px] w-[9px] h-[9px] rounded-full bg-blue-500 transform translate-y-[-50%]" />
+          
+          {/* Circle bottom */}
+          <div className="absolute bottom-[5px] w-[9px] h-[9px] rounded-full bg-blue-500 transform translate-y-[50%]" />
+        </div>
+      )}
+      
+      {/* Highlight for tabbar drop */}
+      {isDragging && dragItem?.type === 'tab' && dropTarget?.type === 'tabbar' && dropTarget.id === panelId && (
+        <div className="absolute inset-0 bg-blue-500 bg-opacity-10 border-2 border-blue-500 border-opacity-40 pointer-events-none" />
       )}
     </div>
   );

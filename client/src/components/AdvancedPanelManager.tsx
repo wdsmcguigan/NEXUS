@@ -1,15 +1,22 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { PanelContainer } from './PanelContainer';
 import { DragOverlay } from './DragOverlay';
 import { usePanelContext, PanelConfig } from '../context/PanelContext';
 import { nanoid } from 'nanoid';
-import { DropTarget, DropTargetType, DropDirection } from '../context/DragContext';
+import { useDragContext, DropTarget, DropTargetType, DropDirection, DragItem } from '../context/DragContext';
 
 export function AdvancedPanelManager() {
   const { layout, updateLayout, moveTab } = usePanelContext();
+  const { isDragging, dragItem, dropTarget, setDropTarget, endDrag } = useDragContext();
   const [maximizedPanelId, setMaximizedPanelId] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragData, setDragData] = useState<{ tabId: string; sourcePanelId: string } | null>(null);
+  
+  // Extract drag data from dragItem if it exists and is a tab
+  const dragData = dragItem && dragItem.type === 'tab' 
+    ? { tabId: dragItem.id, sourcePanelId: dragItem.sourcePanelId || '' } 
+    : null;
+    
+  // Flag to track if we processed a drop
+  const processingDropRef = useRef(false);
 
   const handleMaximizePanel = (panelId: string) => {
     setMaximizedPanelId(panelId);
@@ -19,15 +26,18 @@ export function AdvancedPanelManager() {
     setMaximizedPanelId(null);
   };
 
+  // These local methods are now deprecated as we're using the dragContext
+  // Keeping them for backward compatibility until all components are migrated
   const handleDragStart = useCallback((tabId: string, panelId: string) => {
-    setIsDragging(true);
-    setDragData({ tabId, sourcePanelId: panelId });
+    console.log('Using deprecated handleDragStart, use startDrag from DragContext instead');
   }, []);
 
+  // Use the endDrag method from dragContext directly
   const handleDragEnd = useCallback(() => {
-    setIsDragging(false);
-    setDragData(null);
-  }, []);
+    // When calling endDrag, pass true to signify a successful drop
+    // This cleans up the drag state but preserves the drop target info
+    endDrag(true);
+  }, [endDrag]);
 
   // Find a panel by ID in the layout tree
   const findPanel = useCallback((layout: PanelConfig, panelId: string): PanelConfig | null => {
@@ -168,6 +178,27 @@ export function AdvancedPanelManager() {
     
     handleDragEnd();
   }, [dragData, handleDragEnd, handleSplitPanel, moveTab]);
+
+  // Process drop target when it changes - placed after handlePanelDrop is defined
+  useEffect(() => {
+    // Skip if no drop target, no drag data, or already processing
+    if (!dropTarget || !dragData || processingDropRef.current) {
+      return;
+    }
+    
+    console.log('Processing drop target in AdvancedPanelManager:', dropTarget);
+    processingDropRef.current = true;
+
+    try {
+      // Process the drop - this uses the same logic as handlePanelDrop
+      handlePanelDrop(dropTarget);
+    } catch (err) {
+      console.error('Error processing drop target:', err);
+    } finally {
+      // Reset processing flag
+      processingDropRef.current = false;
+    }
+  }, [dropTarget, dragData, handlePanelDrop]);
 
   return (
     <div className="h-full relative">

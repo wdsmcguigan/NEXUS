@@ -8,9 +8,10 @@ import { Star, Cog } from 'lucide-react';
 import { DragManager } from './DragManager';
 
 export function FlexibleEmailClient() {
-  // Initialize component registry on mount
+  // Initialize component registry only once on app start
   useEffect(() => {
-    registerComponents();
+    // We don't need to call registerComponents() here anymore
+    // The ComponentContext will now use the registry directly
   }, []);
 
   return (

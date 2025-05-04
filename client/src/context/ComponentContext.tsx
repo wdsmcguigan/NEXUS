@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { nanoid } from 'nanoid';
+import componentRegistry, { ComponentDefinition as RegistryComponentDefinition } from '../lib/componentRegistry';
 
-// Define the structure of a component in the registry
+// Define the structure of a component in the context
 export interface ComponentDefinition {
   id: string;
   name: string;
@@ -33,6 +34,31 @@ export const ComponentContext = createContext<ComponentContextType | undefined>(
 // Provider component
 export function ComponentProvider({ children }: { children: React.ReactNode }) {
   const [components, setComponents] = useState<Record<string, ComponentDefinition>>({});
+  
+  // Sync with the componentRegistry when mounted
+  useEffect(() => {
+    // Load components from the registry
+    const registryComponents = componentRegistry.getAllComponents();
+    
+    // Convert registry components to our ComponentDefinition format
+    const convertedComponents = registryComponents.reduce((acc, regComp) => {
+      const component: ComponentDefinition = {
+        id: regComp.id,
+        name: regComp.displayName,
+        description: regComp.id, // Using ID as description for now
+        category: regComp.category.charAt(0).toUpperCase() + regComp.category.slice(1), // Capitalize first letter
+        icon: regComp.icon ? React.createElement(regComp.icon) : undefined,
+        getComponent: () => regComp.component,
+        defaultProps: regComp.defaultConfig
+      };
+      
+      acc[regComp.id] = component;
+      return acc;
+    }, {} as Record<string, ComponentDefinition>);
+    
+    // Update state with the converted components
+    setComponents(convertedComponents);
+  }, []);
   
   // Register a component
   const registerComponent = useCallback((component: ComponentDefinition) => {
@@ -99,122 +125,9 @@ export function useComponentRegistry() {
   return context;
 }
 
-// Initialize with some default components
+// Initialize with components from the registry
 export function initializeComponentRegistry(registerComponent: (component: ComponentDefinition) => void) {
-  const defaultComponents: ComponentDefinition[] = [
-    {
-      id: 'email-list',
-      name: 'Email List',
-      description: 'Displays a list of emails',
-      category: 'Email',
-      getComponent: () => {
-        const EmailList = () => (
-          <div className="p-4">
-            <h2 className="text-lg font-semibold mb-2">Email List</h2>
-          </div>
-        );
-        return EmailList;
-      }
-    },
-    {
-      id: 'email-detail',
-      name: 'Email Detail',
-      description: 'Displays the content of an email',
-      category: 'Email',
-      getComponent: () => {
-        const EmailDetail = () => (
-          <div className="p-4">
-            <h2 className="text-lg font-semibold mb-2">Email Detail</h2>
-          </div>
-        );
-        return EmailDetail;
-      }
-    },
-    {
-      id: 'folder-explorer',
-      name: 'Folder Explorer',
-      description: 'Displays folders and labels',
-      category: 'Navigation',
-      getComponent: () => {
-        const FolderExplorer = () => (
-          <div className="p-4">
-            <h2 className="text-lg font-semibold mb-2">Folder Explorer</h2>
-          </div>
-        );
-        return FolderExplorer;
-      }
-    },
-    {
-      id: 'contact-details',
-      name: 'Contact Details',
-      description: 'Displays contact information',
-      category: 'Contacts',
-      getComponent: () => {
-        const ContactDetails = () => (
-          <div className="p-4">
-            <h2 className="text-lg font-semibold mb-2">Contact Details</h2>
-          </div>
-        );
-        return ContactDetails;
-      }
-    },
-    {
-      id: 'tag-manager',
-      name: 'Tag Manager',
-      description: 'Manages email tags and categories',
-      category: 'Organization',
-      getComponent: () => {
-        const TagManager = () => (
-          <div className="p-4">
-            <h2 className="text-lg font-semibold mb-2">Tag Manager</h2>
-          </div>
-        );
-        return TagManager;
-      }
-    },
-    {
-      id: 'settings',
-      name: 'Settings',
-      description: 'Application settings',
-      category: 'System',
-      getComponent: () => {
-        const Settings = () => (
-          <div className="p-4">
-            <h2 className="text-lg font-semibold mb-2">Settings</h2>
-          </div>
-        );
-        return Settings;
-      }
-    },
-    {
-      id: 'integrations',
-      name: 'Integrations',
-      description: 'Manage third-party integrations',
-      category: 'System',
-      getComponent: () => {
-        const Integrations = () => (
-          <div className="p-4">
-            <h2 className="text-lg font-semibold mb-2">Integrations</h2>
-          </div>
-        );
-        return Integrations;
-      }
-    },
-    {
-      id: 'templates',
-      name: 'Templates',
-      description: 'Email templates',
-      category: 'Email',
-      getComponent: () => {
-        const Templates = () => (
-          <div className="p-4">
-            <h2 className="text-lg font-semibold mb-2">Templates</h2>
-          </div>
-        );
-        return Templates;
-      }
-    }
-  ];
-  
-  defaultComponents.forEach(component => registerComponent(component));
+  // We're now using the componentRegistry directly in the ComponentProvider
+  // This function is kept for backward compatibility but doesn't need to do anything
+  console.log("Component initialization is now handled by the ComponentProvider");
 }

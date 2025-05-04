@@ -56,6 +56,12 @@ function AppContent() {
 
 
 
+// Make sure to initialize the componentRegistry before the app starts
+import registerComponents from "./lib/componentRegistry.setup";
+
+// Initialize components
+registerComponents();
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>

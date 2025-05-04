@@ -655,11 +655,12 @@ function tabReducer(state: TabState, action: TabAction): TabState {
     }
 
     case 'RESET_LAYOUT': {
-      const { initialLayout = initialTabState } = action.payload;
+      const { initialLayout } = action.payload;
       
-      // Close all tabs
+      // Close all tabs and reset to initial state
       const newState = {
-        ...initialLayout,
+        ...initialTabState,
+        ...(initialLayout || {}),
         tabs: {},
         tabHistory: []
       };

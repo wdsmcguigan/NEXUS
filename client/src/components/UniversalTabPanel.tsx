@@ -61,6 +61,23 @@ export function TabHeader({
   onRestore,
   isMaximized
 }: TabHeaderProps) {
+  // Helper function to render icon
+  const renderIcon = (iconData: any) => {
+    if (!iconData) return null;
+    
+    if (React.isValidElement(iconData)) {
+      return iconData;
+    }
+    
+    if (typeof iconData === 'object' && iconData.component) {
+      const IconComponent = iconData.component;
+      const size = iconData.size || 16;
+      return <IconComponent size={size} />;
+    }
+    
+    return null;
+  };
+
   return (
     <div 
       className={`
@@ -71,7 +88,7 @@ export function TabHeader({
       onClick={onActivate}
     >
       <div className="flex-grow flex items-center overflow-hidden">
-        {tab.icon && <div className="mr-1.5">{tab.icon}</div>}
+        {tab.icon && <div className="mr-1.5">{renderIcon(tab.icon)}</div>}
         <div className="truncate text-sm">{tab.title}</div>
       </div>
       
@@ -256,6 +273,23 @@ export function NewTabDialog({
     return componentRegistry.getAllEntries();
   }, [category]);
   
+  // Helper function to render icon
+  const renderIcon = (iconData: any) => {
+    if (!iconData) return null;
+    
+    if (React.isValidElement(iconData)) {
+      return iconData;
+    }
+    
+    if (typeof iconData === 'object' && iconData.component) {
+      const IconComponent = iconData.component;
+      const size = iconData.size || 16;
+      return <IconComponent size={size} />;
+    }
+    
+    return null;
+  };
+  
   return (
     <div className="absolute top-12 left-0 mt-1 w-64 bg-neutral-800 rounded-md shadow-lg overflow-hidden z-50">
       <div className="p-2 border-b border-neutral-700 flex justify-between items-center">
@@ -278,7 +312,7 @@ export function NewTabDialog({
               onClose();
             }}
           >
-            {component.icon && <div className="mr-2">{component.icon}</div>}
+            {component.icon && <div className="mr-2">{renderIcon(component.icon)}</div>}
             <div className="text-sm text-neutral-200">{component.displayName}</div>
           </div>
         ))}

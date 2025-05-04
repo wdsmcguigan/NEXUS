@@ -197,15 +197,55 @@ function EdgeZoneIndicators({
   // Calculate edge zone sizes (20% of panel dimension)
   const edgeSize = Math.min(rect.width, rect.height) * 0.2;
   
+  // Common styling for all edge zones
+  const getEdgeClasses = (direction: DropDirection) => {
+    return `fixed z-40 pointer-events-none transition-all duration-200 ${
+      isActive && activeDirection === direction
+        ? 'bg-blue-500 bg-opacity-30 border-blue-500 shadow-lg' 
+        : 'bg-blue-500 bg-opacity-0 border-blue-500 border-opacity-0'
+    } border-2`;
+  };
+  
+  // Function to generate arrow indicators based on direction
+  const getArrowIndicator = (direction: DropDirection) => {
+    if (!isActive || activeDirection !== direction) return null;
+    
+    const arrowClasses = "absolute -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white animate-pulse";
+    
+    let position: React.CSSProperties = {};
+    let arrowSymbol = "";
+    
+    switch (direction) {
+      case 'top':
+        position = { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+        arrowSymbol = "↕"; // Vertical split
+        break;
+      case 'right':
+        position = { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+        arrowSymbol = "↔"; // Horizontal split 
+        break;
+      case 'bottom':
+        position = { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+        arrowSymbol = "↕"; // Vertical split
+        break;
+      case 'left':
+        position = { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
+        arrowSymbol = "↔"; // Horizontal split
+        break;
+    }
+    
+    return (
+      <div className={arrowClasses} style={position}>
+        {arrowSymbol}
+      </div>
+    );
+  };
+  
   return (
     <>
       {/* Top edge zone */}
       <div 
-        className={`fixed z-40 pointer-events-none transition-all duration-200 ${
-          isActive && activeDirection === 'top' 
-            ? 'bg-blue-500 bg-opacity-30 border-blue-500' 
-            : 'bg-blue-500 bg-opacity-0 border-blue-500 border-opacity-0 hover:bg-opacity-5 hover:border-opacity-20'
-        } border-2`}
+        className={getEdgeClasses('top')}
         style={{
           left: rect.left,
           top: rect.top,
@@ -214,15 +254,16 @@ function EdgeZoneIndicators({
           borderWidth: isActive && activeDirection === 'top' ? '2px' : '0px'
         }}
         data-edge-zone={`${panelId}-top`}
-      />
+      >
+        {getArrowIndicator('top')}
+        {isActive && activeDirection === 'top' && (
+          <div className="absolute inset-0 bg-gradient-to-b from-blue-500/30 to-transparent"></div>
+        )}
+      </div>
       
       {/* Right edge zone */}
       <div 
-        className={`fixed z-40 pointer-events-none transition-all duration-200 ${
-          isActive && activeDirection === 'right'
-            ? 'bg-blue-500 bg-opacity-30 border-blue-500' 
-            : 'bg-blue-500 bg-opacity-0 border-blue-500 border-opacity-0 hover:bg-opacity-5 hover:border-opacity-20'
-        } border-2`}
+        className={getEdgeClasses('right')}
         style={{
           right: window.innerWidth - rect.right,
           top: rect.top,
@@ -231,15 +272,16 @@ function EdgeZoneIndicators({
           borderWidth: isActive && activeDirection === 'right' ? '2px' : '0px'
         }}
         data-edge-zone={`${panelId}-right`}
-      />
+      >
+        {getArrowIndicator('right')}
+        {isActive && activeDirection === 'right' && (
+          <div className="absolute inset-0 bg-gradient-to-l from-blue-500/30 to-transparent"></div>
+        )}
+      </div>
       
       {/* Bottom edge zone */}
       <div 
-        className={`fixed z-40 pointer-events-none transition-all duration-200 ${
-          isActive && activeDirection === 'bottom'
-            ? 'bg-blue-500 bg-opacity-30 border-blue-500' 
-            : 'bg-blue-500 bg-opacity-0 border-blue-500 border-opacity-0 hover:bg-opacity-5 hover:border-opacity-20'
-        } border-2`}
+        className={getEdgeClasses('bottom')}
         style={{
           left: rect.left,
           bottom: window.innerHeight - rect.bottom,
@@ -248,15 +290,16 @@ function EdgeZoneIndicators({
           borderWidth: isActive && activeDirection === 'bottom' ? '2px' : '0px'
         }}
         data-edge-zone={`${panelId}-bottom`}
-      />
+      >
+        {getArrowIndicator('bottom')}
+        {isActive && activeDirection === 'bottom' && (
+          <div className="absolute inset-0 bg-gradient-to-t from-blue-500/30 to-transparent"></div>
+        )}
+      </div>
       
       {/* Left edge zone */}
       <div 
-        className={`fixed z-40 pointer-events-none transition-all duration-200 ${
-          isActive && activeDirection === 'left'
-            ? 'bg-blue-500 bg-opacity-30 border-blue-500' 
-            : 'bg-blue-500 bg-opacity-0 border-blue-500 border-opacity-0 hover:bg-opacity-5 hover:border-opacity-20'
-        } border-2`}
+        className={getEdgeClasses('left')}
         style={{
           left: rect.left,
           top: rect.top,
@@ -265,7 +308,12 @@ function EdgeZoneIndicators({
           borderWidth: isActive && activeDirection === 'left' ? '2px' : '0px'
         }}
         data-edge-zone={`${panelId}-left`}
-      />
+      >
+        {getArrowIndicator('left')}
+        {isActive && activeDirection === 'left' && (
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 to-transparent"></div>
+        )}
+      </div>
     </>
   );
 }
@@ -317,32 +365,88 @@ function SplitPreview({
   let previewStyle: React.CSSProperties = {
     position: 'fixed',
     zIndex: 40,
-    pointerEvents: 'none'
+    pointerEvents: 'none',
+    backgroundColor: 'rgba(59, 130, 246, 0.15)', // blue-500 with 15% opacity
+    borderRadius: '4px',
+    boxShadow: '0 0 10px rgba(59, 130, 246, 0.3)', // blue-500 shadow
+    border: '2px dashed rgba(59, 130, 246, 0.7)' // blue-500 border
   };
+  
+  // Define sizes based on percentage of the panel
+  const horizontalWidth = rect.width * 0.45; // 45% of panel width
+  const verticalHeight = rect.height * 0.45; // 45% of panel height
   
   // Calculate position based on direction
   if (isHorizontal) {
     previewStyle = {
       ...previewStyle,
-      left: isStart ? rect.left : rect.right - 150,
+      left: isStart ? rect.left : rect.right - horizontalWidth,
       top: rect.top,
-      width: 150,
+      width: horizontalWidth,
       height: rect.height,
     };
   } else {
     previewStyle = {
       ...previewStyle,
       left: rect.left,
-      top: isStart ? rect.top : rect.bottom - 150,
+      top: isStart ? rect.top : rect.bottom - verticalHeight,
       width: rect.width,
-      height: 150,
+      height: verticalHeight,
     };
   }
   
+  // Different gradients based on direction
+  let gradientStyle: React.CSSProperties = {};
+  
+  switch (direction) {
+    case 'left':
+      gradientStyle = { 
+        background: 'linear-gradient(to right, rgba(59, 130, 246, 0.2), transparent)',
+        borderRight: '1px solid rgba(59, 130, 246, 0.5)'
+      };
+      break;
+    case 'right':
+      gradientStyle = { 
+        background: 'linear-gradient(to left, rgba(59, 130, 246, 0.2), transparent)',
+        borderLeft: '1px solid rgba(59, 130, 246, 0.5)'
+      };
+      break;
+    case 'top':
+      gradientStyle = { 
+        background: 'linear-gradient(to bottom, rgba(59, 130, 246, 0.2), transparent)',
+        borderBottom: '1px solid rgba(59, 130, 246, 0.5)'
+      };
+      break;
+    case 'bottom':
+      gradientStyle = { 
+        background: 'linear-gradient(to top, rgba(59, 130, 246, 0.2), transparent)',
+        borderTop: '1px solid rgba(59, 130, 246, 0.5)'
+      };
+      break;
+  }
+  
+  // Determine the split direction label
+  const splitLabel = isHorizontal ? 'Horizontal Split' : 'Vertical Split';
+  
   return (
     <div
-      className="bg-blue-500 bg-opacity-20 border-2 border-blue-500 rounded"
+      className="animate-pulse"
       style={previewStyle}
-    />
+    >
+      {/* Gradient overlay */}
+      <div className="absolute inset-0" style={gradientStyle}></div>
+      
+      {/* Split indicator */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="bg-blue-500 bg-opacity-80 text-white px-3 py-1 rounded text-sm font-semibold">
+          {splitLabel}
+        </div>
+      </div>
+      
+      {/* Arrow indicator */}
+      <div className="absolute inset-0 flex items-center justify-center text-blue-500 text-2xl font-bold">
+        {isHorizontal ? '⇔' : '⇕'}
+      </div>
+    </div>
   );
 }

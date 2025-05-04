@@ -85,20 +85,31 @@ export function PanelSplitter() {
   // Monitor for edge drops
   useEffect(() => {
     if (dropTarget?.type === 'edge' && dragItem?.type === 'tab') {
-      // Only auto-handle on mouse up (this is now handled by the DragOverlay component)
-      if (dropTarget.direction && mousePosition) {
-        // Generate a visual split preview
-        const panelRect = dropTarget.rect;
-        if (panelRect) {
-          setSplitPreview({
-            panelId: dropTarget.id,
-            direction: dropTarget.direction,
-            rect: panelRect
-          });
-        }
+      // Generate a visual split preview
+      if (dropTarget.direction && dropTarget.rect) {
+        setSplitPreview({
+          panelId: dropTarget.id,
+          direction: dropTarget.direction,
+          rect: dropTarget.rect
+        });
       }
+      
+      // Add a mouse up listener to handle the actual drop
+      const handleMouseUp = () => {
+        if (dropTarget.type === 'edge') {
+          handleEdgeDrop();
+        }
+      };
+      
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    } else {
+      // Clear the preview if we're not over an edge
+      setSplitPreview(null);
     }
-  }, [dropTarget, dragItem, mousePosition]);
+  }, [dropTarget, dragItem, handleEdgeDrop]);
   
   // Enhanced split preview
   if (splitPreview) {

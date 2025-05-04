@@ -28,10 +28,12 @@ interface AdvancedTabBarProps {
   panelId: string;
   onTabClick: (tabId: string) => void;
   onTabClose: (tabId: string) => void;
-  onAddTab: () => void;
+  onAddTab: (componentId?: string) => void;
   onViewToggle: () => void;
   isMaximized: boolean;
   onTabDrop?: (target: DropTarget, tabId: string, sourcePanel: string) => void;
+  onSplitPanel?: (direction: 'horizontal' | 'vertical') => void;
+  onClosePanel?: () => void;
 }
 
 export function AdvancedTabBar({
@@ -43,7 +45,9 @@ export function AdvancedTabBar({
   onAddTab,
   onViewToggle,
   isMaximized,
-  onTabDrop
+  onTabDrop,
+  onSplitPanel,
+  onClosePanel
 }: AdvancedTabBarProps) {
   const tabBarRef = useRef<HTMLDivElement>(null);
   const [dropZones, setDropZones] = useState<Array<{index: number, rect: DOMRect}>>([]);
@@ -149,7 +153,7 @@ export function AdvancedTabBar({
         
         <button
           className="px-3 h-[40px] flex items-center text-neutral-400 hover:text-white hover:bg-neutral-800/50 shrink-0"
-          onClick={onAddTab}
+          onClick={() => onAddTab()}
         >
           <Plus size={16} />
         </button>
@@ -185,13 +189,19 @@ export function AdvancedTabBar({
             <DropdownMenuSeparator className="bg-neutral-700" />
             
             {/* Split commands */}
-            <DropdownMenuItem className="flex items-center focus:bg-neutral-700">
+            <DropdownMenuItem 
+              className="flex items-center focus:bg-neutral-700"
+              onClick={() => onSplitPanel && onSplitPanel('horizontal')}
+            >
               <Menu size={16} className="mr-2 text-neutral-400" />
               <span>Split horizontally</span>
               <DropdownMenuShortcut>⌘H</DropdownMenuShortcut>
             </DropdownMenuItem>
             
-            <DropdownMenuItem className="flex items-center focus:bg-neutral-700">
+            <DropdownMenuItem 
+              className="flex items-center focus:bg-neutral-700"
+              onClick={() => onSplitPanel && onSplitPanel('vertical')}
+            >
               <Menu size={16} className="mr-2 rotate-90 text-neutral-400" />
               <span>Split vertically</span>
               <DropdownMenuShortcut>⌘V</DropdownMenuShortcut>
@@ -212,7 +222,7 @@ export function AdvancedTabBar({
                     <DropdownMenuItem 
                       key={component.id} 
                       className="flex items-center focus:bg-neutral-700"
-                      onClick={() => onAddTab()}
+                      onClick={() => onAddTab(component.id)}
                     >
                       <div className="mr-2 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs">
                         {component.name.charAt(0).toUpperCase()}
@@ -238,6 +248,7 @@ export function AdvancedTabBar({
             {/* Close panel */}
             <DropdownMenuItem 
               className="flex items-center text-red-400 focus:bg-neutral-700"
+              onClick={() => onClosePanel && onClosePanel()}
             >
               <div className="mr-2 w-4 h-4 rounded-full border border-red-400 flex items-center justify-center">
                 <span className="text-red-400 text-xs">×</span>

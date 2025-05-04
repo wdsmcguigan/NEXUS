@@ -35,62 +35,59 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
       // Detect panel edges for potential splitting
       const checkPanelEdges = () => {
         const panels = document.querySelectorAll('[data-panel-id]');
-        const edgeThreshold = 20; // pixels from edge to trigger
+        const edgeThreshold = 30; // pixels from edge to trigger
         const foundEdgeZones: DropZone[] = [];
         
-        // Skip if this is the same panel as the source
-        if (dragItem.sourcePanelId) {
-          panels.forEach(panel => {
-            const panelId = panel.getAttribute('data-panel-id');
-            if (!panelId || panelId === dragItem.sourcePanelId) return;
-            
-            const rect = panel.getBoundingClientRect();
-            
-            // Check left edge
-            if (Math.abs(e.clientX - rect.left) < edgeThreshold && 
-                e.clientY > rect.top && e.clientY < rect.bottom) {
-              foundEdgeZones.push({
-                id: panelId,
-                rect,
-                type: 'edge',
-                direction: 'left'
-              });
-            }
-            
-            // Check right edge
-            if (Math.abs(e.clientX - rect.right) < edgeThreshold && 
-                e.clientY > rect.top && e.clientY < rect.bottom) {
-              foundEdgeZones.push({
-                id: panelId,
-                rect,
-                type: 'edge',
-                direction: 'right'
-              });
-            }
-            
-            // Check top edge
-            if (Math.abs(e.clientY - rect.top) < edgeThreshold && 
-                e.clientX > rect.left && e.clientX < rect.right) {
-              foundEdgeZones.push({
-                id: panelId,
-                rect,
-                type: 'edge',
-                direction: 'top'
-              });
-            }
-            
-            // Check bottom edge
-            if (Math.abs(e.clientY - rect.bottom) < edgeThreshold && 
-                e.clientX > rect.left && e.clientX < rect.right) {
-              foundEdgeZones.push({
-                id: panelId,
-                rect,
-                type: 'edge',
-                direction: 'bottom'
-              });
-            }
-          });
-        }
+        panels.forEach(panel => {
+          const panelId = panel.getAttribute('data-panel-id');
+          if (!panelId) return;
+          
+          const rect = panel.getBoundingClientRect();
+          
+          // Check left edge
+          if (Math.abs(e.clientX - rect.left) < edgeThreshold && 
+              e.clientY > rect.top && e.clientY < rect.bottom) {
+            foundEdgeZones.push({
+              id: panelId,
+              rect,
+              type: 'edge',
+              direction: 'left'
+            });
+          }
+          
+          // Check right edge
+          if (Math.abs(e.clientX - rect.right) < edgeThreshold && 
+              e.clientY > rect.top && e.clientY < rect.bottom) {
+            foundEdgeZones.push({
+              id: panelId,
+              rect,
+              type: 'edge',
+              direction: 'right'
+            });
+          }
+          
+          // Check top edge
+          if (Math.abs(e.clientY - rect.top) < edgeThreshold && 
+              e.clientX > rect.left && e.clientX < rect.right) {
+            foundEdgeZones.push({
+              id: panelId,
+              rect,
+              type: 'edge',
+              direction: 'top'
+            });
+          }
+          
+          // Check bottom edge
+          if (Math.abs(e.clientY - rect.bottom) < edgeThreshold && 
+              e.clientX > rect.left && e.clientX < rect.right) {
+            foundEdgeZones.push({
+              id: panelId,
+              rect,
+              type: 'edge',
+              direction: 'bottom'
+            });
+          }
+        });
         
         setEdgeZones(foundEdgeZones);
         

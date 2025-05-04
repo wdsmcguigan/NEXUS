@@ -67,8 +67,12 @@ export function ComponentProvider({ children }: { children: React.ReactNode }) {
     
     const tabId = `tab-${nanoid(8)}`;
     
-    // Here we would actually add the tab to the panel
-    // For now, let's just return the ID
+    // Store this tab content information somewhere accessible by rendering logic
+    // This could be in a shared state, context, or passed to a panel context
+    // For now we're just returning the ID and will handle linking the component separately
+    
+    console.log(`Created new tab ${tabId} with component ${componentId} for panel ${panelId}`);
+    
     return tabId;
   }, [components]);
   

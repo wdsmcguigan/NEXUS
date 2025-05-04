@@ -7,12 +7,15 @@ import { useEffect } from "react";
 
 // Component for initializing the registry
 function InitializeComponents() {
-  const { registerComponent } = useComponentRegistry();
+  const { registerComponent, components } = useComponentRegistry();
   
   useEffect(() => {
-    // Initialize component registry with predefined components
-    initializeComponentRegistry(registerComponent);
-  }, [registerComponent]);
+    // Only initialize if no components are registered yet
+    if (Object.keys(components).length === 0) {
+      console.log("Initializing component registry with default components");
+      initializeComponentRegistry(registerComponent);
+    }
+  }, [registerComponent, components]);
   
   return null;
 }

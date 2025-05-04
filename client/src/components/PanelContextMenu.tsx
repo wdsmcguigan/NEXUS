@@ -55,7 +55,18 @@ export function PanelContextMenu({
     saveLayout,
   } = usePanelContext();
   
-  const { components, createComponent } = useComponentRegistry();
+  // Create a safe wrapper for component registry
+  const componentRegistry = React.useMemo(() => {
+    try {
+      return useComponentRegistry();
+    } catch (error) {
+      console.warn('Component registry not available:', error);
+      return {
+        components: {},
+        createComponent: () => '',
+      };
+    }
+  }, []);
   const { registerShortcut } = useShortcutContext();
   
   // Check if this panel is currently maximized
@@ -91,10 +102,10 @@ export function PanelContextMenu({
   }, [layout, panelId]);
   
   // Get available component types
-  const availableComponents = Object.keys(components).map(id => ({
+  const availableComponents = Object.keys(componentRegistry.components || {}).map(id => ({
     id,
-    name: components[id].name || id,
-    description: components[id].description || '',
+    name: componentRegistry.components[id]?.name || id,
+    description: componentRegistry.components[id]?.description || '',
   }));
   
   // Handle maximize/restore
@@ -176,7 +187,7 @@ export function PanelContextMenu({
   // Handle adding a new tab
   const handleAddTab = (componentId: string) => {
     // Use component registry to create a new component in this panel
-    createComponent(componentId, panelId);
+    componentRegistry.createComponent(componentId, panelId);
   };
   
   // Handle moving a tab to another panel

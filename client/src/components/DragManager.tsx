@@ -26,25 +26,30 @@ export function DragManager() {
   
   // Handle the drop operation
   const handleDrop = (target: DropTarget) => {
+    console.log('DragManager: handle drop called with target:', target);
+    console.log('DragManager: current dragItem:', dragItem);
+    
     if (!dragItem) return;
     
     // Handle different types of drag items
     if (dragItem.type === 'tab' && dragItem.sourcePanelId) {
       const { id: tabId, sourcePanelId } = dragItem;
+      console.log(`DragManager: Moving tab ${tabId} from panel ${sourcePanelId}`);
       
       // Handle different types of drop targets
       switch (target.type) {
         case 'panel':
-          // Move tab to panel
+          console.log(`DragManager: Moving tab to panel ${target.id}`);
           moveTab(tabId, sourcePanelId, target.id);
           break;
         case 'tabbar':
-          // Move tab to tabbar (same as panel)
+          console.log(`DragManager: Moving tab to tabbar ${target.id}`);
           moveTab(tabId, sourcePanelId, target.id);
           break;
         case 'position':
           // Move tab to specific position
           if (target.position) {
+            console.log(`DragManager: Moving tab to position index ${target.position.index} in panel ${target.position.panelId}`);
             moveTab(
               tabId, 
               sourcePanelId, 
@@ -54,10 +59,13 @@ export function DragManager() {
           }
           break;
         // Edge case is handled by PanelSplitter component
+        default:
+          console.log(`DragManager: Unhandled target type: ${target.type}`);
       }
     }
     
     // End the drag operation
+    console.log('DragManager: Ending drag operation with successful drop');
     endDrag(true);
   };
   

@@ -36,6 +36,8 @@ export function DraggableTab({
     e.preventDefault();
     e.stopPropagation();
     
+    console.log(`DraggableTab: Starting drag for tab ${id} in panel ${panelId}`);
+    
     if (tabRef.current) {
       // Create a drag item that represents this tab
       const dragItem = {
@@ -49,6 +51,8 @@ export function DraggableTab({
           rect: tabRef.current.getBoundingClientRect()
         }
       };
+      
+      console.log('DraggableTab: Created drag item:', dragItem);
       
       // Start the drag operation
       startDrag(dragItem);

@@ -64,6 +64,7 @@ export function DragProvider({ children }: { children: ReactNode }) {
   
   // Method to start a drag operation
   const startDrag = useCallback((item: DragItem, operation: DragOperation = 'move') => {
+    console.log('Starting drag operation:', item);
     setIsDragging(true);
     setDragItem(item);
     setDragOperation(operation);
@@ -72,6 +73,7 @@ export function DragProvider({ children }: { children: ReactNode }) {
   
   // Method to end a drag operation
   const endDrag = useCallback((dropped: boolean = false) => {
+    console.log('Ending drag operation, dropped:', dropped);
     setIsDragging(false);
     setDragItem(null);
     if (!dropped) {

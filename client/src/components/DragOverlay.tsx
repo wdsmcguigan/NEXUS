@@ -125,11 +125,15 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
   const handleMouseUp = useCallback((e: MouseEvent) => {
     if (!active || !dragItem) return;
     
+    console.log('Mouse up in DragOverlay, dropTarget:', dropTarget);
+    
     // If we have a drop target, perform the drop
     if (dropTarget) {
+      console.log('Performing drop on target:', dropTarget);
       onDrop(dropTarget);
     } else {
       // Otherwise just end the drag
+      console.log('No drop target, ending drag');
       endDrag();
     }
   }, [active, dragItem, dropTarget, endDrag, onDrop]);

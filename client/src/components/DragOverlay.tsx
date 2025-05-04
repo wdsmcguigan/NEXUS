@@ -372,17 +372,28 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
             onDrop(dropTargetCopy);
             console.log('🔼 [DRAG_END] Edge drop successfully initiated');
             
+            // Create a timestamp to use in the new panel ID
+            const timestamp = Date.now();
+            // Sanitize panel ID to avoid special characters
+            const sanitizedPanelId = dropTarget.id.replace(/[^a-zA-Z0-9]/g, '');
+            // Create a predictable panel ID for the new panel
+            const newPanelId = `panel-${sanitizedPanelId}-${timestamp}`;
+            
+            console.log('🔼 [DRAG_END] Generated new panel ID:', newPanelId);
+          
             // Emit a custom event to notify PanelSplitter
             const edgeDropEvent = new CustomEvent('panel-edge-drop', {
               detail: {
                 tabId: dragItem.id,
                 sourcePanelId: dragItem.sourcePanelId,
                 targetPanelId: dropTarget.id,
-                direction: dropTarget.direction
+                direction: dropTarget.direction,
+                newPanelId: newPanelId,
+                timestamp: timestamp
               }
             });
             
-            console.log('🔼 [DRAG_END] Dispatching panel-edge-drop event');
+            console.log('🔼 [DRAG_END] Dispatching panel-edge-drop event with newPanelId:', newPanelId);
             document.dispatchEvent(edgeDropEvent);
             
             // Important: We don't end the drag here since PanelSplitter will handle it

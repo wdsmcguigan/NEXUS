@@ -10,7 +10,8 @@ import { nanoid } from 'nanoid';
 export function PanelSplitter() {
   const { 
     dragItem, 
-    dropTarget, 
+    dropTarget,
+    setDropTarget,
     endDrag, 
     mousePosition 
   } = useDragContext();
@@ -155,15 +156,21 @@ export function PanelSplitter() {
       
       console.log(`🔧 [EDGE DROP HANDLER] Split direction:${splitDirection}, positionAfter:${positionAfter}`);
       
-      // Step 3: Generate new panel ID with timestamp for uniqueness
-      // Make sure the panel ID is simple and doesn't have special characters
-      const timestamp = Date.now();
-      // Clean panel ID to remove any special characters
-      const sanitizedTargetId = targetPanelId.replace(/[^a-zA-Z0-9]/g, '');
-      const newPanelId = `panel-${sanitizedTargetId}-${timestamp}`;
+      // Step 3: Use the newPanelId from the dropTarget if available, or generate a new one
+      let newPanelId;
+      const timestamp = (dropTarget as any)?.timestamp || Date.now();
       
-      console.log(`🔧 [EDGE DROP HANDLER] Original target ID: ${targetPanelId}, sanitized: ${sanitizedTargetId}`);
-      console.log(`🔧 [EDGE DROP HANDLER] Created new panel ID: ${newPanelId}`);
+      if ((dropTarget as any)?.newPanelId) {
+        // Use the provided newPanelId from the event
+        newPanelId = (dropTarget as any).newPanelId;
+        console.log(`🔧 [EDGE DROP HANDLER] Using newPanelId provided in dropTarget: ${newPanelId}`);
+      } else {
+        // Generate a new panel ID with proper sanitization
+        const sanitizedTargetId = targetPanelId.replace(/[^a-zA-Z0-9]/g, '');
+        newPanelId = `panel-${sanitizedTargetId}-${timestamp}`;
+        console.log(`🔧 [EDGE DROP HANDLER] Original target ID: ${targetPanelId}, sanitized: ${sanitizedTargetId}`);
+        console.log(`🔧 [EDGE DROP HANDLER] Generated new panel ID: ${newPanelId}`);
+      }
       
       // Step 4: Execute the panel split with new panel ID
       console.log(`🔧 [EDGE DROP HANDLER] Calling splitPanel(${targetPanelId}, ${splitDirection}, { newPanelId:${newPanelId}, positionAfter:${positionAfter}})`);
@@ -332,8 +339,32 @@ export function PanelSplitter() {
     const handlePanelEdgeDropEvent = (event: CustomEvent) => {
       console.log('🔌 [PANEL EVENT] Received panel-edge-drop event:', event.detail);
       
-      // Process the drop
-      handleEdgeDrop();
+      // Store the newPanelId directly from the event if available
+      if (event.detail?.newPanelId) {
+        console.log(`🔌 [PANEL EVENT] Found newPanelId in event: ${event.detail.newPanelId}`);
+        
+        // Override the dropTarget with the provided newPanelId
+        if (dropTarget && dropTarget.type === 'edge') {
+          const updatedDropTarget = {
+            ...dropTarget,
+            newPanelId: event.detail.newPanelId,
+            timestamp: event.detail.timestamp
+          };
+          console.log('🔌 [PANEL EVENT] Updated dropTarget with newPanelId:', updatedDropTarget);
+          
+          // Set the updated drop target first
+          setDropTarget(updatedDropTarget);
+          
+          // Add small delay to ensure state updates
+          setTimeout(() => {
+            // Process the drop with the updated target
+            handleEdgeDrop();
+          }, 50);
+        }
+      } else {
+        // Fallback to original behavior if no newPanelId in event
+        handleEdgeDrop();
+      }
     };
     
     // Add event listener with type assertion for CustomEvent
@@ -343,7 +374,7 @@ export function PanelSplitter() {
       // Remove event listener
       document.removeEventListener('panel-edge-drop', handlePanelEdgeDropEvent as EventListener);
     };
-  }, [handleEdgeDrop]);
+  }, [handleEdgeDrop, dropTarget, setDropTarget]);
   
   // Secondary monitoring with mouseUp listener as backup
   useEffect(() => {

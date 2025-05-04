@@ -154,19 +154,26 @@ export function PanelContextMenu({
   
   // Handle splitting the panel
   const handleSplitPanel = (direction: 'horizontal' | 'vertical') => {
-    // Create a new empty panel
-    const newPanelId = `panel-${Date.now()}`;
+    if (!panel) return;
     
-    // Configure the new panel
-    const newPanel = {
-      id: newPanelId,
-      type: 'panel' as const,
-      tabs: [],
-      contents: [],
+    // Get the panel ID
+    const panelId = panel.id;
+    
+    // Create a new panel ID with sanitized panel ID to avoid special characters
+    const timestamp = Date.now();
+    const sanitizedId = panelId.replace(/[^a-zA-Z0-9]/g, '');
+    const newPanelId = `panel-${sanitizedId}-${timestamp}`;
+    
+    console.log(`📊 [PANEL_MENU] Splitting panel ${panelId} ${direction}ly with newPanelId: ${newPanelId}`);
+    
+    // Create options object with newPanelId
+    const splitOptions = {
+      newPanelId: newPanelId,
+      positionAfter: false // By default, put the new panel first in the split
     };
     
     // Perform the split
-    splitPanel(panelId, direction, newPanel);
+    splitPanel(panelId, direction, splitOptions);
   };
   
   // Handle changing the tab 

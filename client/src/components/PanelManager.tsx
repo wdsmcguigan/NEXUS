@@ -1,9 +1,8 @@
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
 import { useTabContext, Panel as PanelType, PanelType as TPanelType } from '../context/TabContext';
 import { UniversalTabPanel } from './UniversalTabPanel';
 import { ComponentSelector } from './ComponentSelector';
-import { NewPanelAnimation } from './NewPanelAnimation';
 
 interface PanelLayoutProps {
   panelId: string;
@@ -17,26 +16,6 @@ function PanelLayout({ panelId, maximizedPanelId, onMaximizePanel, onRestorePane
   const { state, addTab, splitPanel, closePanel } = useTabContext();
   const panel = state.panels[panelId];
   const [showComponentSelector, setShowComponentSelector] = useState(false);
-  const [showNewPanelAnimation, setShowNewPanelAnimation] = useState(false);
-  const panelCreationTime = useRef<number>(Date.now());
-  
-  // Determine if this is a newly created panel
-  useEffect(() => {
-    const currentTime = Date.now();
-    const isPanelNew = currentTime - panelCreationTime.current < 500;
-    
-    if (isPanelNew && panel) {
-      console.log(`New panel detected: ${panelId}`, { timeDiff: currentTime - panelCreationTime.current });
-      setShowNewPanelAnimation(true);
-      
-      // Reset the animation after it completes
-      const timer = setTimeout(() => {
-        setShowNewPanelAnimation(false);
-      }, 1500);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [panelId, panel]);
 
   const handleAddTab = useCallback(() => {
     setShowComponentSelector(true);
@@ -121,7 +100,7 @@ function PanelLayout({ panelId, maximizedPanelId, onMaximizePanel, onRestorePane
 
   // For leaf panels (panels with tabs)
   return (
-    <div className="h-full w-full relative">
+    <div className="h-full w-full">
       <UniversalTabPanel
         panelId={panelId}
         onAddTab={handleAddTab}
@@ -131,9 +110,6 @@ function PanelLayout({ panelId, maximizedPanelId, onMaximizePanel, onRestorePane
         onSplitPanel={handleSplitPanel}
         onClosePanel={handleClosePanel}
       />
-      
-      {/* New panel highlight animation */}
-      <NewPanelAnimation isVisible={showNewPanelAnimation} />
       
       {showComponentSelector && (
         <ComponentSelector

@@ -3,7 +3,6 @@ import { useDragContext, DropTarget } from '../context/DragContext';
 import { useTabContext } from '../context/TabContext';
 import { DragOverlay } from './DragOverlay';
 import { PanelSplitter } from './PanelSplitter';
-import { DirectPanelDropHandler } from './DirectPanelDropHandler';
 
 /**
  * DragManager is a global component that handles drag-and-drop operations
@@ -47,12 +46,9 @@ export function DragManager() {
   
   // Handle the drop operation
   const handleDrop = useCallback((target: DropTarget) => {
-    if (!dragItem) {
-      console.error('🎯 [DRAG_MGR] ERROR: No drag item available for drop operation');
-      return;
-    }
+    if (!dragItem) return;
     
-    console.log('🎯 [DRAG_MGR] Processing drop:', { target, dragItem });
+    console.log('Processing drop in DragManager:', { target, dragItem });
     
     // Set the current drop target (used by other components)
     setDropTarget(target);
@@ -64,91 +60,40 @@ export function DragManager() {
       // Handle different types of drop targets
       switch (target.type) {
         case 'panel':
-          console.log(`🎯 [DRAG_MGR] Moving tab ${tabId} from panel ${sourcePanelId} to panel ${target.id}`);
+          console.log(`Moving tab ${tabId} from panel ${sourcePanelId} to panel ${target.id}`);
           moveTab(tabId, sourcePanelId, target.id);
-          console.log(`🎯 [DRAG_MGR] moveTab executed successfully for panel drop`);
           endDrag(true); // Mark as successful drop
           break;
-          
         case 'tabbar':
-          console.log(`🎯 [DRAG_MGR] Moving tab ${tabId} from panel ${sourcePanelId} to tabbar ${target.id}`);
+          console.log(`Moving tab ${tabId} from panel ${sourcePanelId} to tabbar ${target.id}`);
           moveTab(tabId, sourcePanelId, target.id);
-          console.log(`🎯 [DRAG_MGR] moveTab executed successfully for tabbar drop`);
           endDrag(true); // Mark as successful drop
           break;
-          
         case 'position':
           // Move tab to specific position
           if (target.position) {
-            console.log(`🎯 [DRAG_MGR] Moving tab ${tabId} from panel ${sourcePanelId} to position ${target.position.index} in panel ${target.position.panelId}`);
+            console.log(`Moving tab ${tabId} from panel ${sourcePanelId} to position ${target.position.index} in panel ${target.position.panelId}`);
             moveTab(
               tabId, 
               sourcePanelId, 
               target.position.panelId, 
               target.position.index
             );
-            console.log(`🎯 [DRAG_MGR] moveTab executed successfully for position drop`);
             endDrag(true); // Mark as successful drop
-          } else {
-            console.error(`🎯 [DRAG_MGR] ERROR: Position drop target missing position details`);
-            endDrag(false);
           }
           break;
-          
         case 'edge':
-          // Edge drop handling is more complex - PanelSplitter needs to create a new panel first
+          // Let the PanelSplitter handle this but ensure the drop target is set
           if (target.direction) {
-            console.log(`🎯 [DRAG_MGR] EDGE DROP DETECTED: Tab ${tabId} from panel ${sourcePanelId} to ${target.direction} edge of panel ${target.id}`);
-            
-            // Debug info
-            console.log(`🎯 [DRAG_MGR] This will create a ${target.direction === 'left' || target.direction === 'right' ? 'horizontal' : 'vertical'} split`);
-            
-            // IMPORTANT: Add more details to help with debugging
-            console.log(`🎯 [DRAG_MGR] Edge drop details:`, {
-              tabId,
-              sourcePanelId,
-              targetPanelId: target.id,
-              direction: target.direction,
-              targetRect: target.rect ? 
-                `${target.rect.left},${target.rect.top},${target.rect.right},${target.rect.bottom}` : 
-                'missing'
-            });
-            
-            // ENHANCEMENT: Add a failsafe timeout to end the drag if PanelSplitter fails to do so
-            const failsafeTimer = setTimeout(() => {
-              console.warn(`🎯 [DRAG_MGR] FAILSAFE: Ending drag after 2 second timeout - PanelSplitter may have failed`);
-              endDrag(false);
-            }, 2000);
-            
-            // Add a listener for custom panel-edge-drop-complete event
-            const handleCompletionEvent = () => {
-              console.log(`🎯 [DRAG_MGR] Received panel-edge-drop-complete event, clearing failsafe timer`);
-              clearTimeout(failsafeTimer);
-              document.removeEventListener('panel-edge-drop-complete', handleCompletionEvent);
-            };
-            
-            document.addEventListener('panel-edge-drop-complete', handleCompletionEvent, { once: true });
-            
+            console.log(`Edge drop detected on ${target.id} with direction ${target.direction} - letting PanelSplitter handle it`);
             // Important: We need to keep the dropTarget set for PanelSplitter
             // But we don't call endDrag() here since PanelSplitter will do that
-            console.log(`🎯 [DRAG_MGR] Letting PanelSplitter handle this - NOT ending drag yet`);
-            
-            // Wait for PanelSplitter to react to the dropTarget change
-            console.log(`🎯 [DRAG_MGR] PanelSplitter should detect the edge drop and create a new panel`);
             return;
           } else {
-            console.error('🎯 [DRAG_MGR] ERROR: Edge drop target missing direction');
+            console.error('Edge drop target missing direction');
             endDrag(false);
           }
-          break;
-          
-        default:
-          console.error(`🎯 [DRAG_MGR] ERROR: Unsupported drop target type: ${target.type}`);
-          endDrag(false); // Mark as failed drop
       }
-    } else {
-      console.error(`🎯 [DRAG_MGR] ERROR: Unsupported drag item or missing source panel: ${JSON.stringify(dragItem)}`);
-      endDrag(false); // Mark as failed drop
     }
   }, [dragItem, setDropTarget, moveTab, endDrag]);
   
@@ -180,9 +125,6 @@ export function DragManager() {
       
       {/* Panel splitter for edge drops with enhanced visual feedback */}
       <PanelSplitter />
-      
-      {/* New direct approach for panel edge drops */}
-      <DirectPanelDropHandler />
       
       {/* Add additional debug information if needed */}
       {process.env.NODE_ENV === 'development' && isDragging && mousePosition && (

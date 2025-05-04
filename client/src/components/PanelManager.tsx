@@ -13,7 +13,7 @@ interface PanelLayoutProps {
 
 // Recursive component for rendering panels (supports nested panels)
 function PanelLayout({ panelId, maximizedPanelId, onMaximizePanel, onRestorePanel }: PanelLayoutProps) {
-  const { state, addTab } = useTabContext();
+  const { state, addTab, splitPanel, closePanel } = useTabContext();
   const panel = state.panels[panelId];
   const [showComponentSelector, setShowComponentSelector] = useState(false);
 
@@ -25,6 +25,18 @@ function PanelLayout({ panelId, maximizedPanelId, onMaximizePanel, onRestorePane
     addTab(componentId, panelId);
     setShowComponentSelector(false);
   }, [addTab, panelId]);
+  
+  // Handle splitting panel in a direction
+  const handleSplitPanel = useCallback((direction: 'horizontal' | 'vertical') => {
+    // Create a new panel ID for the split
+    const newPanelId = `${panelId}-split-${Date.now()}`;
+    splitPanel(panelId, direction, newPanelId);
+  }, [panelId, splitPanel]);
+  
+  // Handle closing the panel
+  const handleClosePanel = useCallback(() => {
+    closePanel(panelId);
+  }, [closePanel, panelId]);
 
   if (!panel) {
     return <div>Panel not found: {panelId}</div>;
@@ -76,6 +88,8 @@ function PanelLayout({ panelId, maximizedPanelId, onMaximizePanel, onRestorePane
         onMaximize={() => onMaximizePanel(panelId)}
         onRestore={onRestorePanel}
         isMaximized={maximizedPanelId === panelId}
+        onSplitPanel={handleSplitPanel}
+        onClosePanel={handleClosePanel}
       />
       
       {showComponentSelector && (

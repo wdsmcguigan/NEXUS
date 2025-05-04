@@ -9,10 +9,12 @@ import { useDragContext, DropTarget } from '../context/DragContext';
 
 interface UniversalTabPanelProps {
   panelId: string;
-  onAddTab: () => void;
+  onAddTab: (componentId?: string) => void;
   onMaximize: () => void;
   onRestore: () => void;
   isMaximized: boolean;
+  onSplitPanel?: (direction: 'horizontal' | 'vertical') => void;
+  onClosePanel?: () => void;
 }
 
 export function UniversalTabPanel({
@@ -20,7 +22,9 @@ export function UniversalTabPanel({
   onAddTab,
   onMaximize,
   onRestore,
-  isMaximized
+  isMaximized,
+  onSplitPanel,
+  onClosePanel
 }: UniversalTabPanelProps) {
   const { state, activateTab, closeTab } = useTabContext();
   const panel = state.panels[panelId];
@@ -73,6 +77,8 @@ export function UniversalTabPanel({
         onViewToggle={handleViewToggle}
         isMaximized={isMaximized}
         onTabDrop={handleTabDrop}
+        onSplitPanel={onSplitPanel}
+        onClosePanel={onClosePanel}
       />
       
       {/* Content area */}
@@ -88,7 +94,7 @@ export function UniversalTabPanel({
               <p className="mb-2">No tabs open</p>
               <button
                 className="px-3 py-1 text-xs rounded-sm bg-neutral-800 hover:bg-neutral-700 text-white"
-                onClick={onAddTab}
+                onClick={() => onAddTab()}
               >
                 Add a tab
               </button>

@@ -382,21 +382,37 @@ Sarah`,
         
         {/* Tags and todos */}
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          {email.tags?.map((emailTag) => (
-            <Badge 
-              key={emailTag.id} 
-              variant="outline"
-              className="flex items-center gap-1 px-2 py-0.5" 
-              style={{ 
-                backgroundColor: emailTag.tag.bgColor, 
-                color: emailTag.tag.textColor,
-                borderColor: 'transparent' 
-              }}
-            >
-              {emailTag.tag.emoji && <span>{emailTag.tag.emoji}</span>}
-              {emailTag.tag.name}
-            </Badge>
-          ))}
+          {email.tags?.map((emailTag) => {
+            // Find the matching tag in our global context if it exists
+            const tagId = emailTag.tag.id.toString();
+            const globalTag = globalTags.find(gt => gt.id === tagId) || 
+                          globalTags.flatMap(gt => gt.children || [])
+                                .find(child => child.id === tagId);
+            
+            // Use global tag properties if available, otherwise use the email tag properties
+            const displayTag = globalTag || {
+              name: emailTag.tag.name,
+              color: emailTag.tag.bgColor,
+              textColor: emailTag.tag.textColor,
+              emoji: emailTag.tag.emoji
+            };
+            
+            return (
+              <Badge 
+                key={emailTag.id} 
+                variant="outline"
+                className="flex items-center gap-1 px-2 py-0.5" 
+                style={{ 
+                  backgroundColor: displayTag.color, 
+                  color: displayTag.textColor,
+                  borderColor: 'transparent' 
+                }}
+              >
+                {displayTag.emoji && <span>{displayTag.emoji}</span>}
+                {displayTag.name}
+              </Badge>
+            );
+          })}
           
           {email.todoText && (
             <div className="flex items-center gap-2 bg-amber-950/30 text-amber-400 border border-amber-800 rounded-md px-2 py-0.5">

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTabContext } from '../context/TabContext';
 import { nanoid } from 'nanoid';
 
@@ -22,7 +22,14 @@ const createAlert = (message: string) => {
   
   setTimeout(() => {
     document.body.removeChild(alertDiv);
-  }, 3000);
+  }, 2000);
+};
+
+// Define edge zone type
+type EdgeInfo = { 
+  panelId: string, 
+  edge: 'top' | 'right' | 'bottom' | 'left',
+  rect: DOMRect
 };
 
 /**
@@ -40,11 +47,17 @@ export function SimplePanelEdgeDrop() {
   // Flag to prevent multiple handling of the same drop
   const isHandlingDrop = useRef(false);
   
+  // Track current edge zone
+  const [activeEdge, setActiveEdge] = useState<EdgeInfo | null>(null);
+  
   // Access tab context
   const { state, splitPanel, moveTab } = useTabContext();
   
+  // Create visualization layer
+  const [visualLayer, setVisualLayer] = useState<JSX.Element | null>(null);
+  
   useEffect(() => {
-    console.log('🔥 NEW APPROACH: SimplePanelEdgeDrop mounted');
+    console.log('🔥 DIRECT-DOM APPROACH: SimplePanelEdgeDrop mounted');
     
     // 1. Set up a global dragstart listener to capture when a tab starts dragging
     const handleDragStart = (e: DragEvent) => {
@@ -55,7 +68,7 @@ export function SimplePanelEdgeDrop() {
         const tabId = target.getAttribute('data-tab-id')!;
         const panelId = target.getAttribute('data-panel-id')!;
         
-        console.log(`🔥 NEW APPROACH: Tab drag started: ${tabId} from panel ${panelId}`);
+        console.log(`🔥 DIRECT-DOM APPROACH: Tab drag started: ${tabId} from panel ${panelId}`);
         
         // Store the dragged tab information
         draggedTab.current = {
@@ -85,17 +98,17 @@ export function SimplePanelEdgeDrop() {
       }
     };
     
-    // 2. Calculate edge zones for all panels
+    // 2. Calculate edge zones for all panels - using math-based approach instead of DOM elements
     const calculatePanelEdgeZones = () => {
       const panels = document.querySelectorAll('[data-panel-id]');
       const panelZones: Array<{
         panelId: string,
         rect: DOMRect,
         edges: {
-          top: DOMRect,
-          right: DOMRect,
-          bottom: DOMRect,
-          left: DOMRect
+          top: { zone: DOMRect, region: 'top' },
+          right: { zone: DOMRect, region: 'right' },
+          bottom: { zone: DOMRect, region: 'bottom' },
+          left: { zone: DOMRect, region: 'left' }
         }
       }> = [];
       
@@ -110,30 +123,42 @@ export function SimplePanelEdgeDrop() {
         
         // Calculate edge rectangles
         const edges = {
-          top: new DOMRect(
-            rect.left,
-            rect.top,
-            rect.width,
-            edgeSize
-          ),
-          right: new DOMRect(
-            rect.right - edgeSize,
-            rect.top,
-            edgeSize,
-            rect.height
-          ),
-          bottom: new DOMRect(
-            rect.left,
-            rect.bottom - edgeSize,
-            rect.width,
-            edgeSize
-          ),
-          left: new DOMRect(
-            rect.left,
-            rect.top,
-            edgeSize,
-            rect.height
-          )
+          top: { 
+            zone: new DOMRect(
+              rect.left,
+              rect.top,
+              rect.width,
+              edgeSize
+            ),
+            region: 'top' as const
+          },
+          right: { 
+            zone: new DOMRect(
+              rect.right - edgeSize,
+              rect.top,
+              edgeSize,
+              rect.height
+            ),
+            region: 'right' as const
+          },
+          bottom: { 
+            zone: new DOMRect(
+              rect.left,
+              rect.bottom - edgeSize,
+              rect.width,
+              edgeSize
+            ),
+            region: 'bottom' as const
+          },
+          left: { 
+            zone: new DOMRect(
+              rect.left,
+              rect.top,
+              edgeSize,
+              rect.height
+            ),
+            region: 'left' as const
+          }
         };
         
         panelZones.push({
@@ -161,94 +186,41 @@ export function SimplePanelEdgeDrop() {
       const panelZones = calculatePanelEdgeZones();
       
       // Check if mouse is in any edge zone
-      let inEdgeZone = false;
-      let edgeInfo: { panelId: string, edge: 'top' | 'right' | 'bottom' | 'left' } | null = null;
+      let foundEdge: EdgeInfo | null = null;
       
       for (const pz of panelZones) {
         // Skip the source panel (don't drop on the panel we're dragging from)
         if (pz.panelId === draggedTab.current.panelId) continue;
         
         // Check each edge
-        if (mouseX >= pz.edges.top.left && mouseX <= pz.edges.top.right &&
-            mouseY >= pz.edges.top.top && mouseY <= pz.edges.top.bottom) {
-          inEdgeZone = true;
-          edgeInfo = { panelId: pz.panelId, edge: 'top' };
-          break;
+        for (const [edgeKey, edgeInfo] of Object.entries(pz.edges)) {
+          const zone = edgeInfo.zone;
+          
+          if (mouseX >= zone.left && mouseX <= zone.left + zone.width &&
+              mouseY >= zone.top && mouseY <= zone.top + zone.height) {
+            
+            // Found an edge zone
+            foundEdge = { 
+              panelId: pz.panelId, 
+              edge: edgeInfo.region,
+              rect: pz.rect
+            };
+            break;
+          }
         }
         
-        if (mouseX >= pz.edges.right.left && mouseX <= pz.edges.right.right &&
-            mouseY >= pz.edges.right.top && mouseY <= pz.edges.right.bottom) {
-          inEdgeZone = true;
-          edgeInfo = { panelId: pz.panelId, edge: 'right' };
-          break;
-        }
-        
-        if (mouseX >= pz.edges.bottom.left && mouseX <= pz.edges.bottom.right &&
-            mouseY >= pz.edges.bottom.top && mouseY <= pz.edges.bottom.bottom) {
-          inEdgeZone = true;
-          edgeInfo = { panelId: pz.panelId, edge: 'bottom' };
-          break;
-        }
-        
-        if (mouseX >= pz.edges.left.left && mouseX <= pz.edges.left.right &&
-            mouseY >= pz.edges.left.top && mouseY <= pz.edges.left.bottom) {
-          inEdgeZone = true;
-          edgeInfo = { panelId: pz.panelId, edge: 'left' };
-          break;
-        }
+        if (foundEdge) break;
       }
       
-      // Show visual feedback for edge zones
-      document.querySelectorAll('.panel-edge-highlight').forEach(el => el.remove());
-      
-      if (inEdgeZone && edgeInfo) {
-        console.log(`🔥 NEW APPROACH: Dragging over ${edgeInfo.edge} edge of panel ${edgeInfo.panelId}`);
-        
-        // Create visual indicator
-        const highlight = document.createElement('div');
-        highlight.className = 'panel-edge-highlight';
-        highlight.style.position = 'fixed';
-        highlight.style.backgroundColor = 'rgba(59, 130, 246, 0.3)';
-        highlight.style.border = '2px dashed rgba(59, 130, 246, 0.7)';
-        highlight.style.zIndex = '9000';
-        highlight.style.pointerEvents = 'none';
-        
-        // Find panel element
-        const panelElement = document.querySelector(`[data-panel-id="${edgeInfo.panelId}"]`);
-        if (panelElement) {
-          const rect = panelElement.getBoundingClientRect();
-          
-          // Position based on edge
-          switch (edgeInfo.edge) {
-            case 'top':
-              highlight.style.top = `${rect.top}px`;
-              highlight.style.left = `${rect.left}px`;
-              highlight.style.width = `${rect.width}px`;
-              highlight.style.height = `${rect.height * 0.5}px`;
-              break;
-            case 'right':
-              highlight.style.top = `${rect.top}px`;
-              highlight.style.left = `${rect.left + rect.width * 0.5}px`;
-              highlight.style.width = `${rect.width * 0.5}px`;
-              highlight.style.height = `${rect.height}px`;
-              break;
-            case 'bottom':
-              highlight.style.top = `${rect.top + rect.height * 0.5}px`;
-              highlight.style.left = `${rect.left}px`;
-              highlight.style.width = `${rect.width}px`;
-              highlight.style.height = `${rect.height * 0.5}px`;
-              break;
-            case 'left':
-              highlight.style.top = `${rect.top}px`;
-              highlight.style.left = `${rect.left}px`;
-              highlight.style.width = `${rect.width * 0.5}px`;
-              highlight.style.height = `${rect.height}px`;
-              break;
-          }
-          
-          // Add to document
-          document.body.appendChild(highlight);
+      // Update active edge if it changed
+      if (foundEdge) {
+        if (!activeEdge || 
+            activeEdge.panelId !== foundEdge.panelId || 
+            activeEdge.edge !== foundEdge.edge) {
+          setActiveEdge(foundEdge);
         }
+      } else if (activeEdge) {
+        setActiveEdge(null);
       }
     };
     
@@ -256,100 +228,65 @@ export function SimplePanelEdgeDrop() {
     const handleDrop = (e: DragEvent) => {
       e.preventDefault();
       
-      // Clean up visual indicators immediately
-      document.querySelectorAll('.panel-edge-highlight').forEach(el => el.remove());
-      
       // Skip if no tab is being dragged or if we're already handling a drop
-      if (!draggedTab.current || isHandlingDrop.current) return;
+      if (!draggedTab.current || isHandlingDrop.current || !activeEdge) return;
+      
+      // Clear visual state
+      setActiveEdge(null);
       
       // Set handling flag to prevent multiple processing
       isHandlingDrop.current = true;
       
       try {
-        // Get mouse position
-        const mouseX = e.clientX;
-        const mouseY = e.clientY;
+        // Store values from refs to local variables - important for async operations
+        const tabId = draggedTab.current.id;
+        const sourcePanelId = draggedTab.current.panelId;
+        const targetPanelId = activeEdge.panelId;
+        const edgeDirection = activeEdge.edge;
         
-        // Calculate edge zones for all panels
-        const panelZones = calculatePanelEdgeZones();
+        console.log(`🔥 DIRECT-DOM APPROACH: Dropped on ${edgeDirection} edge of panel ${targetPanelId}`);
         
-        // Check if drop is in any edge zone
-        for (const pz of panelZones) {
-          // Skip the source panel (don't drop on the panel we're dragging from)
-          if (pz.panelId === draggedTab.current.panelId) continue;
-          
-          // Store tab data for use in callbacks
-          const tabId = draggedTab.current.id;
-          const sourcePanelId = draggedTab.current.panelId;
-          
-          // Check each edge
-          // TOP EDGE
-          if (mouseX >= pz.edges.top.left && mouseX <= pz.edges.top.right &&
-              mouseY >= pz.edges.top.top && mouseY <= pz.edges.top.bottom) {
-            console.log(`🔥 NEW APPROACH: Dropped on TOP edge of panel ${pz.panelId}`);
-            createAlert(`Dropped tab ${tabId} on TOP edge of panel ${pz.panelId}`);
-            
-            // Create new panel ID
-            const newPanelId = `panel-${nanoid(8)}`;
-            
-            // Execute split with panel above
-            splitPanelAndMoveTab(pz.panelId, 'vertical', false, tabId, sourcePanelId, newPanelId);
-            return;
-          }
-          
-          // RIGHT EDGE
-          if (mouseX >= pz.edges.right.left && mouseX <= pz.edges.right.right &&
-              mouseY >= pz.edges.right.top && mouseY <= pz.edges.right.bottom) {
-            console.log(`🔥 NEW APPROACH: Dropped on RIGHT edge of panel ${pz.panelId}`);
-            createAlert(`Dropped tab ${tabId} on RIGHT edge of panel ${pz.panelId}`);
-            
-            // Create new panel ID
-            const newPanelId = `panel-${nanoid(8)}`;
-            
-            // Execute split with panel to the right
-            splitPanelAndMoveTab(pz.panelId, 'horizontal', true, tabId, sourcePanelId, newPanelId);
-            return;
-          }
-          
-          // BOTTOM EDGE
-          if (mouseX >= pz.edges.bottom.left && mouseX <= pz.edges.bottom.right &&
-              mouseY >= pz.edges.bottom.top && mouseY <= pz.edges.bottom.bottom) {
-            console.log(`🔥 NEW APPROACH: Dropped on BOTTOM edge of panel ${pz.panelId}`);
-            createAlert(`Dropped tab ${tabId} on BOTTOM edge of panel ${pz.panelId}`);
-            
-            // Create new panel ID
-            const newPanelId = `panel-${nanoid(8)}`;
-            
-            // Execute split with panel below
-            splitPanelAndMoveTab(pz.panelId, 'vertical', true, tabId, sourcePanelId, newPanelId);
-            return;
-          }
-          
-          // LEFT EDGE
-          if (mouseX >= pz.edges.left.left && mouseX <= pz.edges.left.right &&
-              mouseY >= pz.edges.left.top && mouseY <= pz.edges.left.bottom) {
-            console.log(`🔥 NEW APPROACH: Dropped on LEFT edge of panel ${pz.panelId}`);
-            createAlert(`Dropped tab ${tabId} on LEFT edge of panel ${pz.panelId}`);
-            
-            // Create new panel ID
-            const newPanelId = `panel-${nanoid(8)}`;
-            
-            // Execute split with panel to the left
-            splitPanelAndMoveTab(pz.panelId, 'horizontal', false, tabId, sourcePanelId, newPanelId);
-            return;
-          }
+        // Create a unique new panel ID
+        const newPanelId = `panel-${nanoid(8)}`;
+        
+        // Determine split direction and position
+        let direction: 'horizontal' | 'vertical';
+        let positionAfter: boolean;
+        
+        switch (edgeDirection) {
+          case 'top':
+            direction = 'vertical';
+            positionAfter = false;
+            break;
+          case 'right':
+            direction = 'horizontal';
+            positionAfter = true;
+            break;
+          case 'bottom':
+            direction = 'vertical';
+            positionAfter = true;
+            break;
+          case 'left':
+            direction = 'horizontal';
+            positionAfter = false;
+            break;
         }
-      } finally {
-        // Clear dragged tab and handling flag
-        draggedTab.current = null;
+        
+        // Show confirmation alert
+        createAlert(`Splitting panel at ${edgeDirection} edge`);
+        
+        // Execute panel split
+        splitPanelAndMoveTab(targetPanelId, direction, positionAfter, tabId, sourcePanelId, newPanelId);
+      } catch (error) {
+        console.error('🔥 DIRECT-DOM APPROACH: Error in drop handler:', error);
         isHandlingDrop.current = false;
       }
     };
     
     // 5. Handle drag end to clean up
     const handleDragEnd = () => {
-      // Clean up visual indicators
-      document.querySelectorAll('.panel-edge-highlight').forEach(el => el.remove());
+      // Clear visual state
+      setActiveEdge(null);
       
       // Clear dragged tab
       draggedTab.current = null;
@@ -365,7 +302,7 @@ export function SimplePanelEdgeDrop() {
       sourcePanelId: string,
       newPanelId: string
     ) => {
-      console.log(`🔥 NEW APPROACH: Executing panel split operation:`, {
+      console.log(`🔥 DIRECT-DOM APPROACH: Executing panel split operation:`, {
         targetPanelId,
         direction,
         positionAfter,
@@ -376,15 +313,6 @@ export function SimplePanelEdgeDrop() {
       
       try {
         // 1. Split the panel
-        console.log(`🔥 NEW APPROACH: Calling splitPanel with options:`, {
-          targetPanelId,
-          direction,
-          options: {
-            newPanelId,
-            positionAfter
-          }
-        });
-        
         splitPanel(targetPanelId, direction, { 
           newPanelId,
           positionAfter
@@ -392,71 +320,134 @@ export function SimplePanelEdgeDrop() {
         
         // 2. Wait for the panel split to complete, then move the tab
         setTimeout(() => {
-          console.log(`🔥 NEW APPROACH: Attempting to move tab ${tabId} to new panel ${newPanelId}`);
-          
           try {
             // Check if panel exists after split
             if (state.panels[newPanelId]) {
-              console.log(`🔥 NEW APPROACH: New panel ${newPanelId} exists, moving tab`);
+              console.log(`🔥 DIRECT-DOM APPROACH: Moving tab ${tabId} to new panel ${newPanelId}`);
               moveTab(tabId, sourcePanelId, newPanelId);
-              
-              // Success message
-              console.log(`🔥 NEW APPROACH: Tab ${tabId} successfully moved to panel ${newPanelId}`);
-              createAlert(`Successfully split panel and moved tab!`);
+              createAlert(`Tab moved to new panel!`);
             } else {
               // Try to find child panels of the target panel
               const targetPanel = state.panels[targetPanelId];
               
               if (targetPanel?.childPanels?.length) {
-                console.log(`🔥 NEW APPROACH: Target has child panels:`, targetPanel.childPanels);
-                
                 // Find the empty child panel to move the tab to
                 const emptyChild = targetPanel.childPanels.find(id => 
                   state.panels[id] && (!state.panels[id].tabs || state.panels[id].tabs.length === 0)
                 );
                 
                 if (emptyChild) {
-                  console.log(`🔥 NEW APPROACH: Moving tab to empty child panel ${emptyChild}`);
+                  console.log(`🔥 DIRECT-DOM APPROACH: Moving tab to empty child panel ${emptyChild}`);
                   moveTab(tabId, sourcePanelId, emptyChild);
                   createAlert(`Tab moved to new panel!`);
                 } else {
-                  console.error(`🔥 NEW APPROACH: No empty child panel found`);
-                  createAlert(`Error: No empty panel found after split`);
+                  console.error(`🔥 DIRECT-DOM APPROACH: No empty child panel found`);
                 }
               } else {
-                console.error(`🔥 NEW APPROACH: Panel split failed, no new panel created`);
-                createAlert(`Error: Panel split failed!`);
+                console.error(`🔥 DIRECT-DOM APPROACH: Panel split failed, no new panel created`);
               }
             }
           } catch (error) {
-            console.error(`🔥 NEW APPROACH: Error moving tab:`, error);
-            createAlert(`Error moving tab: ${error}`);
+            console.error(`🔥 DIRECT-DOM APPROACH: Error moving tab:`, error);
+          } finally {
+            // Clear flags
+            isHandlingDrop.current = false;
           }
-        }, 300); // Wait for panel state to update
+        }, 100); // Wait for panel state to update
       } catch (error) {
-        console.error(`🔥 NEW APPROACH: Error splitting panel:`, error);
-        createAlert(`Error splitting panel: ${error}`);
+        console.error(`🔥 DIRECT-DOM APPROACH: Error splitting panel:`, error);
+        isHandlingDrop.current = false;
       }
     };
     
-    // Add event listeners
+    // Add global event listeners for drag operations
     document.addEventListener('dragstart', handleDragStart);
     document.addEventListener('dragover', handleDragOver);
     document.addEventListener('drop', handleDrop);
     document.addEventListener('dragend', handleDragEnd);
     
-    // Clean up
+    // Clean up on component unmount
     return () => {
       document.removeEventListener('dragstart', handleDragStart);
       document.removeEventListener('dragover', handleDragOver);
       document.removeEventListener('drop', handleDrop);
       document.removeEventListener('dragend', handleDragEnd);
-      
-      // Remove any visual elements
-      document.querySelectorAll('.panel-edge-highlight').forEach(el => el.remove());
     };
-  }, [moveTab, splitPanel, state.panels]);
+  }, [moveTab, splitPanel, state.panels, activeEdge]);
   
-  // This component doesn't render anything visual
-  return null;
+  // Update visual indicators whenever activeEdge changes
+  useEffect(() => {
+    if (!activeEdge) {
+      setVisualLayer(null);
+      return;
+    }
+    
+    const { panelId, edge, rect } = activeEdge;
+    
+    // Create visualization element based on edge
+    let visualStyle: React.CSSProperties = {
+      position: 'fixed',
+      backgroundColor: 'rgba(59, 130, 246, 0.2)',
+      boxShadow: '0 0 0 2px rgba(59, 130, 246, 0.5)',
+      zIndex: 40,
+      pointerEvents: 'none', // Critical - do not interfere with mouse events
+    };
+    
+    // Position based on edge
+    switch (edge) {
+      case 'top':
+        visualStyle = {
+          ...visualStyle,
+          top: rect.top + 'px',
+          left: rect.left + 'px',
+          width: rect.width + 'px',
+          height: (rect.height * 0.5) + 'px',
+        };
+        break;
+      case 'right':
+        visualStyle = {
+          ...visualStyle,
+          top: rect.top + 'px',
+          left: (rect.left + rect.width * 0.5) + 'px',
+          width: (rect.width * 0.5) + 'px',
+          height: rect.height + 'px',
+        };
+        break;
+      case 'bottom':
+        visualStyle = {
+          ...visualStyle,
+          top: (rect.top + rect.height * 0.5) + 'px',
+          left: rect.left + 'px',
+          width: rect.width + 'px',
+          height: (rect.height * 0.5) + 'px',
+        };
+        break;
+      case 'left':
+        visualStyle = {
+          ...visualStyle,
+          top: rect.top + 'px',
+          left: rect.left + 'px',
+          width: (rect.width * 0.5) + 'px',
+          height: rect.height + 'px',
+        };
+        break;
+    }
+    
+    // Set visual layer
+    setVisualLayer(
+      <div style={visualStyle} className="animate-pulse">
+        <div 
+          className="absolute inset-0 flex items-center justify-center"
+          style={{ pointerEvents: 'none' }}
+        >
+          <div className="bg-blue-500 bg-opacity-40 text-white text-xs px-2 py-1 rounded-md shadow-lg">
+            {edge === 'top' || edge === 'bottom' ? 'Split Vertically' : 'Split Horizontally'}
+          </div>
+        </div>
+      </div>
+    );
+  }, [activeEdge]);
+  
+  // Render visualization layer
+  return visualLayer;
 }

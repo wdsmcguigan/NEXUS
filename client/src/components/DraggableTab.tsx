@@ -34,12 +34,39 @@ export function DraggableTab({
   
   // Handle starting a drag operation with detailed logging
   const handleDragStart = useCallback((e: React.MouseEvent | React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // For native drag events, cancel the HTML5 drag and use our custom one
-    if ('dataTransfer' in e) {
-      (e as React.DragEvent).dataTransfer.effectAllowed = 'move';
+    // Only use e.preventDefault() for mouse events, not for drag events
+    // This is critical for HTML5 drag and drop to work properly
+    if (!('dataTransfer' in e)) {
+      e.preventDefault();
+      e.stopPropagation();
+    } else {
+      // For HTML5 native drag, set data to enable proper dropping
+      const dragEvent = e as React.DragEvent;
+      dragEvent.dataTransfer.effectAllowed = 'move';
+      dragEvent.dataTransfer.setData('text/plain', `tab:${id}`);
+      
+      // Try to set a drag image if the browser supports it
+      if (tabRef.current) {
+        try {
+          const ghostNode = tabRef.current.cloneNode(true) as HTMLElement;
+          ghostNode.style.opacity = '0.7';
+          ghostNode.style.transform = 'translateX(-9999px)';
+          ghostNode.style.position = 'absolute';
+          document.body.appendChild(ghostNode);
+          
+          // Use the tab as the drag image
+          dragEvent.dataTransfer.setDragImage(ghostNode, 10, 10);
+          
+          // Clean up ghost node after a short delay
+          setTimeout(() => {
+            if (document.body.contains(ghostNode)) {
+              document.body.removeChild(ghostNode);
+            }
+          }, 100);
+        } catch (err) {
+          console.warn('Failed to set drag image:', err);
+        }
+      }
     }
     
     // Prevent double initialization
@@ -82,40 +109,15 @@ export function DraggableTab({
       
       console.log('📋 Created drag item:', dragItem);
       
-      // Create a visual ghost element for the drag
-      const ghost = document.createElement('div');
-      ghost.classList.add('tab-ghost');
-      ghost.style.position = 'fixed';
-      ghost.style.width = `${rect.width}px`;
-      ghost.style.height = `${rect.height}px`;
-      ghost.style.backgroundColor = '#3b82f6'; // blue-500
-      ghost.style.borderRadius = '4px';
-      ghost.style.color = 'white';
-      ghost.style.display = 'flex';
-      ghost.style.alignItems = 'center';
-      ghost.style.justifyContent = 'center';
-      ghost.style.padding = '0 12px';
-      ghost.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.3)';
-      ghost.style.opacity = '0.8';
-      ghost.style.pointerEvents = 'none';
-      ghost.style.zIndex = '9999';
-      ghost.textContent = title;
-      
-      document.body.appendChild(ghost);
-      
-      // Remove the ghost after a short delay
-      setTimeout(() => {
-        if (document.body.contains(ghost)) {
-          document.body.removeChild(ghost);
-        }
-      }, 50);
+      // Instead of creating a DOM-based ghost, only create a virtual reference
+      // in our drag context to avoid interfering with the native HTML5 drag and drop
       
       // Start the drag operation in the context
       startDrag(dragItem);
     } else {
       console.error('Cannot start drag - tabRef.current is null');
     }
-  }, [id, title, icon, panelId, index, isActive, closeable, startDrag]);
+  }, [id, title, icon, panelId, index, isActive, closeable, startDrag, onClick]);
   
   // Handle mouse down with improved drag detection
   const handleMouseDown = useCallback((e: React.MouseEvent) => {

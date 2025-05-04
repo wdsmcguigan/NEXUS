@@ -52,15 +52,16 @@ export function AdvancedTabBar({
   const tabBarRef = useRef<HTMLDivElement>(null);
   const [dropZones, setDropZones] = useState<Array<{index: number, rect: DOMRect}>>([]);
   const { dragItem, isDragging, dropTarget, setDropTarget } = useDragContext();
-  const componentContext = React.useContext(ComponentContext);
+  const componentRegistry = React.useContext(ComponentContext);
   
   // Get available component types for our menu
-  const availableComponents = componentContext ? Object.keys(componentContext.components).map(id => ({
+  const components = componentRegistry?.components || {};
+  const availableComponents = Object.keys(components).map(id => ({
     id,
-    name: componentContext.components[id]?.name || id,
-    description: componentContext.components[id]?.description || '',
-    category: componentContext.components[id]?.category || 'Other'
-  })) : [];
+    name: components[id]?.name || id,
+    description: components[id]?.description || '',
+    category: components[id]?.category || 'Other'
+  }));
   
   // Group components by category for better organization
   const componentsByCategory = availableComponents.reduce((acc, component) => {

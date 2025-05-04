@@ -1,3 +1,4 @@
+import React from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -8,6 +9,7 @@ import { EmailProvider } from "@/context/EmailContext";
 import { TagProvider } from "@/context/TagContext";
 import { AppProvider } from "@/context/AppContext";
 import { DragProvider } from "./context/DragContext";
+import { ComponentProvider } from "./context/ComponentContext";
 import { SimplePanelLayout } from "./components/SimplePanelLayout";
 import { TabbedPanelLayout } from "./components/TabbedPanelLayout";
 import { AdvancedPanelLayout } from "./components/AdvancedPanelLayout";
@@ -61,7 +63,9 @@ function App() {
         <EmailProvider>
           <DragProvider>
             <TagProvider>
-              <AppContent />
+              <ComponentProvider>
+                <AppContent />
+              </ComponentProvider>
             </TagProvider>
           </DragProvider>
         </EmailProvider>

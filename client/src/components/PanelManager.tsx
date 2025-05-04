@@ -49,9 +49,23 @@ function PanelLayout({ panelId, maximizedPanelId, onMaximizePanel, onRestorePane
 
   // For panels with children (split panels)
   if (panel.direction) {
-    const childPanels = Object.values(state.panels).filter(
-      p => p.parentId === panelId
-    );
+    // Find child panels using either childPanels array or parentId reference
+    let childPanels = [];
+    
+    if (panel.childPanels && panel.childPanels.length > 0) {
+      // Use explicit child panel references if available
+      childPanels = panel.childPanels.map(childId => state.panels[childId]).filter(Boolean);
+    } else {
+      // Fall back to finding panels with this panel as parent
+      childPanels = Object.values(state.panels).filter(p => p.parentId === panelId);
+    }
+
+    console.log('Split panel rendering:', {
+      panelId,
+      direction: panel.direction,
+      childPanelIds: panel.childPanels,
+      childPanels: childPanels
+    });
 
     if (childPanels.length === 0) {
       return <div>No child panels found for split panel {panelId}</div>;

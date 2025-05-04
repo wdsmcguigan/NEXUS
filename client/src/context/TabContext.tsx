@@ -27,6 +27,7 @@ export interface Panel {
   parentId?: string; // For nested panels
   direction?: 'horizontal' | 'vertical'; // For split panels
   size?: number; // Flex size (0-100)
+  childPanels?: string[]; // For split panels containing other panels
 }
 
 // State structure
@@ -497,27 +498,57 @@ function tabReducer(state: TabState, action: TabAction): TabState {
 
       // Create a new panel with optional custom ID
       const newPanelId = options?.newPanelId || nanoid();
-      const newPanel: Panel = {
-        id: newPanelId,
+      
+      // First child panel (original tabs go here)
+      const childPanel1Id = `${panelId}-child1-${Date.now()}`;
+      const childPanel1: Panel = {
+        id: childPanel1Id,
         type: panel.type,
-        tabs: [],
-        parentId: panel.parentId,
-        direction,
+        tabs: [...panel.tabs], // Copy all tabs from original panel
+        activeTabId: panel.activeTabId,
+        parentId: panelId,
         size: 50, // Default 50% split
       };
-
-      // Update the original panel
+      
+      // Second child panel (new empty panel)
+      const childPanel2Id = `${panelId}-child2-${Date.now()}`;
+      const childPanel2: Panel = {
+        id: childPanel2Id,
+        type: panel.type,
+        tabs: [],
+        parentId: panelId,
+        size: 50, // Default 50% split
+      };
+      
+      // If positionAfter is specified, we may need to swap the panels
+      const firstChildId = options?.positionAfter ? childPanel1Id : childPanel2Id;
+      const secondChildId = options?.positionAfter ? childPanel2Id : childPanel1Id;
+      
+      // Update the original panel to be a container for the split
       const updatedPanel: Panel = {
         ...panel,
-        size: 50, // Adjust size of original panel
+        tabs: [], // Remove tabs since they're now in childPanel1
+        activeTabId: undefined, // No active tab in container panel
+        direction, // Set the split direction
+        childPanels: [firstChildId, secondChildId], // Add child panel references
       };
+
+      console.log('SPLIT_PANEL executed:', {
+        originalPanel: panel,
+        newContainer: updatedPanel,
+        child1: childPanel1,
+        child2: childPanel2,
+        direction,
+        options
+      });
 
       return {
         ...state,
         panels: {
           ...state.panels,
           [panelId]: updatedPanel,
-          [newPanelId]: newPanel,
+          [childPanel1Id]: childPanel1,
+          [childPanel2Id]: childPanel2,
         },
       };
     }

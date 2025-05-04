@@ -19,11 +19,11 @@ export function TabHeightSlider() {
       </div>
       
       <div className="flex items-center space-x-2">
-        <span className="text-xs text-neutral-400">30</span>
+        <span className="text-xs text-neutral-400">10</span>
         <input
           id="tab-height-slider"
           type="range"
-          min="30"
+          min="10"
           max="60"
           step="2"
           value={settings.tabHeight}

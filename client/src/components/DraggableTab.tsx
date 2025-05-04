@@ -176,13 +176,33 @@ export function DraggableTab({
     >
       <div className="flex items-center justify-between w-full px-4">
         <div className="flex items-center overflow-hidden">
-          {icon && <span className="mr-2 flex-shrink-0 text-blue-400">{icon}</span>}
-          <span className="truncate">{title}</span>
+          {icon && (
+            <span 
+              className="mr-2 flex-shrink-0 text-blue-400"
+              style={{ 
+                fontSize: `${Math.max(12, Math.min(20, settings.tabHeight * 0.4))}px`,
+              }}
+            >
+              {icon}
+            </span>
+          )}
+          <span 
+            className="truncate"
+            style={{ 
+              fontSize: `${Math.max(11, Math.min(16, settings.tabHeight * 0.35))}px`,
+              lineHeight: `${Math.max(14, Math.min(20, settings.tabHeight * 0.45))}px`
+            }}
+          >
+            {title}
+          </span>
         </div>
         
         {closeable && onClose && (
           <div
             className="ml-2 text-neutral-500 hover:text-white p-1 rounded-sm hover:bg-neutral-700"
+            style={{ 
+              transform: `scale(${Math.max(0.7, Math.min(1.2, settings.tabHeight * 0.02))})` 
+            }}
             onClick={(e) => {
               e.stopPropagation();
               onClose();

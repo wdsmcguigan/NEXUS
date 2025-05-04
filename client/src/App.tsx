@@ -12,8 +12,7 @@ import { SimplePanelLayout } from "./components/SimplePanelLayout";
 import { TabbedPanelLayout } from "./components/TabbedPanelLayout";
 import { AdvancedPanelLayout } from "./components/AdvancedPanelLayout";
 import { FlexibleEmailClient } from "./components/FlexibleEmailClient";
-import { useComponentRegistry, initializeComponentRegistry } from "./context/ComponentContext";
-import { useEffect } from "react";
+// Module imports
 
 function Router() {
   return (
@@ -53,17 +52,7 @@ function AppContent() {
   );
 }
 
-// Component to initialize the registry
-function ComponentInitializer() {
-  const { registerComponent } = useComponentRegistry();
-  
-  useEffect(() => {
-    // Initialize component registry with available components
-    initializeComponentRegistry(registerComponent);
-  }, [registerComponent]);
-  
-  return null;
-}
+
 
 function App() {
   return (

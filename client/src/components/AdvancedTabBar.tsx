@@ -105,6 +105,7 @@ export function AdvancedTabBar({
         ref={tabBarRef}
         className="flex overflow-x-auto overflow-y-hidden scrollbar-none"
         style={{ scrollbarWidth: 'none' }}
+        data-tabbar-id={panelId}
       >
         {tabs.map((tab, index) => (
           <DraggableTab

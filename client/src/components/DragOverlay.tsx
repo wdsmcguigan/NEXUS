@@ -177,12 +177,24 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
   const handleMouseUp = useCallback((e: MouseEvent) => {
     if (!active || !dragItem) return;
     
-    // If we have a drop target, perform the drop
+    // We need to explicitly call the onDrop handler first, then end drag
+    // This ensures the drop logic runs with the correct target before drag state is cleaned up
     if (dropTarget) {
-      onDrop(dropTarget);
+      try {
+        console.log('Processing drop in DragOverlay:', dropTarget);
+        // This will call handlePanelDrop in AdvancedPanelManager
+        onDrop(dropTarget);
+        
+        // Mark drag as completed successfully
+        endDrag(true);
+      } catch (err) {
+        console.error('Error in handleMouseUp drop handler:', err);
+        endDrag(false);
+      }
     } else {
-      // Otherwise just end the drag
-      endDrag();
+      // No valid drop target, just cancel the drag
+      console.log('No drop target found, cancelling drag');
+      endDrag(false);
     }
     
     // Reset state

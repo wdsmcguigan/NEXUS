@@ -30,7 +30,12 @@ function PanelLayout({ panelId, maximizedPanelId, onMaximizePanel, onRestorePane
   const handleSplitPanel = useCallback((direction: 'horizontal' | 'vertical') => {
     // Create a new panel ID for the split
     const newPanelId = `${panelId}-split-${Date.now()}`;
-    splitPanel(panelId, direction, { newPanelId });
+    
+    // Use the appropriate options structure for splitPanel
+    splitPanel(panelId, direction, { 
+      newPanelId: newPanelId,
+      positionAfter: direction === 'horizontal' // Position panel on right if horizontal split, bottom if vertical
+    });
   }, [panelId, splitPanel]);
   
   // Handle closing the panel

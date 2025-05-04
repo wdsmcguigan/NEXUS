@@ -52,19 +52,28 @@ export function AdvancedTabBar({
   const tabBarRef = useRef<HTMLDivElement>(null);
   const [dropZones, setDropZones] = useState<Array<{index: number, rect: DOMRect}>>([]);
   const { dragItem, isDragging, dropTarget, setDropTarget } = useDragContext();
-  const componentContext = React.useContext(ComponentContext) || {
-    components: {},
-    createComponent: () => '',
-    registerComponent: () => {},
-    unregisterComponent: () => {}
-  };
+  const componentContext = React.useContext(ComponentContext);
   
   // Get available component types for our menu
-  const availableComponents = Object.keys(componentContext.components || {}).map(id => ({
+  const availableComponents = componentContext ? Object.keys(componentContext.components).map(id => ({
     id,
-    name: (componentContext.components || {})[id]?.name || id,
-    description: (componentContext.components || {})[id]?.description || '',
-  }));
+    name: componentContext.components[id]?.name || id,
+    description: componentContext.components[id]?.description || '',
+    category: componentContext.components[id]?.category || 'Other'
+  })) : [];
+  
+  // Group components by category for better organization
+  const componentsByCategory = availableComponents.reduce((acc, component) => {
+    const category = component.category;
+    if (!acc[category]) {
+      acc[category] = [];
+    }
+    acc[category].push(component);
+    return acc;
+  }, {} as Record<string, typeof availableComponents>);
+  
+  // Sort categories
+  const sortedCategories = Object.keys(componentsByCategory).sort();
   
   // Update drop zones when tabs change or dragging starts
   useEffect(() => {
@@ -218,23 +227,33 @@ export function AdvancedTabBar({
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="bg-neutral-800 border-neutral-700 w-64 max-h-80 overflow-y-auto">
                 {availableComponents.length > 0 ? (
-                  availableComponents.map(component => (
-                    <DropdownMenuItem 
-                      key={component.id} 
-                      className="flex items-center focus:bg-neutral-700"
-                      onClick={() => onAddTab(component.id)}
-                    >
-                      <div className="mr-2 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs">
-                        {component.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm">{component.name}</span>
-                        {component.description && (
-                          <span className="text-xs text-neutral-400">{component.description}</span>
+                  <>
+                    {sortedCategories.map(category => (
+                      <React.Fragment key={category}>
+                        <div className="px-2 py-1 text-xs text-neutral-500 font-semibold">{category}</div>
+                        {componentsByCategory[category].map(component => (
+                          <DropdownMenuItem 
+                            key={component.id} 
+                            className="flex items-center focus:bg-neutral-700"
+                            onClick={() => onAddTab(component.id)}
+                          >
+                            <div className="mr-2 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs">
+                              {component.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm">{component.name}</span>
+                              {component.description && (
+                                <span className="text-xs text-neutral-400">{component.description}</span>
+                              )}
+                            </div>
+                          </DropdownMenuItem>
+                        ))}
+                        {category !== sortedCategories[sortedCategories.length - 1] && (
+                          <DropdownMenuSeparator className="bg-neutral-700 my-1" />
                         )}
-                      </div>
-                    </DropdownMenuItem>
-                  ))
+                      </React.Fragment>
+                    ))}
+                  </>
                 ) : (
                   <DropdownMenuItem disabled className="text-neutral-500">
                     No components available

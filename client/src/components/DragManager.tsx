@@ -48,41 +48,45 @@ export function DragManager() {
   const handleDrop = useCallback((target: DropTarget) => {
     if (!dragItem) return;
     
+    console.log('Processing drop in DragManager:', { target, dragItem });
+    
     // Set the current drop target (used by other components)
     setDropTarget(target);
     
-    // Only process actual drops on mouse up - the rest is preview
-    if (target.type !== 'edge') {
-      // Handle different types of drag items
-      if (dragItem.type === 'tab' && dragItem.sourcePanelId) {
-        const { id: tabId, sourcePanelId } = dragItem;
-        
-        // Handle different types of drop targets
-        switch (target.type) {
-          case 'panel':
-            // Move tab to panel
-            moveTab(tabId, sourcePanelId, target.id);
-            break;
-          case 'tabbar':
-            // Move tab to tabbar (same as panel)
-            moveTab(tabId, sourcePanelId, target.id);
-            break;
-          case 'position':
-            // Move tab to specific position
-            if (target.position) {
-              moveTab(
-                tabId, 
-                sourcePanelId, 
-                target.position.panelId, 
-                target.position.index
-              );
-            }
-            break;
-          // Edge case is handled by PanelSplitter component
-        }
-        
-        // End the drag operation for non-edge drops
-        endDrag(true);
+    // Process the drop based on target type
+    if (dragItem.type === 'tab' && dragItem.sourcePanelId) {
+      const { id: tabId, sourcePanelId } = dragItem;
+      
+      // Handle different types of drop targets
+      switch (target.type) {
+        case 'panel':
+          console.log(`Moving tab ${tabId} from panel ${sourcePanelId} to panel ${target.id}`);
+          moveTab(tabId, sourcePanelId, target.id);
+          endDrag(true); // Mark as successful drop
+          break;
+        case 'tabbar':
+          console.log(`Moving tab ${tabId} from panel ${sourcePanelId} to tabbar ${target.id}`);
+          moveTab(tabId, sourcePanelId, target.id);
+          endDrag(true); // Mark as successful drop
+          break;
+        case 'position':
+          // Move tab to specific position
+          if (target.position) {
+            console.log(`Moving tab ${tabId} from panel ${sourcePanelId} to position ${target.position.index} in panel ${target.position.panelId}`);
+            moveTab(
+              tabId, 
+              sourcePanelId, 
+              target.position.panelId, 
+              target.position.index
+            );
+            endDrag(true); // Mark as successful drop
+          }
+          break;
+        case 'edge':
+          // Let the PanelSplitter handle this
+          // Do not end drag here as it'll be handled by the PanelSplitter
+          console.log(`Edge drop detected on ${target.id} - letting PanelSplitter handle it`);
+          return;
       }
     }
   }, [dragItem, setDropTarget, moveTab, endDrag]);

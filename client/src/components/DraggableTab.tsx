@@ -66,11 +66,29 @@ export function DraggableTab({
         "select-none"
       )}
       style={{ width: `${settings.tabSize}px` }}
-      onClick={onClick}
+      onClick={(e) => {
+        // Only trigger click if not dragging
+        if (!e.defaultPrevented) {
+          onClick();
+        }
+      }}
       onMouseDown={(e) => {
-        // Middle mouse button to start drag
-        if (e.button === 0 && (e.ctrlKey || e.altKey)) {
-          handleDragStart(e);
+        // Left mouse button to start drag
+        if (e.button === 0) {
+          // Start drag operation on mouse down with a slight delay
+          // to allow for distinguishing between click and drag
+          const timer = setTimeout(() => {
+            if (e.buttons === 1) { // If button is still pressed
+              handleDragStart(e);
+            }
+          }, 150); // Small delay to distinguish from click
+          
+          // Clear timer if mouse up happens quickly (click vs. drag)
+          const clearTimer = () => {
+            clearTimeout(timer);
+            window.removeEventListener('mouseup', clearTimer);
+          };
+          window.addEventListener('mouseup', clearTimer, { once: true });
         }
       }}
       draggable="true"

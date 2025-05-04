@@ -49,12 +49,14 @@ function PanelLayout({ panelId, maximizedPanelId, onMaximizePanel, onRestorePane
           {childPanels.map((childPanel, index) => (
             <React.Fragment key={childPanel.id}>
               <ResizablePanel defaultSize={childPanel.size || 100 / childPanels.length}>
-                <PanelLayout 
-                  panelId={childPanel.id} 
-                  maximizedPanelId={maximizedPanelId}
-                  onMaximizePanel={onMaximizePanel}
-                  onRestorePanel={onRestorePanel}
-                />
+                <div data-panel-id={childPanel.id}>
+                  <PanelLayout 
+                    panelId={childPanel.id} 
+                    maximizedPanelId={maximizedPanelId}
+                    onMaximizePanel={onMaximizePanel}
+                    onRestorePanel={onRestorePanel}
+                  />
+                </div>
               </ResizablePanel>
               
               {index < childPanels.length - 1 && (

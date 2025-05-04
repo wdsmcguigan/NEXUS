@@ -54,6 +54,7 @@ export function AdvancedTabBar({
   const [dropZones, setDropZones] = useState<Array<{index: number, rect: DOMRect}>>([]);
   const { dragItem, isDragging, dropTarget, setDropTarget } = useDragContext();
   const componentRegistry = React.useContext(ComponentContext);
+  const { settings } = useAppContext();
   
   // Get available component types for our menu
   const components = componentRegistry?.components || {};
@@ -140,7 +141,14 @@ export function AdvancedTabBar({
   }, [isDragging, dragItem, dropTarget, dropZones, panelId, setDropTarget]);
   
   return (
-    <div className="flex relative h-[40px] min-h-[40px] max-h-[40px] border-b border-neutral-800 bg-neutral-900 overflow-hidden">
+    <div 
+      className="flex relative border-b border-neutral-800 bg-neutral-900 overflow-hidden"
+      style={{ 
+        height: `${settings.tabHeight}px`, 
+        minHeight: `${settings.tabHeight}px`, 
+        maxHeight: `${settings.tabHeight}px` 
+      }}
+    >
       <div 
         ref={tabBarRef}
         className="flex overflow-x-auto overflow-y-hidden scrollbar-none"
@@ -163,17 +171,21 @@ export function AdvancedTabBar({
         ))}
         
         <button
-          className="px-3 h-[40px] flex items-center text-neutral-400 hover:text-white hover:bg-neutral-800/50 shrink-0"
+          className="px-3 flex items-center text-neutral-400 hover:text-white hover:bg-neutral-800/50 shrink-0"
+          style={{ height: `${settings.tabHeight}px` }}
           onClick={() => onAddTab()}
         >
           <Plus size={16} />
         </button>
       </div>
       
-      <div className="absolute right-0 flex items-center h-[40px]">
+      <div className="absolute right-0 flex items-center" style={{ height: `${settings.tabHeight}px` }}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="px-3 h-[40px] flex items-center text-neutral-400 hover:text-white hover:bg-neutral-800/50 shrink-0">
+            <button 
+              className="px-3 flex items-center text-neutral-400 hover:text-white hover:bg-neutral-800/50 shrink-0"
+              style={{ height: `${settings.tabHeight}px` }}
+            >
               <Menu size={16} />
             </button>
           </DropdownMenuTrigger>
@@ -284,8 +296,9 @@ export function AdvancedTabBar({
       {/* Enhanced drop indicators for tab positions */}
       {isDragging && dragItem?.type === 'tab' && dropTarget?.type === 'position' && dropTarget.id.startsWith(`${panelId}-position-`) && (
         <div 
-          className="absolute h-[40px] w-2 bg-blue-500 rounded-full opacity-80 transition-all animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.8)]" 
+          className="absolute w-2 bg-blue-500 rounded-full opacity-80 transition-all animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.8)]" 
           style={{
+            height: `${settings.tabHeight}px`,
             left: dropZones[dropTarget.position?.index || 0]?.rect.left - tabBarRef.current!.getBoundingClientRect().left,
             transform: 'translateX(-50%)'
           }}

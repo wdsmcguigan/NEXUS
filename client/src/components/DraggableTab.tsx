@@ -156,13 +156,16 @@ export function DraggableTab({
     <div
       ref={tabRef}
       className={cn(
-        "flex items-center h-[40px] cursor-pointer shrink-0",
+        "flex items-center cursor-pointer shrink-0",
         isActive 
           ? "text-white bg-neutral-800 border-t-2 border-t-blue-500" 
           : "text-neutral-400 hover:text-white hover:bg-neutral-800/50 border-t-2 border-t-transparent",
         "select-none transition-colors"
       )}
-      style={{ width: `${settings.tabSize}px` }}
+      style={{ 
+        width: `${settings.tabSize}px`,
+        height: `${settings.tabHeight}px` 
+      }}
       data-tab-id={id}
       data-panel-id={panelId}
       data-tab-index={index}

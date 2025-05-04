@@ -1,382 +1,187 @@
-import React, { useState, useEffect } from 'react';
-import { Settings, Moon, Sun, Monitor, Save, Mail, Bell, Shield, PanelLeft, Users, Palette } from 'lucide-react';
-import { useAppContext, AppSettings } from '../context/AppContext';
-import { Slider } from '@/components/ui/slider';
-
-// Define mock accounts
-interface Account {
-  id: string;
-  name: string;
-  email: string;
-  type: 'personal' | 'work' | 'other';
-}
+import React from 'react';
+import { useAppContext } from '../context/AppContext';
+import { TabWidthSlider } from './TabWidthSlider';
+import { Settings, Monitor, Moon, Sun, Layout, Eye, Bell, Type, CheckSquare } from 'lucide-react';
 
 export function SettingsPanel() {
-  // Use the global app context for settings
-  const { settings: globalSettings, updateSettings, updateSetting } = useAppContext();
+  const { settings, updateSetting } = useAppContext();
   
-  // Create a local copy of settings that we can modify and save later
-  const [settings, setSettings] = useState<AppSettings>({...globalSettings});
-
-  // Sync local settings with global ones when global changes
-  useEffect(() => {
-    setSettings({...globalSettings});
-  }, [globalSettings]);
-
-  const [activeTab, setActiveTab] = useState('general');
+  const themeOptions = [
+    { value: 'light', label: 'Light', icon: <Sun size={16} /> },
+    { value: 'dark', label: 'Dark', icon: <Moon size={16} /> },
+    { value: 'system', label: 'Auto', icon: <Monitor size={16} /> }
+  ];
   
-  const [accounts, setAccounts] = useState<Account[]>([
-    { id: '1', name: 'John Doe', email: 'john@example.com', type: 'personal' },
-    { id: '2', name: 'John Doe', email: 'john.doe@work.com', type: 'work' },
-  ]);
+  const sidebarOptions = [
+    { value: 'left', label: 'Left' },
+    { value: 'right', label: 'Right' }
+  ];
   
-  const [activeAccount, setActiveAccount] = useState<string>('1');
-
-  // Handle settings changes
-  const handleSettingChange = (
-    settingName: keyof AppSettings, 
-    value: any
-  ) => {
-    setSettings(prev => ({
-      ...prev,
-      [settingName]: value
-    }));
-  };
-
-  const handleThemeChange = (theme: 'light' | 'dark' | 'system') => {
-    handleSettingChange('theme', theme);
-  };
-  
-  const handleToggle = (settingName: keyof AppSettings) => {
-    handleSettingChange(settingName, !settings[settingName]);
-  };
-
-  // Handle tab size slider change
-  const handleTabSizeChange = (value: number[]) => {
-    handleSettingChange('tabSize', value[0]);
-  };
-
-  const saveSettings = () => {
-    // Save all settings at once to global context
-    updateSettings(settings);
-    console.log('Settings saved:', settings);
-  };
-
   return (
-    <div className="h-full flex flex-col bg-neutral-900 text-white">
-      <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
-        <h2 className="font-semibold flex items-center">
-          <Settings className="mr-2" size={18} /> 
-          <span>Settings</span>
-        </h2>
-        <button
-          onClick={saveSettings}
-          className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 rounded-sm flex items-center"
-        >
-          <Save size={14} className="mr-1" />
-          Save
-        </button>
-      </div>
-      
-      <div className="flex flex-1 overflow-hidden">
-        {/* Settings navigation */}
-        <div className="w-40 border-r border-neutral-800 overflow-y-auto">
-          <nav className="p-2">
-            <button
-              className={`w-full text-left px-3 py-2 rounded-sm mb-1 flex items-center ${activeTab === 'general' ? 'bg-blue-600 text-white' : 'text-neutral-300 hover:bg-neutral-800'}`}
-              onClick={() => setActiveTab('general')}
-            >
-              <Settings size={16} className="mr-2" />
-              General
-            </button>
-            <button
-              className={`w-full text-left px-3 py-2 rounded-sm mb-1 flex items-center ${activeTab === 'accounts' ? 'bg-blue-600 text-white' : 'text-neutral-300 hover:bg-neutral-800'}`}
-              onClick={() => setActiveTab('accounts')}
-            >
-              <Users size={16} className="mr-2" />
-              Accounts
-            </button>
-            <button
-              className={`w-full text-left px-3 py-2 rounded-sm mb-1 flex items-center ${activeTab === 'appearance' ? 'bg-blue-600 text-white' : 'text-neutral-300 hover:bg-neutral-800'}`}
-              onClick={() => setActiveTab('appearance')}
-            >
-              <Palette size={16} className="mr-2" />
-              Appearance
-            </button>
-            <button
-              className={`w-full text-left px-3 py-2 rounded-sm mb-1 flex items-center ${activeTab === 'notifications' ? 'bg-blue-600 text-white' : 'text-neutral-300 hover:bg-neutral-800'}`}
-              onClick={() => setActiveTab('notifications')}
-            >
-              <Bell size={16} className="mr-2" />
-              Notifications
-            </button>
-            <button
-              className={`w-full text-left px-3 py-2 rounded-sm mb-1 flex items-center ${activeTab === 'privacy' ? 'bg-blue-600 text-white' : 'text-neutral-300 hover:bg-neutral-800'}`}
-              onClick={() => setActiveTab('privacy')}
-            >
-              <Shield size={16} className="mr-2" />
-              Privacy
-            </button>
-          </nav>
+    <div className="p-4 h-full overflow-auto thin-scrollbar bg-neutral-900 text-white">
+      <div className="max-w-3xl mx-auto">
+        <div className="flex items-center mb-6">
+          <Settings className="h-6 w-6 mr-2 text-blue-400" />
+          <h2 className="text-xl font-semibold">Settings</h2>
         </div>
         
-        {/* Settings content */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {activeTab === 'general' && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium border-b border-neutral-800 pb-2">General Settings</h3>
-              
-              <div className="space-y-2">
-                <label className="flex items-center justify-between">
-                  <span>Markdown support:</span>
-                  <input
-                    type="checkbox"
-                    checked={settings.markdownSupport}
-                    onChange={() => handleToggle('markdownSupport')}
-                    className="w-4 h-4 accent-blue-600"
-                  />
-                </label>
-                
-                <label className="flex items-center justify-between">
-                  <span>Show preview pane:</span>
-                  <input
-                    type="checkbox"
-                    checked={settings.previewPane}
-                    onChange={() => handleToggle('previewPane')}
-                    className="w-4 h-4 accent-blue-600"
-                  />
-                </label>
-                
-                <label className="flex items-center justify-between">
-                  <span>Spell check:</span>
-                  <input
-                    type="checkbox"
-                    checked={settings.spellCheck}
-                    onChange={() => handleToggle('spellCheck')}
-                    className="w-4 h-4 accent-blue-600"
-                  />
-                </label>
-                
-                <label className="flex items-center justify-between">
-                  <span>Compact mode:</span>
-                  <input
-                    type="checkbox"
-                    checked={settings.compactMode}
-                    onChange={() => handleToggle('compactMode')}
-                    className="w-4 h-4 accent-blue-600"
-                  />
-                </label>
-              </div>
-              
-              <div className="space-y-2">
-                <label className="block">
-                  <span className="block mb-1">Signature:</span>
-                  <textarea
-                    value={settings.signature}
-                    onChange={(e) => handleSettingChange('signature', e.target.value)}
-                    className="w-full bg-neutral-800 border border-neutral-700 rounded-sm p-2 text-sm"
-                    rows={3}
-                  />
-                </label>
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Appearance */}
+          <div className="bg-neutral-800 rounded-lg p-4 space-y-4">
+            <div className="flex items-center mb-2">
+              <Eye className="h-5 w-5 mr-2 text-blue-400" />
+              <h3 className="font-medium">Appearance</h3>
             </div>
-          )}
-          
-          {activeTab === 'appearance' && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium border-b border-neutral-800 pb-2">Appearance</h3>
-              
-              <div className="space-y-2">
-                <div>
-                  <span className="block mb-2">Theme:</span>
-                  <div className="flex space-x-2">
-                    <button
-                      className={`flex-1 p-3 flex flex-col items-center rounded-sm border ${settings.theme === 'light' ? 'border-blue-500 bg-blue-900/20' : 'border-neutral-700 hover:bg-neutral-800'}`}
-                      onClick={() => handleThemeChange('light')}
-                    >
-                      <Sun size={24} className="mb-2" />
-                      <span>Light</span>
-                    </button>
-                    
-                    <button
-                      className={`flex-1 p-3 flex flex-col items-center rounded-sm border ${settings.theme === 'dark' ? 'border-blue-500 bg-blue-900/20' : 'border-neutral-700 hover:bg-neutral-800'}`}
-                      onClick={() => handleThemeChange('dark')}
-                    >
-                      <Moon size={24} className="mb-2" />
-                      <span>Dark</span>
-                    </button>
-                    
-                    <button
-                      className={`flex-1 p-3 flex flex-col items-center rounded-sm border ${settings.theme === 'system' ? 'border-blue-500 bg-blue-900/20' : 'border-neutral-700 hover:bg-neutral-800'}`}
-                      onClick={() => handleThemeChange('system')}
-                    >
-                      <Monitor size={24} className="mb-2" />
-                      <span>System</span>
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="pt-2">
-                  <span className="block mb-2">Sidebar position:</span>
-                  <div className="flex space-x-2">
-                    <button
-                      className={`flex-1 p-3 flex items-center justify-center rounded-sm border ${settings.sidebarPosition === 'left' ? 'border-blue-500 bg-blue-900/20' : 'border-neutral-700 hover:bg-neutral-800'}`}
-                      onClick={() => handleSettingChange('sidebarPosition', 'left')}
-                    >
-                      <PanelLeft size={20} className="mr-2" />
-                      <span>Left</span>
-                    </button>
-                    
-                    <button
-                      className={`flex-1 p-3 flex items-center justify-center rounded-sm border ${settings.sidebarPosition === 'right' ? 'border-blue-500 bg-blue-900/20' : 'border-neutral-700 hover:bg-neutral-800'}`}
-                      onClick={() => handleSettingChange('sidebarPosition', 'right')}
-                    >
-                      <span>Right</span>
-                      <PanelLeft size={20} className="ml-2 transform rotate-180" />
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="pt-2">
-                  <div className="flex items-center justify-between mb-2">
-                    <span>Tab size:</span>
-                    <span className="text-sm text-neutral-400">{settings.tabSize}px</span>
-                  </div>
-                  <div className="px-1 py-4">
-                    <Slider
-                      defaultValue={[settings.tabSize]}
-                      value={[settings.tabSize]}
-                      min={100}
-                      max={300}
-                      step={10}
-                      onValueChange={handleTabSizeChange}
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="flex justify-between text-xs text-neutral-400 px-1">
-                    <span>Narrow</span>
-                    <span>Wide</span>
-                  </div>
-                </div>
-                
-                <label className="flex items-center justify-between pt-2">
-                  <span>Show avatars:</span>
-                  <input
-                    type="checkbox"
-                    checked={settings.showAvatars}
-                    onChange={() => handleToggle('showAvatars')}
-                    className="w-4 h-4 accent-blue-600"
-                  />
-                </label>
-              </div>
-            </div>
-          )}
-          
-          {activeTab === 'accounts' && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium border-b border-neutral-800 pb-2">Email Accounts</h3>
-              
-              <div className="space-y-2">
-                {accounts.map(account => (
-                  <div
-                    key={account.id}
-                    className={`p-3 rounded-sm border ${activeAccount === account.id ? 'border-blue-500 bg-blue-900/20' : 'border-neutral-700'}`}
-                    onClick={() => setActiveAccount(account.id)}
+            
+            {/* Theme selection */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-neutral-300">Theme</label>
+              <div className="flex space-x-2">
+                {themeOptions.map(option => (
+                  <button
+                    key={option.value}
+                    className={`flex items-center px-3 py-2 rounded ${
+                      settings.theme === option.value 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-neutral-700 text-neutral-300 hover:bg-neutral-600'
+                    }`}
+                    onClick={() => updateSetting('theme', option.value as any)}
                   >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="font-medium">{account.name}</h4>
-                        <div className="flex items-center text-sm text-neutral-400">
-                          <Mail size={14} className="mr-1" />
-                          {account.email}
-                        </div>
-                        <div className="mt-1">
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            account.type === 'work' ? 'bg-blue-900/50 text-blue-300' :
-                            account.type === 'personal' ? 'bg-green-900/50 text-green-300' :
-                            'bg-neutral-800 text-neutral-300'
-                          }`}>
-                            {account.type.charAt(0).toUpperCase() + account.type.slice(1)}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <button className="text-xs px-2 py-1 bg-neutral-800 hover:bg-neutral-700 rounded-sm">
-                          Edit
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                
-                <button className="w-full p-2 mt-2 bg-blue-600 hover:bg-blue-700 rounded-sm">
-                  Add Account
-                </button>
-              </div>
-            </div>
-          )}
-          
-          {activeTab === 'notifications' && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium border-b border-neutral-800 pb-2">Notifications</h3>
-              
-              <div className="space-y-2">
-                <label className="flex items-center justify-between">
-                  <span>Enable desktop notifications:</span>
-                  <input
-                    type="checkbox"
-                    checked={settings.enableNotifications}
-                    onChange={() => handleToggle('enableNotifications')}
-                    className="w-4 h-4 accent-blue-600"
-                  />
-                </label>
-                
-                <div className="p-3 bg-neutral-800 rounded-sm">
-                  <p className="text-sm text-neutral-300">
-                    Note: You may need to allow notifications in your browser settings for this feature to work properly.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {activeTab === 'privacy' && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium border-b border-neutral-800 pb-2">Privacy & Security</h3>
-              
-              <div className="space-y-2">
-                <div className="p-3 bg-neutral-800 rounded-sm">
-                  <h4 className="font-medium mb-2">Data Privacy</h4>
-                  <p className="text-sm text-neutral-300 mb-3">
-                    NEXUS.email prioritizes your data privacy. Your emails and personal information are encrypted and securely stored.
-                  </p>
-                  <button className="text-xs px-2 py-1 bg-neutral-700 hover:bg-neutral-600 rounded-sm">
-                    Privacy Policy
+                    {option.icon}
+                    <span className="ml-2">{option.label}</span>
                   </button>
-                </div>
-                
-                <div className="p-3 bg-neutral-800 rounded-sm">
-                  <h4 className="font-medium mb-2">Security Settings</h4>
-                  <div className="space-y-2">
-                    <button className="w-full text-sm p-2 bg-neutral-700 hover:bg-neutral-600 rounded-sm text-left">
-                      Change Password
-                    </button>
-                    <button className="w-full text-sm p-2 bg-neutral-700 hover:bg-neutral-600 rounded-sm text-left">
-                      Two-Factor Authentication
-                    </button>
-                    <button className="w-full text-sm p-2 bg-neutral-700 hover:bg-neutral-600 rounded-sm text-left">
-                      Session Management
-                    </button>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
-          )}
+            
+            {/* Sidebar position */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-neutral-300">Sidebar Position</label>
+              <div className="flex space-x-2">
+                {sidebarOptions.map(option => (
+                  <button
+                    key={option.value}
+                    className={`px-3 py-2 rounded ${
+                      settings.sidebarPosition === option.value 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-neutral-700 text-neutral-300 hover:bg-neutral-600'
+                    }`}
+                    onClick={() => updateSetting('sidebarPosition', option.value as any)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {/* Tab width */}
+            <TabWidthSlider />
+            
+            {/* Compact mode */}
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-neutral-300">Compact Mode</label>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={settings.compactMode}
+                  onChange={e => updateSetting('compactMode', e.target.checked)}
+                />
+                <div className="w-11 h-6 bg-neutral-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+            
+            {/* Show avatars */}
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-neutral-300">Show Avatars</label>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={settings.showAvatars}
+                  onChange={e => updateSetting('showAvatars', e.target.checked)}
+                />
+                <div className="w-11 h-6 bg-neutral-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+          </div>
+          
+          {/* Email Preferences */}
+          <div className="bg-neutral-800 rounded-lg p-4 space-y-4">
+            <div className="flex items-center mb-2">
+              <Bell className="h-5 w-5 mr-2 text-blue-400" />
+              <h3 className="font-medium">Email Preferences</h3>
+            </div>
+            
+            {/* Notifications */}
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-neutral-300">Enable Notifications</label>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={settings.enableNotifications}
+                  onChange={e => updateSetting('enableNotifications', e.target.checked)}
+                />
+                <div className="w-11 h-6 bg-neutral-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+            
+            {/* Markdown support */}
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-neutral-300">Markdown Support</label>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={settings.markdownSupport}
+                  onChange={e => updateSetting('markdownSupport', e.target.checked)}
+                />
+                <div className="w-11 h-6 bg-neutral-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+            
+            {/* Preview pane */}
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-neutral-300">Preview Pane</label>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={settings.previewPane}
+                  onChange={e => updateSetting('previewPane', e.target.checked)}
+                />
+                <div className="w-11 h-6 bg-neutral-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+            
+            {/* Spell check */}
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-neutral-300">Spell Check</label>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={settings.spellCheck}
+                  onChange={e => updateSetting('spellCheck', e.target.checked)}
+                />
+                <div className="w-11 h-6 bg-neutral-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+            </div>
+            
+            {/* Email signature */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-neutral-300">Email Signature</label>
+              <textarea
+                className="w-full rounded bg-neutral-700 border-none p-2 text-white"
+                rows={3}
+                value={settings.signature}
+                onChange={e => updateSetting('signature', e.target.value)}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
-export default SettingsPanel;

@@ -86,6 +86,7 @@ export function TagManager() {
 
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
   const [editingTag, setEditingTag] = useState<Partial<TagItem> | null>(null);
+  const [originalTagState, setOriginalTagState] = useState<Partial<TagItem> | null>(null);
   const [showBgColorPicker, setShowBgColorPicker] = useState(false);
   const [showTextColorPicker, setShowTextColorPicker] = useState(false);
   
@@ -123,13 +124,16 @@ export function TagManager() {
   };
 
   const startEditing = (tag: TagItem) => {
-    setEditingTagId(tag.id);
-    setEditingTag({
+    const tagCopy = {
       name: tag.name,
       color: tag.color,
       emoji: tag.emoji,
       textColor: tag.textColor
-    });
+    };
+    
+    setEditingTagId(tag.id);
+    setEditingTag(tagCopy);
+    setOriginalTagState(tagCopy);
   };
 
   const saveTagEdit = (tagId: string) => {
@@ -158,8 +162,28 @@ export function TagManager() {
   };
 
   const cancelEditing = () => {
+    // Reset to original tag state before canceling
+    if (originalTagState && editingTagId) {
+      setTags(prevTags => {
+        return prevTags.map(tag => {
+          if (tag.id === editingTagId) {
+            return { ...tag, ...originalTagState };
+          } else if (tag.children) {
+            return {
+              ...tag,
+              children: tag.children.map(child => 
+                child.id === editingTagId ? { ...child, ...originalTagState } : child
+              )
+            };
+          }
+          return tag;
+        });
+      });
+    }
+    
     setEditingTagId(null);
     setEditingTag(null);
+    setOriginalTagState(null);
     setShowBgColorPicker(false);
     setShowTextColorPicker(false);
   };
@@ -217,7 +241,7 @@ export function TagManager() {
                 >
                   {iconOptions.map(icon => (
                     <option key={icon.value} value={icon.value}>
-                      {icon.value ? `${icon.value} ${icon.label}` : 'None'}
+                      {icon.value || 'None'}
                     </option>
                   ))}
                 </select>
@@ -306,6 +330,25 @@ export function TagManager() {
                         className="flex-1 ml-2 bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs"
                       />
                     </div>
+                    <div className="flex justify-end space-x-2 mt-2">
+                      <button
+                        onClick={() => setShowBgColorPicker(false)}
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs"
+                      >
+                        OK
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowBgColorPicker(false);
+                          if (originalTagState) {
+                            setEditingTag(prev => ({ ...prev, color: originalTagState.color }));
+                          }
+                        }}
+                        className="px-3 py-1 bg-neutral-700 hover:bg-neutral-600 rounded text-xs"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -327,6 +370,25 @@ export function TagManager() {
                         onChange={e => setEditingTag(prev => ({ ...prev, textColor: e.target.value }))}
                         className="flex-1 ml-2 bg-neutral-700 border border-neutral-600 rounded px-2 py-1 text-xs"
                       />
+                    </div>
+                    <div className="flex justify-end space-x-2 mt-2">
+                      <button
+                        onClick={() => setShowTextColorPicker(false)}
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs"
+                      >
+                        OK
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowTextColorPicker(false);
+                          if (originalTagState) {
+                            setEditingTag(prev => ({ ...prev, textColor: originalTagState.textColor }));
+                          }
+                        }}
+                        className="px-3 py-1 bg-neutral-700 hover:bg-neutral-600 rounded text-xs"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   </div>
                 </div>

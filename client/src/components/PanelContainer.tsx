@@ -189,15 +189,22 @@ export function PanelContainer({
                     key={`handle-${childPanel.id}`}
                     className={
                       panelConfig.direction === 'horizontal'
-                        ? 'group w-[2px] bg-neutral-900 data-[panel-group-direction=horizontal]:hover:w-1 data-[panel-group-direction=horizontal]:hover:bg-blue-500/30 data-[panel-group-direction=horizontal]:active:bg-blue-500/60 transition-all'
-                        : 'group h-[2px] bg-neutral-900 data-[panel-group-direction=vertical]:hover:h-1 data-[panel-group-direction=vertical]:hover:bg-blue-500/30 data-[panel-group-direction=vertical]:active:bg-blue-500/60 transition-all'
+                        ? 'group flex items-center justify-center w-1.5 hover:w-2 bg-neutral-900 relative cursor-col-resize transition-all'
+                        : 'group flex items-center justify-center h-1.5 hover:h-2 bg-neutral-900 relative cursor-row-resize transition-all'
                     }
                   >
+                    {/* Visual indicator for resize handles */}
                     <div className={
                       panelConfig.direction === 'horizontal'
-                        ? 'w-full h-full bg-transparent group-hover:bg-blue-500/60 group-active:bg-blue-500/80'
-                        : 'w-full h-full bg-transparent group-hover:bg-blue-500/60 group-active:bg-blue-500/80'
-                    } />
+                        ? 'absolute left-0 right-0 w-full h-8 flex items-center justify-center pointer-events-none'
+                        : 'absolute top-0 bottom-0 h-full w-8 flex items-center justify-center pointer-events-none'
+                    }>
+                      <div className={
+                        panelConfig.direction === 'horizontal'
+                          ? 'w-[4px] h-[20px] rounded-full bg-blue-500/30 group-hover:bg-blue-500/60 group-active:bg-blue-500 transition-colors'
+                          : 'h-[4px] w-[20px] rounded-full bg-blue-500/30 group-hover:bg-blue-500/60 group-active:bg-blue-500 transition-colors'
+                      }/>
+                    </div>
                   </PanelResizeHandle>
                 );
               }

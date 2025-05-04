@@ -38,7 +38,7 @@ export function TabBar({
 }: TabBarProps) {
   return (
     <div className="flex items-center h-9 bg-neutral-950 border-b border-neutral-800">
-      <div className="flex-1 flex items-center overflow-x-auto scrollbar-none">
+      <div className="flex items-center overflow-x-auto scrollbar-none">
         {tabs.map((tab) => (
           <div
             key={tab.id}
@@ -48,7 +48,7 @@ export function TabBar({
               e.preventDefault();
             }}
             className={cn(
-              'flex items-center h-full px-3 text-xs font-medium border-r border-neutral-800 cursor-pointer select-none transition-colors',
+              'flex items-center h-full px-3 text-xs font-medium border-r border-neutral-800 cursor-pointer select-none transition-colors group',
               activeTabId === tab.id
                 ? 'bg-neutral-900 text-white'
                 : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/50'
@@ -72,17 +72,18 @@ export function TabBar({
             )}
           </div>
         ))}
-      </div>
-      
-      <div className="flex items-center">
+        
+        {/* Add tab button right after tabs */}
         <button 
           onClick={onTabAdd}
-          className="flex items-center justify-center w-7 h-full text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
+          className="flex items-center justify-center w-8 h-full text-neutral-400 hover:text-white hover:bg-neutral-900/50 border-r border-neutral-800 transition-colors"
           title="Add tab"
         >
           <PlusIcon className="w-3.5 h-3.5" />
         </button>
-        
+      </div>
+      
+      <div className="flex items-center ml-auto">
         {onMaximize && onRestore && (
           <button
             className="flex items-center justify-center w-7 h-full text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"

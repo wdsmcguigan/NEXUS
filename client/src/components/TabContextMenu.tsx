@@ -10,7 +10,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { useTabContext } from '../context/TabContext';
-import { usePanelContext } from '../context/PanelContext';
+import { usePanelContext, PanelConfig } from '../context/PanelContext';
 import { 
   Copy, 
   X, 
@@ -94,10 +94,10 @@ export function TabContextMenu({ children, tabId, panelId, title }: TabContextMe
     const tab = tabContext.state.tabs[tabId];
     if (!tab) return;
     
-    // Create a new panel config 
-    const newPanel = {
+    // Create a new panel config
+    const newPanel: PanelConfig = {
       id: newPanelId,
-      type: 'panel' as const, // Use const assertion for type safety
+      type: 'panel',
       tabs: [],
       activeTabId: undefined
     };

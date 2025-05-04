@@ -72,11 +72,16 @@ function Header() {
   );
 }
 
+// Import DebugStateView
+import { DebugStateView } from './DebugStateView';
+
 function EmailClientContent() {
   return (
     <div className="h-full w-full">
       <PanelManager />
       <DragManager />
+      {/* Add debug state view for development */}
+      {process.env.NODE_ENV === 'development' && <DebugStateView />}
     </div>
   );
 }

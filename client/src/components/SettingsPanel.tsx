@@ -5,6 +5,7 @@ import { Settings, Moon, Sun, Monitor, Save, Mail, Bell, Shield, PanelLeft, User
 interface AppSettings {
   theme: 'light' | 'dark' | 'system';
   sidebarPosition: 'left' | 'right';
+  tabSize: 'small' | 'medium' | 'large';
   showAvatars: boolean;
   compactMode: boolean;
   enableNotifications: boolean;
@@ -29,6 +30,7 @@ export function SettingsPanel() {
   const [settings, setSettings] = useState<AppSettings>({
     theme: 'dark',
     sidebarPosition: 'left',
+    tabSize: 'medium',
     showAvatars: true,
     compactMode: false,
     enableNotifications: true,
@@ -244,6 +246,32 @@ export function SettingsPanel() {
                     >
                       <span>Right</span>
                       <PanelLeft size={20} className="ml-2 transform rotate-180" />
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="pt-2">
+                  <span className="block mb-2">Tab size:</span>
+                  <div className="flex space-x-2">
+                    <button
+                      className={`flex-1 p-3 flex items-center justify-center rounded-sm border ${settings.tabSize === 'small' ? 'border-blue-500 bg-blue-900/20' : 'border-neutral-700 hover:bg-neutral-800'}`}
+                      onClick={() => handleSettingChange('tabSize', 'small')}
+                    >
+                      <span>Small</span>
+                    </button>
+                    
+                    <button
+                      className={`flex-1 p-3 flex items-center justify-center rounded-sm border ${settings.tabSize === 'medium' ? 'border-blue-500 bg-blue-900/20' : 'border-neutral-700 hover:bg-neutral-800'}`}
+                      onClick={() => handleSettingChange('tabSize', 'medium')}
+                    >
+                      <span>Medium</span>
+                    </button>
+                    
+                    <button
+                      className={`flex-1 p-3 flex items-center justify-center rounded-sm border ${settings.tabSize === 'large' ? 'border-blue-500 bg-blue-900/20' : 'border-neutral-700 hover:bg-neutral-800'}`}
+                      onClick={() => handleSettingChange('tabSize', 'large')}
+                    >
+                      <span>Large</span>
                     </button>
                   </div>
                 </div>

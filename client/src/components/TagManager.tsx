@@ -86,7 +86,31 @@ export function TagManager() {
 
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
   const [editingTag, setEditingTag] = useState<Partial<TagItem> | null>(null);
-  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [showBgColorPicker, setShowBgColorPicker] = useState(false);
+  const [showTextColorPicker, setShowTextColorPicker] = useState(false);
+  
+  // Common emoji icons for tags
+  const iconOptions = [
+    { value: '🏷️', label: 'Tag' },
+    { value: '💼', label: 'Work' },
+    { value: '🏠', label: 'Home' },
+    { value: '📋', label: 'List' },
+    { value: '⭐', label: 'Star' },
+    { value: '🔍', label: 'Search' },
+    { value: '⚠️', label: 'Warning' },
+    { value: '🔥', label: 'Urgent' },
+    { value: '⏱️', label: 'Later' },
+    { value: '🗓️', label: 'Calendar' },
+    { value: '📊', label: 'Data' },
+    { value: '📂', label: 'Folder' },
+    { value: '📝', label: 'Note' },
+    { value: '📌', label: 'Pin' },
+    { value: '💬', label: 'Chat' },
+    { value: '📧', label: 'Email' },
+    { value: '🔔', label: 'Notification' },
+    { value: '❤️', label: 'Heart' },
+    { value: '', label: 'None' },
+  ];
 
   const toggleExpand = (tagId: string) => {
     setTags(prevTags => 
@@ -135,7 +159,8 @@ export function TagManager() {
   const cancelEditing = () => {
     setEditingTagId(null);
     setEditingTag(null);
-    setShowColorPicker(false);
+    setShowBgColorPicker(false);
+    setShowTextColorPicker(false);
   };
 
   const renderTag = (tag: TagItem, level = 0) => {

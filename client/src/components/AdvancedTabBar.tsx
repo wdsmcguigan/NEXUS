@@ -98,15 +98,15 @@ export function AdvancedTabBar({
   useEffect(() => {
     if (!isDragging || !tabBarRef.current || dragItem?.type !== 'tab') return;
     
-    // Skip if we're dragging a tab from the same panel
-    if (dragItem.sourcePanelId === panelId) {
-      // Only allow internal reordering later when we support index-based moves
-      // For now, we'll just avoid setting a drop target within the same panel
-      return;
-    }
+    // Allow dragging from same panel for reordering in the future,
+    // but for now, we'll just differentiate the behavior
+    const isFromSamePanel = dragItem.sourcePanelId === panelId;
     
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
+      
+      // Skip if we're dragging something other than a tab
+      if (dragItem.type !== 'tab') return;
       
       // Check if mouse is inside the tabbar
       const tabBarRect = tabBarRef.current!.getBoundingClientRect();
@@ -118,16 +118,25 @@ export function AdvancedTabBar({
       );
       
       if (isInTabbar) {
-        // For now, we'll simplify by just allowing drops onto the tabbar
-        // Later we can enhance to support position-based tab insertion
+        // If from same panel, we could implement reordering in the future,
+        // but for now, we'll just show a different visual
+        if (isFromSamePanel) {
+          console.log('Mouse in same tabbar (reordering not yet implemented)', panelId);
+          // Do not set a drop target for same-panel drag yet
+          return;
+        }
+        
         console.log('Mouse in tabbar', panelId);
         
-        // Default to dropping in the tabbar (at the end)
+        // Set the drop target for the tabbar
         setDropTarget({
           type: 'tabbar',
           id: panelId,
           rect: tabBarRect
         });
+        
+        // We'll also start to implement position-based insertion with more visual cues
+        // This would go here based on the tab elements in dropZones
       } else if (dropTarget?.id === panelId || dropTarget?.id?.startsWith(`${panelId}-position-`)) {
         // Clear the drop target if we're not in the tabbar anymore
         setDropTarget(null);

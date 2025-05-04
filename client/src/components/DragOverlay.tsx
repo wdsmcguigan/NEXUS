@@ -478,19 +478,40 @@ function EdgeZoneIndicators({
 function DropPreview({ target }: { target: DropTarget }) {
   if (!target) return null;
   
-  // Panel edge drop preview
+  // Panel edge drop preview - used for panel splitting
   if (target.type === 'edge' && target.direction && target.rect) {
     return <SplitPreview rect={target.rect} direction={target.direction} />;
   }
   
-  // Tab position drop preview
+  // Tab position drop preview - rendered by the AdvancedTabBar component
   if (target.type === 'position' && target.position) {
-    // This is rendered by the AdvancedTabBar component
     return null;
   }
   
-  // Default: highlight the entire panel
-  if ((target.type === 'panel' || target.type === 'tabbar') && target.rect) {
+  // Tabbar drop preview - show distinct visual for dropping on tabbar (adding to existing tabs)
+  if (target.type === 'tabbar' && target.rect) {
+    return (
+      <div
+        className="fixed bg-blue-500 bg-opacity-15 border-2 border-blue-500 rounded-t z-40 pointer-events-none shadow-lg animate-pulse"
+        style={{
+          left: `${target.rect.left}px`,
+          top: `${target.rect.top}px`,
+          width: `${target.rect.width}px`,
+          height: `${target.rect.height}px`,
+          boxShadow: '0 0 15px rgba(59, 130, 246, 0.4) inset, 0 0 8px rgba(59, 130, 246, 0.4)'
+        }}
+      >
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="bg-blue-500 bg-opacity-80 text-white px-3 py-1 rounded-md text-sm font-medium shadow-sm">
+            Add to Tabs
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Panel drop preview - show distinct visual for dropping on panel content area
+  if (target.type === 'panel' && target.rect) {
     return (
       <div
         className="fixed bg-blue-500 bg-opacity-15 border-2 border-blue-500 rounded z-40 pointer-events-none shadow-lg animate-pulse"

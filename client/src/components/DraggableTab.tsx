@@ -37,6 +37,11 @@ export function DraggableTab({
     e.preventDefault();
     e.stopPropagation();
     
+    // For native drag events, cancel the HTML5 drag and use our custom one
+    if ('dataTransfer' in e) {
+      (e as React.DragEvent).dataTransfer.effectAllowed = 'move';
+    }
+    
     // Prevent double initialization
     if (dragInitiatedRef.current) {
       console.log('Drag already initiated, skipping');
@@ -50,6 +55,9 @@ export function DraggableTab({
     setTimeout(() => {
       dragInitiatedRef.current = false;
     }, 300);
+    
+    // Activate the tab when starting a drag
+    onClick();
     
     console.log(`🔹 Starting drag for tab '${title}' (${id}) from panel ${panelId}`);
     
@@ -73,6 +81,34 @@ export function DraggableTab({
       };
       
       console.log('📋 Created drag item:', dragItem);
+      
+      // Create a visual ghost element for the drag
+      const ghost = document.createElement('div');
+      ghost.classList.add('tab-ghost');
+      ghost.style.position = 'fixed';
+      ghost.style.width = `${rect.width}px`;
+      ghost.style.height = `${rect.height}px`;
+      ghost.style.backgroundColor = '#3b82f6'; // blue-500
+      ghost.style.borderRadius = '4px';
+      ghost.style.color = 'white';
+      ghost.style.display = 'flex';
+      ghost.style.alignItems = 'center';
+      ghost.style.justifyContent = 'center';
+      ghost.style.padding = '0 12px';
+      ghost.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.3)';
+      ghost.style.opacity = '0.8';
+      ghost.style.pointerEvents = 'none';
+      ghost.style.zIndex = '9999';
+      ghost.textContent = title;
+      
+      document.body.appendChild(ghost);
+      
+      // Remove the ghost after a short delay
+      setTimeout(() => {
+        if (document.body.contains(ghost)) {
+          document.body.removeChild(ghost);
+        }
+      }, 50);
       
       // Start the drag operation in the context
       startDrag(dragItem);

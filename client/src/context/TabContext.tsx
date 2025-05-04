@@ -530,17 +530,24 @@ function tabReducer(state: TabState, action: TabAction): TabState {
 
     case 'SPLIT_PANEL': {
       const { panelId, direction, options } = action.payload;
+      console.log(`🔄 [SPLIT_PANEL] START - Splitting panel ${panelId} ${direction}ly with options:`, options);
+      
       const panel = state.panels[panelId];
       
       if (!panel) {
+        console.error(`🔄 [SPLIT_PANEL] ERROR - Panel ${panelId} not found in state`);
         return state;
       }
 
       // Create a new panel with optional custom ID
       const newPanelId = options?.newPanelId || nanoid();
+      console.log(`🔄 [SPLIT_PANEL] Using panel ID for new panel: ${newPanelId}`);
+      
+      // Generate unique IDs for child panels that include a timestamp
+      const timestamp = Date.now();
       
       // First child panel (original tabs go here)
-      const childPanel1Id = `${panelId}-child1-${Date.now()}`;
+      const childPanel1Id = `${panelId}-child1-${timestamp}`;
       const childPanel1: Panel = {
         id: childPanel1Id,
         type: panel.type,
@@ -550,19 +557,28 @@ function tabReducer(state: TabState, action: TabAction): TabState {
         size: 50, // Default 50% split
       };
       
-      // Second child panel (new empty panel)
-      const childPanel2Id = `${panelId}-child2-${Date.now()}`;
+      // Second child panel (new empty panel) - this is where we'll move the tab
+      // IMPORTANT: We want to use the user-provided newPanelId here if it's available, since
+      // that's what the drag system will look for when moving tabs
+      const childPanel2Id = options?.newPanelId ? newPanelId : `${panelId}-child2-${timestamp}`;
       const childPanel2: Panel = {
         id: childPanel2Id,
         type: panel.type,
-        tabs: [],
+        tabs: [], // Start with no tabs, we'll add the dragged tab here
         parentId: panelId,
         size: 50, // Default 50% split
       };
       
+      console.log(`🔄 [SPLIT_PANEL] Second panel ID is: ${childPanel2Id} (should match newPanelId ${newPanelId} if provided)`)
+      
+      console.log(`🔄 [SPLIT_PANEL] Created child panel IDs: ${childPanel1Id} (with tabs) and ${childPanel2Id} (empty)`);
+      
       // If positionAfter is specified, we may need to swap the panels
-      const firstChildId = options?.positionAfter ? childPanel1Id : childPanel2Id;
-      const secondChildId = options?.positionAfter ? childPanel2Id : childPanel1Id;
+      const positionAfter = options?.positionAfter || false;
+      const firstChildId = positionAfter ? childPanel1Id : childPanel2Id;
+      const secondChildId = positionAfter ? childPanel2Id : childPanel1Id;
+      
+      console.log(`🔄 [SPLIT_PANEL] Panel order: ${positionAfter ? 'Original first, new second' : 'New first, original second'}`);
       
       // Update the original panel to be a container for the split
       const updatedPanel: Panel = {
@@ -573,7 +589,7 @@ function tabReducer(state: TabState, action: TabAction): TabState {
         childPanels: [firstChildId, secondChildId], // Add child panel references
       };
 
-      console.log('SPLIT_PANEL executed:', {
+      console.log('🔄 [SPLIT_PANEL] Created panel configuration:', {
         originalPanel: panel,
         newContainer: updatedPanel,
         child1: childPanel1,
@@ -581,16 +597,28 @@ function tabReducer(state: TabState, action: TabAction): TabState {
         direction,
         options
       });
-
-      return {
-        ...state,
-        panels: {
-          ...state.panels,
-          [panelId]: updatedPanel,
-          [childPanel1Id]: childPanel1,
-          [childPanel2Id]: childPanel2,
-        },
+      
+      // Make sure we're adding the proper panels and updating state correctly
+      const newPanels = {
+        ...state.panels,
+        [panelId]: updatedPanel,
       };
+      
+      // Add both child panels
+      newPanels[childPanel1Id] = childPanel1;
+      newPanels[childPanel2Id] = childPanel2;
+      
+      console.log(`🔄 [SPLIT_PANEL] Returning new state with child panels added: ${childPanel1Id}, ${childPanel2Id}`);
+      console.log(`🔄 [SPLIT_PANEL] New panel keys in state: ${Object.keys(newPanels).join(', ')}`);
+
+      const newState = {
+        ...state,
+        panels: newPanels,
+      };
+      
+      console.log(`🔄 [SPLIT_PANEL] COMPLETE - Panel split operation done`);
+      
+      return newState;
     }
 
     case 'MOVE_PANEL': {

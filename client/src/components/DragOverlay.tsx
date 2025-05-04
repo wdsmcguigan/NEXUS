@@ -121,11 +121,15 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
       
       // --- PRIORITY 2: If not over a tab bar, check for panel edges ---
       if (!foundDropTarget) {
-        edgeZones.forEach(({ rect, panelId }) => {
+        // Note: We need to convert the Map to an array first to ensure consistent iteration
+        Array.from(edgeZones.entries()).forEach(([key, { rect, panelId }]) => {
           if (foundDropTarget) return;
           
           // Skip if we're dragging from the same panel
-          if (dragItem.sourcePanelId === panelId) return;
+          if (dragItem.sourcePanelId === panelId) {
+            // console.log(`Skipping edge check for source panel: ${panelId}`);
+            return;
+          }
           
           // Check if we're in an edge zone of this panel
           const direction = detectEdgeZone(rect, newPosition.x, newPosition.y);
@@ -142,7 +146,13 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
               rect
             };
             
-            console.log(`🔷 Edge drop target: ${panelId}-${direction}`);
+            console.log(`🔷 [DRAG] Edge drop target: ${panelId}-${direction} at x=${newPosition.x}, y=${newPosition.y}`);
+            
+            // Log some helpful diagnostics
+            const edgeWidth = Math.min(rect.width, rect.height) * 0.15; // 15% of the smallest dimension
+            console.log(`🔷 [DRAG] Edge zone: width=${edgeWidth}px, rect=${rect.left},${rect.top},${rect.right},${rect.bottom}`);
+            
+            // Update the drop target
             setDropTarget(target);
           }
         });

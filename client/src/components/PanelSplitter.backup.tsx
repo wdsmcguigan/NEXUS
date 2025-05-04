@@ -23,12 +23,6 @@ export function PanelSplitter() {
     rect: DOMRect;
   } | null>(null);
   
-  // Debug counter for tracking mouse events
-  const mouseEventCounter = useRef(0);
-  
-  // Track if drag end is being processed
-  const processingDragEnd = useRef(false);
-  
   // Update split preview based on drop target
   useEffect(() => {
     if (dropTarget?.type === 'edge' && dropTarget.direction && dropTarget.rect) {
@@ -45,38 +39,26 @@ export function PanelSplitter() {
   // Handle the drop operation when a tab is dropped onto a panel edge
   const handleEdgeDrop = useCallback(() => {
     console.log('🔧 [EDGE DROP HANDLER] START - handleEdgeDrop called');
-    
-    // Prevent duplicate processing
-    if (processingDragEnd.current) {
-      console.log('🔧 [EDGE DROP HANDLER] Already processing a drag end, skipping');
-      return;
-    }
-    
-    processingDragEnd.current = true;
     console.log('🔧 [EDGE DROP HANDLER] Current state:', { dragItem, dropTarget });
     
     if (!dragItem || !dropTarget) {
       console.error('🔧 [EDGE DROP HANDLER] ERROR: Missing dragItem or dropTarget', { dragItem, dropTarget });
-      processingDragEnd.current = false;
       return;
     }
     
     if (dropTarget.type !== 'edge' || !dropTarget.direction) {
       console.error('🔧 [EDGE DROP HANDLER] ERROR: Invalid dropTarget type or missing direction', dropTarget);
-      processingDragEnd.current = false;
       return;
     }
     
     // Only handle tab drops
     if (dragItem.type !== 'tab') {
       console.error('🔧 [EDGE DROP HANDLER] ERROR: Not a tab drag operation', dragItem);
-      processingDragEnd.current = false;
       return;
     }
     
     if (!dragItem.sourcePanelId) {
       console.error('🔧 [EDGE DROP HANDLER] ERROR: Missing source panel ID', dragItem);
-      processingDragEnd.current = false;
       return;
     }
     
@@ -88,20 +70,17 @@ export function PanelSplitter() {
     // Verify panels exist
     if (!state.panels[sourcePanelId]) {
       console.error(`🔧 [EDGE DROP HANDLER] ERROR: Source panel ${sourcePanelId} not found in state`);
-      processingDragEnd.current = false;
       return;
     }
     
     if (!state.panels[targetPanelId]) {
       console.error(`🔧 [EDGE DROP HANDLER] ERROR: Target panel ${targetPanelId} not found in state`);
-      processingDragEnd.current = false;
       return;
     }
     
     // Verify tab exists
     if (!state.tabs[tabId]) {
       console.error(`🔧 [EDGE DROP HANDLER] ERROR: Tab ${tabId} not found in state`);
-      processingDragEnd.current = false;
       return;
     }
     
@@ -133,23 +112,15 @@ export function PanelSplitter() {
       // Create the panel split first
       console.log(`🔧 [EDGE DROP HANDLER] About to call splitPanel(${targetPanelId}, ${splitDirection}, { newPanelId: ${newPanelId}, positionAfter: ${positionAfter} })`);
       
-      // Store a copy of the state.panels before the split
-      const panelsBefore = {...state.panels};
-      
       // Directly call splitPanel synchronously and verify the result
       splitPanel(targetPanelId, splitDirection, {
         newPanelId,
         positionAfter
       });
       
-      // Check if the panel was actually created by comparing state
-      const panelsAfter = state.panels;
-      const panelCreated = Object.keys(panelsAfter).some(id => !panelsBefore[id] && id === newPanelId);
-      
-      console.log(`🔧 [EDGE DROP HANDLER] Panel creation result:`, {
-        created: panelCreated,
-        newPanelExists: !!state.panels[newPanelId]
-      });
+      // Check if the panel was actually created
+      console.log(`🔧 [EDGE DROP HANDLER] After splitPanel call, checking if new panel ${newPanelId} exists:`, 
+        !!state.panels[newPanelId]);
       
       if (state.panels[newPanelId]) {
         console.log(`🔧 [EDGE DROP HANDLER] Success! New panel created:`, state.panels[newPanelId]);
@@ -157,8 +128,8 @@ export function PanelSplitter() {
         console.log(`🔧 [EDGE DROP HANDLER] Panel creation may be asynchronous. Will delay tab move.`);
       }
       
-      // Add a longer delay to ensure the panel state update is processed
-      console.log(`🔧 [EDGE DROP HANDLER] Setting timeout to move tab from ${sourcePanelId} to ${newPanelId} in 250ms`);
+      // Add a slight delay to ensure the panel is created in state before moving the tab
+      console.log(`🔧 [EDGE DROP HANDLER] Setting timeout to move tab from ${sourcePanelId} to ${newPanelId} in 50ms`);
       
       setTimeout(() => {
         console.log(`🔧 [EDGE DROP HANDLER] Timeout fired. About to move tab ${tabId} to panel ${newPanelId}`);
@@ -177,25 +148,23 @@ export function PanelSplitter() {
           // End the drag operation
           console.log('🔧 [EDGE DROP HANDLER] Edge drop operation completed, ending drag');
           endDrag(true);
-          
-          // Reset processing flag
-          processingDragEnd.current = false;
         } catch (innerError) {
           console.error('🔧 [EDGE DROP HANDLER] ERROR during tab move operation:', innerError);
           endDrag(false);
-          processingDragEnd.current = false;
         }
-      }, 250); // Longer timeout for more reliability
+      }, 100); // Increased timeout for more reliability
     } catch (error) {
       console.error('🔧 [EDGE DROP HANDLER] ERROR during panel split operation:', error);
       endDrag(false);
-      processingDragEnd.current = false;
     }
     
     // Clear the split preview immediately for better visual feedback
     setSplitPreview(null);
     console.log('🔧 [EDGE DROP HANDLER] END handleEdgeDrop function');
   }, [dragItem, dropTarget, endDrag, moveTab, splitPanel, state.panels, state.tabs]);
+  
+  // Debug counter for tracking mouse events
+  const mouseEventCounter = useRef(0);
   
   // Monitor for edge drops
   useEffect(() => {
@@ -235,12 +204,12 @@ export function PanelSplitter() {
       };
       
       // Use a direct DOM approach to ensure the event is captured
-      document.addEventListener('mouseup', handleMouseUp, { once: true });
-      console.log(`🔍 [EDGE DROP DEBUG] [${eventId}] Added one-time mouseup listener to document (direct DOM)`);
+      document.body.addEventListener('mouseup', handleMouseUp, { once: true });
+      console.log(`🔍 [EDGE DROP DEBUG] [${eventId}] Added one-time mouseup listener to document.body`);
       
       return () => {
         console.log(`🔍 [EDGE DROP DEBUG] [${eventId}] Cleaning up mouseup listener for edge drop`);
-        document.removeEventListener('mouseup', handleMouseUp);
+        document.body.removeEventListener('mouseup', handleMouseUp);
       };
     } else {
       // Clear the preview if we're not over an edge

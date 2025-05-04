@@ -12,6 +12,8 @@ import { SimplePanelLayout } from "./components/SimplePanelLayout";
 import { TabbedPanelLayout } from "./components/TabbedPanelLayout";
 import { AdvancedPanelLayout } from "./components/AdvancedPanelLayout";
 import { FlexibleEmailClient } from "./components/FlexibleEmailClient";
+import { useComponentRegistry, initializeComponentRegistry } from "./context/ComponentContext";
+import { useEffect } from "react";
 
 function Router() {
   return (
@@ -42,6 +44,27 @@ function FlexibleEmailClientView() {
   return <FlexibleEmailClient />;
 }
 
+function AppContent() {
+  return (
+    <>
+      <Router />
+      <Toaster />
+    </>
+  );
+}
+
+// Component to initialize the registry
+function ComponentInitializer() {
+  const { registerComponent } = useComponentRegistry();
+  
+  useEffect(() => {
+    // Initialize component registry with available components
+    initializeComponentRegistry(registerComponent);
+  }, [registerComponent]);
+  
+  return null;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -49,8 +72,7 @@ function App() {
         <EmailProvider>
           <DragProvider>
             <TagProvider>
-              <Router />
-              <Toaster />
+              <AppContent />
             </TagProvider>
           </DragProvider>
         </EmailProvider>

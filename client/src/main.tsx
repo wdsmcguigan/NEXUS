@@ -9,11 +9,9 @@ import { initializeComponentRegistry } from "./context/ComponentContext";
 const root = createRoot(document.getElementById("root")!);
 
 root.render(
-  <EmailProvider>
-    <ShortcutProvider>
-      <ComponentProvider>
-        <App />
-      </ComponentProvider>
-    </ShortcutProvider>
-  </EmailProvider>
+  <ShortcutProvider>
+    <ComponentProvider>
+      <App />
+    </ComponentProvider>
+  </ShortcutProvider>
 );

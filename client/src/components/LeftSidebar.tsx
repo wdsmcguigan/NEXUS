@@ -1,404 +1,102 @@
-import { useState } from "react";
-import { useEmailContext } from "@/context/EmailContext";
-import { accountColors, categoryColors } from "@/lib/data";
-import { 
-  ChevronDown, 
-  ChevronRight, 
-  Tag, 
-  Settings, 
-  Plus, 
-  Inbox, 
-  Star, 
-  Send, 
-  Pencil, 
-  Trash, 
-  Archive, 
-  CheckSquare, 
-  Mail, 
-  Edit3
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { HexColorPicker } from "react-colorful";
-import { Input } from "@/components/ui/input";
-import { TagWithChildren } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
+import React from 'react';
 
-const LeftSidebar = () => {
-  const { 
-    accounts, 
-    selectedAccount, 
-    setSelectedAccount,
-    selectedMailbox,
-    setSelectedMailbox,
-    selectedCategory,
-    setSelectedCategory,
-    tags
-  } = useEmailContext();
+interface LeftSidebarProps {
+  tabId?: string;
+  [key: string]: any;
+}
 
-  const [expandedTags, setExpandedTags] = useState<Record<number, boolean>>({});
-
-  const toggleTagExpanded = (tagId: number) => {
-    setExpandedTags(prev => ({
-      ...prev,
-      [tagId]: !prev[tagId]
-    }));
-  };
-
-  // State for tag color editing
-  const [editingTag, setEditingTag] = useState<number | null>(null);
-  const [editingTagColor, setEditingTagColor] = useState<string>('#e2e8f0');
-  const [editingTagText, setEditingTagText] = useState<string>('#000000');
-  const [editingTagEmoji, setEditingTagEmoji] = useState<string>('🏷️');
-
-  // Update tag with new colors
-  const updateTagColors = async (tagId: number) => {
-    try {
-      await apiRequest('PATCH', `/api/tags/${tagId}`, {
-        bgColor: editingTagColor,
-        textColor: editingTagText,
-        emoji: editingTagEmoji
-      });
-      
-      // Close the editor after updating
-      setEditingTag(null);
-      
-      // We should refresh tags here, but for now we'll rely on the UI optimistic update
-    } catch (err) {
-      console.error('Error updating tag colors:', err);
-    }
-  };
-
-  const renderTag = (tag: TagWithChildren, isChild = false) => {
-    const hasChildren = tag.children && tag.children.length > 0;
-    const isEditing = editingTag === tag.id;
-    
-    return (
-      <div key={tag.id}>
-        <div className="flex items-center">
-          <div 
-            className={`tag-item ${isChild ? 'ml-4' : ''} flex items-center p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded cursor-pointer flex-1`}
-            onClick={() => hasChildren && toggleTagExpanded(tag.id)}
-          >
-            {hasChildren ? (
-              expandedTags[tag.id] ? (
-                <ChevronDown className="w-4 h-4 mr-1 text-neutral-500" />
-              ) : (
-                <ChevronRight className="w-4 h-4 mr-1 text-neutral-500" />
-              )
-            ) : (
-              <span 
-                className="w-5 h-5 flex items-center justify-center mr-1 rounded"
-                style={{ 
-                  backgroundColor: tag.bgColor || '#e2e8f0',
-                  color: tag.textColor || '#000000'
-                }}
-              >
-                {tag.emoji || '🏷️'}
-              </span>
-            )}
-            <span>{tag.name}</span>
-          </div>
-          
-          {/* Edit button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 rounded-full"
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditingTag(tag.id);
-              setEditingTagColor(tag.bgColor);
-              setEditingTagText(tag.textColor);
-              setEditingTagEmoji(tag.emoji || '🏷️');
+export function LeftSidebar({ tabId, ...props }: LeftSidebarProps) {
+  return (
+    <div className="h-full overflow-auto p-2 text-neutral-200">
+      <div className="px-2 py-3 text-xs font-medium uppercase tracking-wider text-neutral-400">Accounts & Labels</div>
+      <div className="space-y-0.5">
+        <div className="cursor-pointer px-2 py-1.5 text-sm rounded hover:bg-neutral-800 transition-colors">All Mail</div>
+        <div className="cursor-pointer px-2 py-1.5 text-sm rounded hover:bg-neutral-800 transition-colors">Todo</div>
+        <div className="cursor-pointer px-2 py-1.5 text-sm rounded hover:bg-neutral-800 transition-colors">Archived</div>
+        
+        <div className="flex items-center justify-between px-2 mt-6 mb-2">
+          <div className="text-xs font-medium uppercase tracking-wider text-neutral-400">Tags</div>
+          <button 
+            className="text-neutral-400 hover:text-white p-1 rounded-sm hover:bg-neutral-800 transition-colors" 
+            title="Manage Tags"
+            onClick={() => {
+              // In a real implementation, this would open the Tag Manager
+              console.log('Open Tag Manager');
             }}
           >
-            <Edit3 className="h-3.5 w-3.5" />
-          </Button>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M10.9 2.1L9.5 5.1H5C3.9 5.1 3 6 3 7.1V19.1C3 20.2 3.9 21.1 5 21.1H19C20.1 21.1 21 20.2 21 19.1V7.1C21 6 20.1 5.1 19 5.1H14.5L13.1 2.1H10.9ZM12 8.1C14.8 8.1 17 10.3 17 13.1C17 15.9 14.8 18.1 12 18.1C9.2 18.1 7 15.9 7 13.1C7 10.3 9.2 8.1 12 8.1ZM12 10.1C10.3 10.1 9 11.4 9 13.1C9 14.8 10.3 16.1 12 16.1C13.7 16.1 15 14.8 15 13.1C15 11.4 13.7 10.1 12 10.1Z" fill="currentColor"/>
+            </svg>
+          </button>
         </div>
         
-        {/* Color picker popover */}
-        {isEditing && (
-          <div className="ml-4 mt-2 p-3 bg-neutral-100 dark:bg-neutral-800 rounded-md">
-            <h4 className="font-medium text-sm mb-2">Edit Tag Appearance</h4>
-            
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-neutral-500 mb-1 block">Background Color</label>
-                <HexColorPicker 
-                  color={editingTagColor} 
-                  onChange={setEditingTagColor}
-                  className="w-full max-w-[180px] mb-1" 
-                />
-                <Input 
-                  value={editingTagColor} 
-                  onChange={(e) => setEditingTagColor(e.target.value)}
-                  className="w-full h-6 text-xs"
-                />
-              </div>
-              
-              <div>
-                <label className="text-xs text-neutral-500 mb-1 block">Text Color</label>
-                <HexColorPicker 
-                  color={editingTagText} 
-                  onChange={setEditingTagText}
-                  className="w-full max-w-[180px] mb-1" 
-                />
-                <Input 
-                  value={editingTagText} 
-                  onChange={(e) => setEditingTagText(e.target.value)}
-                  className="w-full h-6 text-xs"
-                />
-              </div>
-              
-              <div>
-                <label className="text-xs text-neutral-500 mb-1 block">Emoji</label>
-                <Input 
-                  value={editingTagEmoji} 
-                  onChange={(e) => setEditingTagEmoji(e.target.value)}
-                  className="w-full h-6 text-xs"
-                  maxLength={2}
-                />
-              </div>
-              
-              <div className="flex space-x-2 pt-1">
-                <Button
-                  size="sm"
-                  variant="default"
-                  className="h-7 text-xs"
-                  onClick={() => updateTagColors(tag.id)}
-                >
-                  Save
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs"
-                  onClick={() => setEditingTag(null)}
-                >
-                  Cancel
-                </Button>
-              </div>
+        <div className="px-2 space-y-2">
+          {/* Important Tag */}
+          <div className="group relative flex items-center">
+            <div className="h-7 px-3 py-1 text-xs font-medium rounded-md bg-green-900/30 text-green-400 cursor-pointer flex items-center justify-between w-full">
+              Important
+            </div>
+            <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button 
+                className="p-0.5 rounded hover:bg-neutral-700/50" 
+                title="Edit Tag"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('Edit Important tag');
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                </svg>
+              </button>
             </div>
           </div>
-        )}
-        
-        {hasChildren && expandedTags[tag.id] && (
-          <div>
-            {tag.children?.map(childTag => renderTag(childTag, true))}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  return (
-    <div className="w-64 bg-neutral-50 dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 flex flex-col h-full overflow-hidden">
-      {/* Account Selection */}
-      <div className="p-3">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-sm uppercase text-neutral-700 dark:text-neutral-300">Accounts</h2>
-          <Button variant="ghost" size="icon" className="text-primary hover:bg-primary/10 p-1 rounded">
-            <Plus className="h-5 w-5" />
-          </Button>
-        </div>
-        
-        <div className="space-y-1">
-          {accounts.map(account => (
-            <div
-              key={account.id}
-              className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedAccount?.id === account.id 
-                  ? 'bg-primary/15 text-primary font-medium' 
-                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
-              onClick={() => setSelectedAccount(account)}
-            >
-              <div className={`w-3 h-3 rounded-full ${accountColors[account.accountType]} mr-2`}></div>
-              {account.email}
+          
+          {/* Work Tag */}
+          <div className="group relative flex items-center">
+            <div className="h-7 px-3 py-1 text-xs font-medium rounded-md bg-blue-900/30 text-blue-400 cursor-pointer flex items-center justify-between w-full">
+              Work
             </div>
-          ))}
-        </div>
-      </div>
-      
-      {/* Mailbox Navigation */}
-      <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
-        <h2 className="font-semibold text-sm uppercase text-neutral-700 dark:text-neutral-300 mb-2">Mailboxes</h2>
-        <nav>
-          <ul className="space-y-1">
-            <li 
-              className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedMailbox === 'all' 
-                  ? 'bg-primary/15 text-primary font-medium' 
-                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
-              onClick={() => setSelectedMailbox('all')}
-            >
-              <Mail className={`w-5 h-5 mr-2 ${selectedMailbox === 'all' ? 'text-primary' : 'text-neutral-500'}`} />
-              All Mail <span className="ml-auto bg-primary text-white text-xs px-1.5 py-0.5 rounded-full">32</span>
-            </li>
-            <li 
-              className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedMailbox === 'inbox' 
-                  ? 'bg-primary/15 text-primary font-medium' 
-                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
-              onClick={() => setSelectedMailbox('inbox')}
-            >
-              <Inbox className={`w-5 h-5 mr-2 ${selectedMailbox === 'inbox' ? 'text-primary' : 'text-neutral-500'}`} />
-              Inbox <span className="ml-auto bg-primary text-white text-xs px-1.5 py-0.5 rounded-full">24</span>
-            </li>
-            <li 
-              className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedMailbox === 'todo' 
-                  ? 'bg-primary/15 text-primary font-medium' 
-                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
-              onClick={() => setSelectedMailbox('todo')}
-            >
-              <CheckSquare className={`w-5 h-5 mr-2 ${selectedMailbox === 'todo' ? 'text-primary' : 'text-neutral-500'}`} />
-              Todo <span className="ml-auto bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full">5</span>
-            </li>
-            <li 
-              className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedMailbox === 'starred' 
-                  ? 'bg-primary/15 text-primary font-medium' 
-                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
-              onClick={() => setSelectedMailbox('starred')}
-            >
-              <Star className={`w-5 h-5 mr-2 ${selectedMailbox === 'starred' ? 'text-primary' : 'text-neutral-500'}`} />
-              Starred
-            </li>
-            <li 
-              className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedMailbox === 'sent' 
-                  ? 'bg-primary/15 text-primary font-medium' 
-                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
-              onClick={() => setSelectedMailbox('sent')}
-            >
-              <Send className={`w-5 h-5 mr-2 ${selectedMailbox === 'sent' ? 'text-primary' : 'text-neutral-500'}`} />
-              Sent
-            </li>
-            <li 
-              className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedMailbox === 'drafts' 
-                  ? 'bg-primary/15 text-primary font-medium' 
-                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
-              onClick={() => setSelectedMailbox('drafts')}
-            >
-              <Pencil className={`w-5 h-5 mr-2 ${selectedMailbox === 'drafts' ? 'text-primary' : 'text-neutral-500'}`} />
-              Drafts <span className="ml-auto bg-neutral-300 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300 text-xs px-1.5 py-0.5 rounded-full">3</span>
-            </li>
-            <li 
-              className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedMailbox === 'archived' 
-                  ? 'bg-primary/15 text-primary font-medium' 
-                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
-              onClick={() => setSelectedMailbox('archived')}
-            >
-              <Archive className={`w-5 h-5 mr-2 ${selectedMailbox === 'archived' ? 'text-primary' : 'text-neutral-500'}`} />
-              Archived
-            </li>
-            <li 
-              className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedMailbox === 'trash' 
-                  ? 'bg-primary/15 text-primary font-medium' 
-                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
-              onClick={() => setSelectedMailbox('trash')}
-            >
-              <Trash className={`w-5 h-5 mr-2 ${selectedMailbox === 'trash' ? 'text-primary' : 'text-neutral-500'}`} />
-              Trash
-            </li>
-          </ul>
-        </nav>
-      </div>
-      
-      {/* Categories */}
-      <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
-        <h2 className="font-semibold text-sm uppercase text-neutral-700 dark:text-neutral-300 mb-2">Categories</h2>
-        <nav>
-          <ul className="space-y-1">
-            <li 
-              className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedCategory === 'primary' 
-                  ? 'bg-primary/15 text-primary font-medium' 
-                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
-              onClick={() => setSelectedCategory('primary')}
-            >
-              <div className="w-2 h-2 bg-primary rounded-full mr-2"></div>
-              Primary
-            </li>
-            <li 
-              className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedCategory === 'social' 
-                  ? 'bg-primary/15 text-primary font-medium' 
-                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
-              onClick={() => setSelectedCategory('social')}
-            >
-              <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-              Social <span className="ml-auto bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full">8</span>
-            </li>
-            <li 
-              className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedCategory === 'promotions' 
-                  ? 'bg-primary/15 text-primary font-medium' 
-                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
-              onClick={() => setSelectedCategory('promotions')}
-            >
-              <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2"></div>
-              Promotions <span className="ml-auto bg-yellow-500 text-white text-xs px-1.5 py-0.5 rounded-full">16</span>
-            </li>
-            <li 
-              className={`flex items-center p-2 rounded cursor-pointer ${
-                selectedCategory === 'updates' 
-                  ? 'bg-primary/15 text-primary font-medium' 
-                  : 'hover:bg-neutral-100 dark:hover:bg-neutral-800'
-              }`}
-              onClick={() => setSelectedCategory('updates')}
-            >
-              <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-              Updates <span className="ml-auto bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full">4</span>
-            </li>
-          </ul>
-        </nav>
-      </div>
-      
-      {/* Tags */}
-      <div className="p-3 border-t border-neutral-200 dark:border-neutral-800 flex-1 overflow-y-auto">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="font-semibold text-sm uppercase text-neutral-700 dark:text-neutral-300">Tags</h2>
-          <Button variant="ghost" size="icon" className="text-primary hover:bg-primary/10 p-1 rounded">
-            <Plus className="h-5 w-5" />
-          </Button>
-        </div>
-        
-        {/* Tag hierarchy */}
-        <ScrollArea className="text-sm h-[calc(100vh-450px)]">
-          <div className="pr-3">
-            {tags.map(tag => renderTag(tag))}
+            <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button 
+                className="p-0.5 rounded hover:bg-neutral-700/50" 
+                title="Edit Tag" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('Edit Work tag');
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                </svg>
+              </button>
+            </div>
           </div>
-        </ScrollArea>
-      </div>
-      
-      {/* Settings access */}
-      <div className="p-3 border-t border-neutral-200 dark:border-neutral-800">
-        <Button variant="ghost" className="w-full flex items-center p-2 hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded justify-start">
-          <Settings className="w-5 h-5 mr-2 text-neutral-500" />
-          Settings
-        </Button>
+          
+          {/* Project Tag */}
+          <div className="group relative flex items-center">
+            <div className="h-7 px-3 py-1 text-xs font-medium rounded-md bg-purple-900/30 text-purple-400 cursor-pointer flex items-center justify-between w-full">
+              Project
+            </div>
+            <div className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button 
+                className="p-0.5 rounded hover:bg-neutral-700/50" 
+                title="Edit Tag"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('Edit Project tag');
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
-};
+}
 
 export default LeftSidebar;

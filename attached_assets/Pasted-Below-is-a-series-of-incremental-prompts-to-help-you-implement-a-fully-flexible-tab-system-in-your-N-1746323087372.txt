@@ -1,0 +1,70 @@
+Below is a series of incremental prompts to help you implement a fully flexible tab system in your NEXUS.email application, where any component can be opened in any pane, with search functionality throughout.
+
+## Prompt 1: Core Tab Architecture Implementation
+
+```
+I need to implement a flexible tab architecture for my NEXUS.email application where any component can be opened within any pane. Currently, my tab system is limited with hardcoded relationships between panes and content types.
+
+Please help me create a unified tab component architecture with these features:
+
+1. **Component Registry System**:
+   - Create a registry of all available components/views that can be opened as tabs
+   - Each registry entry should include:
+     * Unique identifier
+     * Component reference
+     * Display name and icon
+     * Category (email, productivity, settings, etc.)
+     * Default configuration options
+
+2. **Tab State Management**:
+   - Implement a central tab state manager (using Context API or Redux)
+   - Track which tabs are open in which panels
+   - Maintain tab history for navigation
+   - Store tab-specific state (e.g., which email is open in an email view tab)
+
+3. **Universal Tab Component**:
+   - Create a wrapper component that can render any registered component
+   - Handle lifecycle events (mount, unmount, focus, blur)
+   - Provide consistent header/toolbar for all tabs
+   - Support tab-specific actions and keyboard shortcuts
+
+4. **Panel-Tab Connection**:
+   - Update panel architecture to accept and manage multiple tabs
+   - Handle tab ordering, activation, and closing
+   - Support drag-and-drop between panels
+
+Please provide a clean implementation focusing on the core architecture that will allow any component to be opened in any panel. Include TypeScript interfaces, context providers, and key component implementations.
+```
+
+I'd like to prioritize long-term maintainability and type safety for NEXUS.email by using TypeScript instead of JavaScript with JSDoc. Please:
+
+1. Create a proper tsconfig.json configuration optimized for React in Replit
+2. Convert the current JavaScript files to TypeScript (.ts/.tsx) starting with core components
+3. Implement proper interfaces for all data structures (tabs, panels, component registry)
+4. Address any TypeScript configuration issues in Replit that may have led to using JavaScript initially
+
+I understand this might require some initial setup and conversion time, but I believe the long-term benefits of TypeScript for this complex application will outweigh the short-term costs. Please explain any challenges you encounter during this process so I can understand any limitations in Replit's TypeScript support.
+
+
+
+## Implementation Strategy
+
+This series of prompts is designed to be used sequentially, with each building on the previous implementation. The recommended order of implementation is:
+
+1. First, implement the core tab architecture (Prompt 1)
+2. Then add the ability to open tabs in any panel (Prompt 2)
+3. Implement drag-and-drop functionality for tabs (Prompt 3)
+4. Add search functionality within tabs (Prompt 4)
+5. Build out the component registry with all your desired tab types (Prompt 5)
+6. Implement layout persistence (Prompt 6)
+7. Finally, add advanced inter-component communication (Prompt 7)
+
+This approach allows you to have working functionality at each step while progressively enhancing the system's capabilities.
+
+## Notes on Implementation
+
+- Consider using React Context or Redux for state management
+- TypeScript will be essential for maintaining type safety across this complex system
+- Look at VS Code's workbench architecture as inspiration - it handles similar concepts well
+- For drag and drop, consider libraries like react-dnd or dnd-kit
+- Each implementation step should include full consideration of accessibility and keyboard navigation

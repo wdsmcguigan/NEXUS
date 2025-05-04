@@ -3,6 +3,7 @@ import { useDragContext, DropTarget } from '../context/DragContext';
 import { useTabContext } from '../context/TabContext';
 import { DragOverlay } from './DragOverlay';
 import { PanelSplitter } from './PanelSplitter';
+import { DirectPanelDropHandler } from './DirectPanelDropHandler';
 
 /**
  * DragManager is a global component that handles drag-and-drop operations
@@ -179,6 +180,9 @@ export function DragManager() {
       
       {/* Panel splitter for edge drops with enhanced visual feedback */}
       <PanelSplitter />
+      
+      {/* New direct approach for panel edge drops */}
+      <DirectPanelDropHandler />
       
       {/* Add additional debug information if needed */}
       {process.env.NODE_ENV === 'development' && isDragging && mousePosition && (

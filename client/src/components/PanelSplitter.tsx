@@ -58,6 +58,19 @@ export function PanelSplitter() {
     // Make sure we reset the processing flag even if something fails
     const safeEndDrag = (success: boolean = false) => {
       console.log(`🔧 [EDGE DROP HANDLER] Safely ending drag (success: ${success})`);
+      
+      // Emit completion event BEFORE ending drag to ensure DragManager gets notified
+      try {
+        const completionEvent = new CustomEvent('panel-edge-drop-complete', {
+          detail: { success }
+        });
+        console.log(`🔧 [EDGE DROP HANDLER] Dispatching panel-edge-drop-complete event`);
+        document.dispatchEvent(completionEvent);
+      } catch (error) {
+        console.error('🔧 [EDGE DROP HANDLER] Error dispatching completion event:', error);
+      }
+      
+      // End the drag operation now that we've notified listeners
       endDrag(success);
       processingDragEnd.current = false;
       setSplitPreview(null);

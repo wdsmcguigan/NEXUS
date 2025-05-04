@@ -113,6 +113,21 @@ export function DragManager() {
                 'missing'
             });
             
+            // ENHANCEMENT: Add a failsafe timeout to end the drag if PanelSplitter fails to do so
+            const failsafeTimer = setTimeout(() => {
+              console.warn(`🎯 [DRAG_MGR] FAILSAFE: Ending drag after 2 second timeout - PanelSplitter may have failed`);
+              endDrag(false);
+            }, 2000);
+            
+            // Add a listener for custom panel-edge-drop-complete event
+            const handleCompletionEvent = () => {
+              console.log(`🎯 [DRAG_MGR] Received panel-edge-drop-complete event, clearing failsafe timer`);
+              clearTimeout(failsafeTimer);
+              document.removeEventListener('panel-edge-drop-complete', handleCompletionEvent);
+            };
+            
+            document.addEventListener('panel-edge-drop-complete', handleCompletionEvent, { once: true });
+            
             // Important: We need to keep the dropTarget set for PanelSplitter
             // But we don't call endDrag() here since PanelSplitter will do that
             console.log(`🎯 [DRAG_MGR] Letting PanelSplitter handle this - NOT ending drag yet`);

@@ -48,7 +48,7 @@ type TabAction =
   | { type: 'MOVE_TAB'; payload: { tabId: string; sourcePanelId: string; toPanelId: string; index?: number } }
   | { type: 'ADD_PANEL'; payload: { type: PanelType; parentId?: string; direction?: 'horizontal' | 'vertical'; size?: number } }
   | { type: 'REMOVE_PANEL'; payload: { panelId: string } }
-  | { type: 'SPLIT_PANEL'; payload: { panelId: string; direction: 'horizontal' | 'vertical' } }
+  | { type: 'SPLIT_PANEL'; payload: { panelId: string; direction: 'horizontal' | 'vertical'; options?: { newPanelId?: string; positionAfter?: boolean } } }
   | { type: 'MOVE_PANEL'; payload: { panelId: string; targetId: string; position: 'before' | 'after' | 'inside' } };
 
 // Context type
@@ -63,7 +63,7 @@ interface TabContextType {
   moveTab: (tabId: string, sourcePanelId: string, toPanelId: string, index?: number) => void;
   addPanel: (type: PanelType, parentId?: string, options?: { direction?: 'horizontal' | 'vertical', size?: number }) => string;
   removePanel: (panelId: string) => void;
-  splitPanel: (panelId: string, direction: 'horizontal' | 'vertical') => void;
+  splitPanel: (panelId: string, direction: 'horizontal' | 'vertical', options?: { newPanelId?: string; positionAfter?: boolean }) => void;
   movePanel: (panelId: string, targetId: string, position: 'before' | 'after' | 'inside') => void;
   getComponentForTab: (tabId: string) => ComponentDefinition | undefined;
   isPanelMaximized: boolean;
@@ -488,15 +488,15 @@ function tabReducer(state: TabState, action: TabAction): TabState {
     }
 
     case 'SPLIT_PANEL': {
-      const { panelId, direction } = action.payload;
+      const { panelId, direction, options } = action.payload;
       const panel = state.panels[panelId];
       
       if (!panel) {
         return state;
       }
 
-      // Create a new panel
-      const newPanelId = nanoid();
+      // Create a new panel with optional custom ID
+      const newPanelId = options?.newPanelId || nanoid();
       const newPanel: Panel = {
         id: newPanelId,
         type: panel.type,
@@ -622,10 +622,10 @@ export function TabProvider({ children }: TabProviderProps) {
     });
   }, []);
 
-  const splitPanel = useCallback((panelId: string, direction: 'horizontal' | 'vertical') => {
+  const splitPanel = useCallback((panelId: string, direction: 'horizontal' | 'vertical', options?: { newPanelId?: string; positionAfter?: boolean }) => {
     dispatch({
       type: 'SPLIT_PANEL',
-      payload: { panelId, direction },
+      payload: { panelId, direction, options },
     });
   }, []);
 

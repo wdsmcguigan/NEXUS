@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import EmailClient from "@/pages/EmailClient";
 import { EmailProvider } from "@/context/EmailContext";
+import { TagProvider } from "@/context/TagContext";
 import { SimplePanelLayout } from "./components/SimplePanelLayout";
 import { TabbedPanelLayout } from "./components/TabbedPanelLayout";
 import { AdvancedPanelLayout } from "./components/AdvancedPanelLayout";
@@ -43,8 +44,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <EmailProvider>
-        <Router />
-        <Toaster />
+        <TagProvider>
+          <Router />
+          <Toaster />
+        </TagProvider>
       </EmailProvider>
     </QueryClientProvider>
   );

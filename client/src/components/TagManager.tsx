@@ -1,88 +1,10 @@
 import React, { useState } from 'react';
 import { Tag, Plus, Edit, Trash, ChevronRight, ChevronDown } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
-
-// Define sample tag data structure for a folder-based tag system
-interface TagItem {
-  id: string;
-  name: string;
-  color: string;
-  emoji?: string;
-  textColor: string;
-  parentId?: string;
-  children?: TagItem[];
-  expanded?: boolean;
-}
+import { useTagContext, TagItem } from '../context/TagContext';
 
 export function TagManager() {
-  const [tags, setTags] = useState<TagItem[]>([
-    {
-      id: '1',
-      name: 'Work',
-      color: '#4299e1',
-      textColor: '#ffffff',
-      emoji: '💼',
-      expanded: true,
-      children: [
-        {
-          id: '1-1',
-          name: 'Meetings',
-          color: '#3182ce',
-          textColor: '#ffffff',
-          emoji: '📅',
-          parentId: '1'
-        },
-        {
-          id: '1-2',
-          name: 'Projects',
-          color: '#2b6cb0',
-          textColor: '#ffffff',
-          emoji: '📂',
-          parentId: '1'
-        }
-      ]
-    },
-    {
-      id: '2',
-      name: 'Personal',
-      color: '#48bb78',
-      textColor: '#ffffff',
-      emoji: '🏠',
-      expanded: true,
-      children: [
-        {
-          id: '2-1',
-          name: 'Family',
-          color: '#38a169',
-          textColor: '#ffffff',
-          emoji: '👪',
-          parentId: '2'
-        },
-        {
-          id: '2-2',
-          name: 'Finance',
-          color: '#2f855a',
-          textColor: '#ffffff',
-          emoji: '💰',
-          parentId: '2'
-        }
-      ]
-    },
-    {
-      id: '3',
-      name: 'Urgent',
-      color: '#f56565',
-      textColor: '#ffffff',
-      emoji: '🔥'
-    },
-    {
-      id: '4',
-      name: 'Later',
-      color: '#ed8936',
-      textColor: '#ffffff',
-      emoji: '⏱️'
-    }
-  ]);
+  const { tags, setTags, updateTag } = useTagContext();
 
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
   const [editingTag, setEditingTag] = useState<Partial<TagItem> | null>(null);
@@ -139,21 +61,20 @@ export function TagManager() {
   const saveTagEdit = (tagId: string) => {
     if (!editingTag) return;
     
-    setTags(prevTags => {
-      return prevTags.map(tag => {
-        if (tag.id === tagId) {
-          return { ...tag, ...editingTag };
-        } else if (tag.children) {
-          return {
-            ...tag,
-            children: tag.children.map(child => 
-              child.id === tagId ? { ...child, ...editingTag } : child
-            )
-          };
-        }
-        return tag;
-      });
-    });
+    // Get the current tag
+    const currentTag = tags.find(tag => tag.id === tagId) || 
+                      tags.flatMap(tag => tag.children || []).find(child => child.id === tagId);
+    
+    if (currentTag) {
+      // Create updated tag
+      const updatedTag: TagItem = {
+        ...currentTag,
+        ...editingTag
+      };
+      
+      // Update tag in the global context
+      updateTag(updatedTag);
+    }
     
     setEditingTagId(null);
     setEditingTag(null);
@@ -164,21 +85,20 @@ export function TagManager() {
   const cancelEditing = () => {
     // Reset to original tag state before canceling
     if (originalTagState && editingTagId) {
-      setTags(prevTags => {
-        return prevTags.map(tag => {
-          if (tag.id === editingTagId) {
-            return { ...tag, ...originalTagState };
-          } else if (tag.children) {
-            return {
-              ...tag,
-              children: tag.children.map(child => 
-                child.id === editingTagId ? { ...child, ...originalTagState } : child
-              )
-            };
-          }
-          return tag;
-        });
-      });
+      // Get the current tag
+      const currentTag = tags.find(tag => tag.id === editingTagId) || 
+                        tags.flatMap(tag => tag.children || []).find(child => child.id === editingTagId);
+      
+      if (currentTag) {
+        // Create restored tag with original state
+        const restoredTag: TagItem = {
+          ...currentTag,
+          ...originalTagState
+        };
+        
+        // Update tag in the global context
+        updateTag(restoredTag);
+      }
     }
     
     setEditingTagId(null);

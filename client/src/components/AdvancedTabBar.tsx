@@ -149,15 +149,28 @@ export function AdvancedTabBar({
         {isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
       </button>
       
-      {/* Drop indicators for tab positions */}
+      {/* Enhanced drop indicators for tab positions */}
       {isDragging && dragItem?.type === 'tab' && dropTarget?.type === 'position' && dropTarget.id.startsWith(`${panelId}-position-`) && (
         <div 
-          className="absolute h-[40px] w-2 bg-blue-500 rounded-full opacity-50 transition-all"
+          className="absolute h-[40px] w-2 bg-blue-500 rounded-full opacity-80 transition-all animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.8)]" 
           style={{
             left: dropZones[dropTarget.position?.index || 0]?.rect.left - tabBarRef.current!.getBoundingClientRect().left,
             transform: 'translateX(-50%)'
           }}
-        />
+        >
+          {/* Add a glow effect */}
+          <div className="absolute inset-0 bg-blue-400 blur-md opacity-50 rounded-full"></div>
+          {/* Add arrow indicators */}
+          <div className="absolute top-1 left-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-l-transparent border-r-transparent border-b-blue-500 transform -translate-x-1/2"></div>
+          <div className="absolute bottom-1 left-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-blue-500 transform -translate-x-1/2"></div>
+        </div>
+      )}
+      
+      {/* Tabbar drop indicator */}
+      {isDragging && dragItem?.type === 'tab' && dropTarget?.type === 'tabbar' && dropTarget.id === panelId && (
+        <div className="absolute inset-0 border-2 border-blue-500 border-dashed rounded-t-sm opacity-60 pointer-events-none">
+          <div className="absolute inset-0 bg-blue-500 opacity-10"></div>
+        </div>
       )}
     </div>
   );

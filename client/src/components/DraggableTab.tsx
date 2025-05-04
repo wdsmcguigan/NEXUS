@@ -32,7 +32,7 @@ export function DraggableTab({
   const tabRef = useRef<HTMLDivElement>(null);
   
   // Handle starting a drag operation
-  const handleDragStart = (e: React.MouseEvent) => {
+  const handleDragStart = (e: React.MouseEvent | React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -55,6 +55,51 @@ export function DraggableTab({
     }
   };
   
+  // Handle mouse down with better detection for drag intent
+  const handleMouseDown = (e: React.MouseEvent) => {
+    // Only start drag on left mouse button
+    if (e.button === 0) {
+      // Always allow tab click
+      onClick();
+      
+      // If modifier key is pressed or it's a direct drag event, start drag operation
+      if (e.ctrlKey || e.altKey) {
+        handleDragStart(e);
+      } else {
+        // Setup a timeout to detect if this is a drag or a click
+        const dragStartPos = { x: e.clientX, y: e.clientY };
+        
+        // Track mouse movement to detect drag intent
+        const handleMouseMove = (moveEvent: MouseEvent) => {
+          // Calculate distance moved
+          const dx = moveEvent.clientX - dragStartPos.x;
+          const dy = moveEvent.clientY - dragStartPos.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          // If moved more than 5px, consider it a drag
+          if (distance > 5) {
+            // Remove listeners
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+            
+            // Start drag
+            handleDragStart(e);
+          }
+        };
+        
+        // Clean up on mouse up
+        const handleMouseUp = () => {
+          window.removeEventListener('mousemove', handleMouseMove);
+          window.removeEventListener('mouseup', handleMouseUp);
+        };
+        
+        // Add listeners
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+      }
+    }
+  };
+  
   return (
     <div
       ref={tabRef}
@@ -66,15 +111,12 @@ export function DraggableTab({
         "select-none"
       )}
       style={{ width: `${settings.tabSize}px` }}
-      onClick={onClick}
-      onMouseDown={(e) => {
-        // Middle mouse button to start drag
-        if (e.button === 0 && (e.ctrlKey || e.altKey)) {
-          handleDragStart(e);
-        }
-      }}
+      onMouseDown={handleMouseDown}
       draggable="true"
-      onDragStart={handleDragStart}
+      onDragStart={(e) => {
+        // This is a fallback for the native drag
+        handleDragStart(e);
+      }}
     >
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center overflow-hidden">

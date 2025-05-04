@@ -58,7 +58,10 @@ export function UniversalTabPanel({
   
   // Render the tabs for this panel with fixed heights
   return (
-    <div className="flex flex-col h-full bg-neutral-950">
+    <div 
+      className="flex flex-col h-full bg-neutral-950"
+      data-panel-id={panelId} // Add data attribute for edge detection
+    >
       {/* Advanced tab bar with drag and drop */}
       <AdvancedTabBar
         tabs={tabs}
@@ -73,7 +76,10 @@ export function UniversalTabPanel({
       />
       
       {/* Content area */}
-      <div className="flex-grow overflow-auto p-0 thin-scrollbar">
+      <div 
+        className="flex-grow overflow-auto p-0 thin-scrollbar"
+        data-content-area={panelId} // Add descriptive data attribute
+      >
         {activeTabId ? (
           <RenderActiveTab tabId={activeTabId} />
         ) : (

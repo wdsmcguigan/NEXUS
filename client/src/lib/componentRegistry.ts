@@ -1,12 +1,12 @@
 import React from 'react';
-import { IconProps } from 'lucide-react';
+import { LucideIcon } from 'lucide-react';
 
 // Define the interfaces for the component registry
 export interface ComponentDefinition {
   id: string;
   displayName: string;
   category: 'email' | 'productivity' | 'settings' | 'utility' | 'tags';
-  icon?: React.FC<IconProps>;
+  icon?: LucideIcon;
   component: React.ComponentType<any>;
   defaultConfig?: Record<string, any>;
   singleton?: boolean; // If true, only one instance of this component can be open

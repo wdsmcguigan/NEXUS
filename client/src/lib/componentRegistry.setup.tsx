@@ -2,14 +2,6 @@ import React from 'react';
 import { Inbox as InboxIcon, User as UserIcon, Settings as SettingsIcon, Tag as TagIcon, Mail as MailIcon, MailOpen as MailOpenIcon, FileText as FileTextIcon, Sliders as SlidersIcon, PanelLeft as PanelLeftIcon, Folder as FolderIcon } from 'lucide-react';
 import componentRegistry, { defineComponent } from './componentRegistry';
 
-// Import your components
-import { TagManager } from '../components/TagManager';
-import { LeftSidebar } from '../components/LeftSidebar';
-import { EmailListPane } from '../components/EmailListPane';
-import { EmailDetailPane } from '../components/EmailDetailPane';
-import { RightSidebar } from '../components/RightSidebar';
-import { SettingsPanel } from '../components/SettingsPanel';
-
 // Helper types to patch missing imports
 // In a real implementation, you would import these from their respective files
 // These are placeholders until the actual components are created
@@ -42,7 +34,7 @@ export function registerComponents() {
     displayName: 'Email List',
     category: 'email',
     icon: InboxIcon,
-    component: EmailListPane || PlaceholderComponent, 
+    component: (props: ComponentProps) => <PlaceholderComponent name="Email List" />, 
     supportedPanelTypes: ['main', 'any'],
   });
 
@@ -51,7 +43,7 @@ export function registerComponents() {
     displayName: 'Email Viewer',
     category: 'email',
     icon: MailOpenIcon,
-    component: EmailDetailPane || PlaceholderComponent,
+    component: (props: ComponentProps) => <PlaceholderComponent name="Email Viewer" />,
     supportedPanelTypes: ['main', 'any'],
   });
 
@@ -61,7 +53,7 @@ export function registerComponents() {
     displayName: 'Folder Explorer',
     category: 'email',
     icon: FolderIcon,
-    component: LeftSidebar || PlaceholderComponent,
+    component: (props: ComponentProps) => <PlaceholderComponent name="Folder Explorer" />,
     supportedPanelTypes: ['sidebar', 'any'],
   });
 
@@ -70,7 +62,7 @@ export function registerComponents() {
     displayName: 'Contact Details',
     category: 'email',
     icon: UserIcon,
-    component: RightSidebar || PlaceholderComponent,
+    component: (props: ComponentProps) => <PlaceholderComponent name="Contact Details" />,
     supportedPanelTypes: ['sidebar', 'any'],
   });
 
@@ -80,7 +72,7 @@ export function registerComponents() {
     displayName: 'Tag Manager',
     category: 'tags',
     icon: TagIcon,
-    component: TagManager,
+    component: (props: ComponentProps) => <PlaceholderComponent name="Tag Manager" />,
     supportedPanelTypes: ['any'],
   });
 
@@ -90,7 +82,7 @@ export function registerComponents() {
     displayName: 'Settings',
     category: 'settings',
     icon: SettingsIcon,
-    component: SettingsPanel || PlaceholderComponent,
+    component: (props: ComponentProps) => <PlaceholderComponent name="Settings" />,
     supportedPanelTypes: ['main', 'bottom', 'any'],
   });
 

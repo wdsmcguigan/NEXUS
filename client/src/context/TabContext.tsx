@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useCallback, ReactNode } from 'react';
 import { nanoid } from 'nanoid';
+import { LucideIcon } from 'lucide-react';
 import componentRegistry, { ComponentDefinition } from '../lib/componentRegistry';
 
 // Define the types for tab state

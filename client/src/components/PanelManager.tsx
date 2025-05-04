@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ResizablePanel, ResizablePanelGroup, ResizeHandle } from '@/components/ui/resizable';
+import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
 import { useTabContext, Panel as PanelType } from '../context/TabContext';
 import { UniversalTabPanel } from './UniversalTabPanel';
 import { ComponentSelector } from './ComponentSelector';
@@ -58,7 +58,7 @@ function PanelLayout({ panelId, maximizedPanelId, onMaximizePanel, onRestorePane
               </ResizablePanel>
               
               {index < childPanels.length - 1 && (
-                <ResizeHandle withHandle />
+                <ResizableHandle withHandle />
               )}
             </React.Fragment>
           ))}
@@ -129,7 +129,7 @@ export function PanelManager() {
           />
         </ResizablePanel>
         
-        <ResizeHandle withHandle />
+        <ResizableHandle withHandle />
         
         {/* Main Content Area */}
         <ResizablePanel defaultSize={60}>
@@ -144,7 +144,7 @@ export function PanelManager() {
               />
             </ResizablePanel>
             
-            <ResizeHandle withHandle />
+            <ResizableHandle withHandle />
             
             {/* Bottom Panel */}
             <ResizablePanel defaultSize={30} className="bg-neutral-900">
@@ -158,7 +158,7 @@ export function PanelManager() {
           </ResizablePanelGroup>
         </ResizablePanel>
         
-        <ResizeHandle withHandle />
+        <ResizableHandle withHandle />
         
         {/* Right Sidebar */}
         <ResizablePanel defaultSize={20} minSize={15} maxSize={30} className="bg-neutral-900">

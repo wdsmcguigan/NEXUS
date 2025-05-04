@@ -27,17 +27,28 @@ export interface DropTarget {
   rect?: DOMRect;
 }
 
+// Configuration for edge detection
+export interface EdgeDetectionConfig {
+  edgeThreshold: number; // Percentage of panel size to consider as edge zone (e.g., 20 for 20%)
+}
+
 export interface DragContextType {
   // Current drag state
   isDragging: boolean;
   dragItem: DragItem | null;
   dragOperation: DragOperation;
   dropTarget: DropTarget | null;
+  mousePosition: { x: number, y: number } | null;
   
   // Methods for drag operations
   startDrag: (item: DragItem, operation?: DragOperation) => void;
   endDrag: (dropped?: boolean) => void;
   setDropTarget: (target: DropTarget | null) => void;
+  updateMousePosition: (x: number, y: number) => void;
+  
+  // Edge detection
+  edgeDetection: EdgeDetectionConfig;
+  detectEdgeZone: (rect: DOMRect, x: number, y: number) => DropDirection | null;
   
   // Keyboard modifiers
   isShiftPressed: boolean;
@@ -56,6 +67,12 @@ export function DragProvider({ children }: { children: ReactNode }) {
   const [dragItem, setDragItem] = useState<DragItem | null>(null);
   const [dragOperation, setDragOperation] = useState<DragOperation>('move');
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  const [mousePosition, setMousePosition] = useState<{ x: number, y: number } | null>(null);
+  
+  // Edge detection configuration
+  const edgeDetection: EdgeDetectionConfig = {
+    edgeThreshold: 20 // 20% of panel size as edge detection zone
+  };
   
   // Keyboard modifiers
   const [isShiftPressed, setIsShiftPressed] = useState(false);
@@ -74,10 +91,45 @@ export function DragProvider({ children }: { children: ReactNode }) {
   const endDrag = useCallback((dropped: boolean = false) => {
     setIsDragging(false);
     setDragItem(null);
+    setMousePosition(null);
     if (!dropped) {
       setDropTarget(null);
     }
   }, []);
+  
+  // Method to update mouse position
+  const updateMousePosition = useCallback((x: number, y: number) => {
+    setMousePosition({ x, y });
+  }, []);
+  
+  // Method to detect which edge zone the mouse is in
+  const detectEdgeZone = useCallback((rect: DOMRect, x: number, y: number): DropDirection | null => {
+    // Calculate edge thresholds based on panel dimensions
+    const edgeSize = Math.min(rect.width, rect.height) * (edgeDetection.edgeThreshold / 100);
+    
+    // Get mouse position relative to the panel
+    const relX = x - rect.left;
+    const relY = y - rect.top;
+    
+    // Determine if the mouse is within the panel
+    if (relX < 0 || relX > rect.width || relY < 0 || relY > rect.height) {
+      return null;
+    }
+    
+    // Check if mouse is in an edge zone
+    if (relX < edgeSize) {
+      return 'left';
+    } else if (relX > rect.width - edgeSize) {
+      return 'right';
+    } else if (relY < edgeSize) {
+      return 'top';
+    } else if (relY > rect.height - edgeSize) {
+      return 'bottom';
+    }
+    
+    // Not in any edge zone
+    return null;
+  }, [edgeDetection.edgeThreshold]);
   
   // Method to update keyboard modifiers
   const setModifiers = useCallback((shift: boolean, alt: boolean, ctrl: boolean) => {
@@ -117,9 +169,13 @@ export function DragProvider({ children }: { children: ReactNode }) {
     dragItem,
     dragOperation,
     dropTarget,
+    mousePosition,
     startDrag,
     endDrag,
     setDropTarget,
+    updateMousePosition,
+    edgeDetection,
+    detectEdgeZone,
     isShiftPressed,
     isAltPressed,
     isCtrlPressed,

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { useDragContext, DropTarget } from '../context/DragContext';
 import { useTabContext } from '../context/TabContext';
 import { DragOverlay } from './DragOverlay';
@@ -16,7 +16,9 @@ export function DragManager() {
     dragOperation, 
     dropTarget,
     setDropTarget, 
-    endDrag 
+    endDrag,
+    updateMousePosition,
+    mousePosition
   } = useDragContext();
   
   const { moveTab } = useTabContext();
@@ -24,60 +26,66 @@ export function DragManager() {
   // Ref to track the drag preview element
   const dragPreviewRef = useRef<HTMLDivElement>(null);
   
-  // Handle the drop operation
-  const handleDrop = (target: DropTarget) => {
-    if (!dragItem) return;
+  // Handle updating mouse position
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging) return;
     
-    // Handle different types of drag items
-    if (dragItem.type === 'tab' && dragItem.sourcePanelId) {
-      const { id: tabId, sourcePanelId } = dragItem;
-      
-      // Handle different types of drop targets
-      switch (target.type) {
-        case 'panel':
-          // Move tab to panel
-          moveTab(tabId, sourcePanelId, target.id);
-          break;
-        case 'tabbar':
-          // Move tab to tabbar (same as panel)
-          moveTab(tabId, sourcePanelId, target.id);
-          break;
-        case 'position':
-          // Move tab to specific position
-          if (target.position) {
-            moveTab(
-              tabId, 
-              sourcePanelId, 
-              target.position.panelId, 
-              target.position.index
-            );
-          }
-          break;
-        // Edge case is handled by PanelSplitter component
-      }
-    }
-    
-    // End the drag operation
-    endDrag(true);
-  };
+    updateMousePosition(e.clientX, e.clientY);
+  }, [isDragging, updateMousePosition]);
   
-  // Update drag preview position on mouse move
+  // Set up mouse move tracking
   useEffect(() => {
-    if (!isDragging || !dragPreviewRef.current) return;
-    
-    const handleMouseMove = (e: MouseEvent) => {
-      if (dragPreviewRef.current) {
-        dragPreviewRef.current.style.left = `${e.clientX}px`;
-        dragPreviewRef.current.style.top = `${e.clientY}px`;
-      }
-    };
-    
-    window.addEventListener('mousemove', handleMouseMove);
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove, { passive: true });
+    }
     
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
     };
-  }, [isDragging]);
+  }, [isDragging, handleMouseMove]);
+  
+  // Handle the drop operation
+  const handleDrop = useCallback((target: DropTarget) => {
+    if (!dragItem) return;
+    
+    // Set the current drop target (used by other components)
+    setDropTarget(target);
+    
+    // Only process actual drops on mouse up - the rest is preview
+    if (target.type !== 'edge') {
+      // Handle different types of drag items
+      if (dragItem.type === 'tab' && dragItem.sourcePanelId) {
+        const { id: tabId, sourcePanelId } = dragItem;
+        
+        // Handle different types of drop targets
+        switch (target.type) {
+          case 'panel':
+            // Move tab to panel
+            moveTab(tabId, sourcePanelId, target.id);
+            break;
+          case 'tabbar':
+            // Move tab to tabbar (same as panel)
+            moveTab(tabId, sourcePanelId, target.id);
+            break;
+          case 'position':
+            // Move tab to specific position
+            if (target.position) {
+              moveTab(
+                tabId, 
+                sourcePanelId, 
+                target.position.panelId, 
+                target.position.index
+              );
+            }
+            break;
+          // Edge case is handled by PanelSplitter component
+        }
+        
+        // End the drag operation for non-edge drops
+        endDrag(true);
+      }
+    }
+  }, [dragItem, setDropTarget, moveTab, endDrag]);
   
   // Handle keyboard shortcuts during drag
   useEffect(() => {
@@ -97,7 +105,6 @@ export function DragManager() {
     };
   }, [isDragging, endDrag]);
   
-  // Detect edge cases
   return (
     <>
       {/* Visual drag overlay with drop zone highlighting */}
@@ -106,10 +113,21 @@ export function DragManager() {
         onDrop={handleDrop} 
       />
       
-      {/* Panel splitter for edge drops */}
+      {/* Panel splitter for edge drops with enhanced visual feedback */}
       <PanelSplitter />
       
-      {/* Visual custom drag preview - rendered by DragOverlay component */}
+      {/* Add additional debug information if needed */}
+      {process.env.NODE_ENV === 'development' && isDragging && mousePosition && (
+        <div 
+          className="fixed top-2 left-2 bg-neutral-900 bg-opacity-80 text-xs text-white p-2 rounded z-50 pointer-events-none"
+        >
+          <div>Dragging: {dragItem?.type} ({dragItem?.id})</div>
+          <div>Operation: {dragOperation}</div>
+          <div>Position: {mousePosition.x.toFixed(0)}x{mousePosition.y.toFixed(0)}</div>
+          <div>Target: {dropTarget?.type} {dropTarget?.id?.substring(0, 6)}</div>
+          {dropTarget?.direction && <div>Direction: {dropTarget.direction}</div>}
+        </div>
+      )}
     </>
   );
 }

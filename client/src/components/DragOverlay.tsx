@@ -17,18 +17,79 @@ interface DragOverlayProps {
 export function DragOverlay({ active, onDrop }: DragOverlayProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
-  const { dragItem, endDrag, dropTarget } = useDragContext();
+  const { 
+    dragItem, 
+    endDrag, 
+    dropTarget, 
+    updateMousePosition, 
+    detectEdgeZone 
+  } = useDragContext();
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [edgeZones, setEdgeZones] = useState<Map<string, { rect: DOMRect, panelId: string }>>(new Map());
+  const [activeEdgeZone, setActiveEdgeZone] = useState<{
+    panelId: string, 
+    direction: DropDirection
+  } | null>(null);
+  
+  // Detect edge zones on page
+  useEffect(() => {
+    if (!active || !dragItem) return;
+    
+    // Get all panels on the page
+    const panels = document.querySelectorAll('[data-panel-id]');
+    const newEdgeZones = new Map();
+    
+    panels.forEach(panel => {
+      const panelId = panel.getAttribute('data-panel-id');
+      if (panelId) {
+        const rect = panel.getBoundingClientRect();
+        newEdgeZones.set(panelId, { rect, panelId });
+      }
+    });
+    
+    setEdgeZones(newEdgeZones);
+  }, [active, dragItem]);
   
   // Handle mouse movements during drag
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!active || !dragItem) return;
     
-    setMousePosition({
+    const newPosition = {
       x: e.clientX,
       y: e.clientY
+    };
+    
+    setMousePosition(newPosition);
+    updateMousePosition(newPosition.x, newPosition.y);
+    
+    // Check for edge zones
+    let foundEdgeZone = false;
+    
+    edgeZones.forEach(({ rect, panelId }) => {
+      const direction = detectEdgeZone(rect, newPosition.x, newPosition.y);
+      
+      if (direction) {
+        foundEdgeZone = true;
+        setActiveEdgeZone({ panelId, direction });
+        
+        // Update drop target with edge information
+        const target: DropTarget = {
+          type: 'edge',
+          id: panelId,
+          direction,
+          rect
+        };
+        
+        // Set the drop target
+        onDrop(target);
+      }
     });
-  }, [active, dragItem]);
+    
+    // Reset if not in any edge zone
+    if (!foundEdgeZone && activeEdgeZone) {
+      setActiveEdgeZone(null);
+    }
+  }, [active, dragItem, edgeZones, detectEdgeZone, activeEdgeZone, updateMousePosition, onDrop]);
   
   // Handle mouse up to end drag
   const handleMouseUp = useCallback((e: MouseEvent) => {
@@ -41,6 +102,9 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
       // Otherwise just end the drag
       endDrag();
     }
+    
+    // Reset state
+    setActiveEdgeZone(null);
   }, [active, dragItem, dropTarget, endDrag, onDrop]);
   
   // Add/remove event listeners
@@ -70,13 +134,24 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
         {/* Fullscreen transparent overlay */}
         <div 
           ref={overlayRef}
-          className="fixed inset-0 z-50 bg-transparent cursor-grabbing"
+          className="fixed inset-0 z-50 bg-neutral-950 bg-opacity-10 cursor-grabbing"
         />
+        
+        {/* Edge zone indicators - render for all panels */}
+        {Array.from(edgeZones.values()).map(({ rect, panelId }) => (
+          <EdgeZoneIndicators 
+            key={panelId}
+            rect={rect} 
+            panelId={panelId}
+            isActive={activeEdgeZone?.panelId === panelId}
+            activeDirection={activeEdgeZone?.direction}
+          />
+        ))}
         
         {/* Tab drag preview */}
         <div
           ref={previewRef}
-          className="fixed z-50 px-4 flex items-center h-[40px] bg-neutral-800 border-t-2 border-t-blue-500 shadow-lg rounded opacity-70 pointer-events-none"
+          className="fixed z-50 px-4 flex items-center h-[40px] bg-neutral-800 border-t-2 border-t-blue-500 shadow-lg rounded opacity-80 pointer-events-none animate-pulse"
           style={{
             left: `${mousePosition.x}px`,
             top: `${mousePosition.y}px`,
@@ -104,6 +179,94 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
       ref={overlayRef}
       className="fixed inset-0 z-50 bg-black bg-opacity-10 cursor-grabbing"
     />
+  );
+}
+
+// Edge zone indicators component
+function EdgeZoneIndicators({ 
+  rect, 
+  panelId, 
+  isActive,
+  activeDirection
+}: { 
+  rect: DOMRect, 
+  panelId: string,
+  isActive: boolean,
+  activeDirection?: DropDirection
+}) {
+  // Calculate edge zone sizes (20% of panel dimension)
+  const edgeSize = Math.min(rect.width, rect.height) * 0.2;
+  
+  return (
+    <>
+      {/* Top edge zone */}
+      <div 
+        className={`fixed z-40 pointer-events-none transition-all duration-200 ${
+          isActive && activeDirection === 'top' 
+            ? 'bg-blue-500 bg-opacity-30 border-blue-500' 
+            : 'bg-blue-500 bg-opacity-0 border-blue-500 border-opacity-0 hover:bg-opacity-5 hover:border-opacity-20'
+        } border-2`}
+        style={{
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: edgeSize,
+          borderWidth: isActive && activeDirection === 'top' ? '2px' : '0px'
+        }}
+        data-edge-zone={`${panelId}-top`}
+      />
+      
+      {/* Right edge zone */}
+      <div 
+        className={`fixed z-40 pointer-events-none transition-all duration-200 ${
+          isActive && activeDirection === 'right'
+            ? 'bg-blue-500 bg-opacity-30 border-blue-500' 
+            : 'bg-blue-500 bg-opacity-0 border-blue-500 border-opacity-0 hover:bg-opacity-5 hover:border-opacity-20'
+        } border-2`}
+        style={{
+          right: window.innerWidth - rect.right,
+          top: rect.top,
+          width: edgeSize,
+          height: rect.height,
+          borderWidth: isActive && activeDirection === 'right' ? '2px' : '0px'
+        }}
+        data-edge-zone={`${panelId}-right`}
+      />
+      
+      {/* Bottom edge zone */}
+      <div 
+        className={`fixed z-40 pointer-events-none transition-all duration-200 ${
+          isActive && activeDirection === 'bottom'
+            ? 'bg-blue-500 bg-opacity-30 border-blue-500' 
+            : 'bg-blue-500 bg-opacity-0 border-blue-500 border-opacity-0 hover:bg-opacity-5 hover:border-opacity-20'
+        } border-2`}
+        style={{
+          left: rect.left,
+          bottom: window.innerHeight - rect.bottom,
+          width: rect.width,
+          height: edgeSize,
+          borderWidth: isActive && activeDirection === 'bottom' ? '2px' : '0px'
+        }}
+        data-edge-zone={`${panelId}-bottom`}
+      />
+      
+      {/* Left edge zone */}
+      <div 
+        className={`fixed z-40 pointer-events-none transition-all duration-200 ${
+          isActive && activeDirection === 'left'
+            ? 'bg-blue-500 bg-opacity-30 border-blue-500' 
+            : 'bg-blue-500 bg-opacity-0 border-blue-500 border-opacity-0 hover:bg-opacity-5 hover:border-opacity-20'
+        } border-2`}
+        style={{
+          left: rect.left,
+          top: rect.top,
+          width: edgeSize,
+          height: rect.height,
+          borderWidth: isActive && activeDirection === 'left' ? '2px' : '0px'
+        }}
+        data-edge-zone={`${panelId}-left`}
+      />
+    </>
   );
 }
 

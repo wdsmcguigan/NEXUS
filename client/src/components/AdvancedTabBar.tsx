@@ -1,7 +1,19 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Plus, Maximize2, Minimize2 } from 'lucide-react';
+import { Plus, MoreVertical, Menu, Maximize2, Minimize2 } from 'lucide-react';
 import { DraggableTab } from './DraggableTab';
 import { useDragContext, DropTarget } from '../context/DragContext';
+import { ComponentContext } from '../context/ComponentContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuShortcut,
+} from './ui/dropdown-menu';
 
 interface Tab {
   id: string;
@@ -36,6 +48,19 @@ export function AdvancedTabBar({
   const tabBarRef = useRef<HTMLDivElement>(null);
   const [dropZones, setDropZones] = useState<Array<{index: number, rect: DOMRect}>>([]);
   const { dragItem, isDragging, dropTarget, setDropTarget } = useDragContext();
+  const componentContext = React.useContext(ComponentContext) || {
+    components: {},
+    createComponent: () => '',
+    registerComponent: () => {},
+    unregisterComponent: () => {}
+  };
+  
+  // Get available component types for our menu
+  const availableComponents = Object.keys(componentContext.components || {}).map(id => ({
+    id,
+    name: (componentContext.components || {})[id]?.name || id,
+    description: (componentContext.components || {})[id]?.description || '',
+  }));
   
   // Update drop zones when tabs change or dragging starts
   useEffect(() => {
@@ -130,12 +155,99 @@ export function AdvancedTabBar({
         </button>
       </div>
       
-      <button
-        className="absolute right-0 px-3 h-[40px] flex items-center text-neutral-400 hover:text-white hover:bg-neutral-800/50 shrink-0"
-        onClick={onViewToggle}
-      >
-        {isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-      </button>
+      <div className="absolute right-0 flex items-center h-[40px]">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="px-3 h-[40px] flex items-center text-neutral-400 hover:text-white hover:bg-neutral-800/50 shrink-0">
+              <Menu size={16} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="bg-neutral-800 border-neutral-700 min-w-48">
+            {/* View commands */}
+            <DropdownMenuItem 
+              className="flex items-center focus:bg-neutral-700"
+              onClick={onViewToggle}
+            >
+              {isMaximized ? (
+                <>
+                  <Minimize2 size={16} className="mr-2 text-neutral-400" />
+                  <span>Restore panel</span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 size={16} className="mr-2 text-neutral-400" />
+                  <span>Maximize panel</span>
+                </>
+              )}
+              <DropdownMenuShortcut>⌘↑</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            
+            <DropdownMenuSeparator className="bg-neutral-700" />
+            
+            {/* Split commands */}
+            <DropdownMenuItem className="flex items-center focus:bg-neutral-700">
+              <Menu size={16} className="mr-2 text-neutral-400" />
+              <span>Split horizontally</span>
+              <DropdownMenuShortcut>⌘H</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            
+            <DropdownMenuItem className="flex items-center focus:bg-neutral-700">
+              <Menu size={16} className="mr-2 rotate-90 text-neutral-400" />
+              <span>Split vertically</span>
+              <DropdownMenuShortcut>⌘V</DropdownMenuShortcut>
+            </DropdownMenuItem>
+            
+            <DropdownMenuSeparator className="bg-neutral-700" />
+            
+            {/* Add component section */}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="flex items-center focus:bg-neutral-700">
+                <Plus size={16} className="mr-2 text-neutral-400" />
+                <span>Add component</span>
+                <DropdownMenuShortcut>→</DropdownMenuShortcut>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="bg-neutral-800 border-neutral-700 w-64 max-h-80 overflow-y-auto">
+                {availableComponents.length > 0 ? (
+                  availableComponents.map(component => (
+                    <DropdownMenuItem 
+                      key={component.id} 
+                      className="flex items-center focus:bg-neutral-700"
+                      onClick={() => onAddTab()}
+                    >
+                      <div className="mr-2 w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs">
+                        {component.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm">{component.name}</span>
+                        {component.description && (
+                          <span className="text-xs text-neutral-400">{component.description}</span>
+                        )}
+                      </div>
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <DropdownMenuItem disabled className="text-neutral-500">
+                    No components available
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            
+            <DropdownMenuSeparator className="bg-neutral-700" />
+            
+            {/* Close panel */}
+            <DropdownMenuItem 
+              className="flex items-center text-red-400 focus:bg-neutral-700"
+            >
+              <div className="mr-2 w-4 h-4 rounded-full border border-red-400 flex items-center justify-center">
+                <span className="text-red-400 text-xs">×</span>
+              </div>
+              <span>Close panel</span>
+              <DropdownMenuShortcut>⌘W</DropdownMenuShortcut>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       
       {/* Enhanced drop indicators for tab positions */}
       {isDragging && dragItem?.type === 'tab' && dropTarget?.type === 'position' && dropTarget.id.startsWith(`${panelId}-position-`) && (

@@ -45,7 +45,7 @@ type TabAction =
   | { type: 'ACTIVATE_TAB'; payload: { tabId: string; panelId: string } }
   | { type: 'UPDATE_TAB_PROPS'; payload: { tabId: string; props: any } }
   | { type: 'RENAME_TAB'; payload: { tabId: string; title: string } }
-  | { type: 'MOVE_TAB'; payload: { tabId: string; toPanelId: string; index?: number } }
+  | { type: 'MOVE_TAB'; payload: { tabId: string; sourcePanelId: string; toPanelId: string; index?: number } }
   | { type: 'ADD_PANEL'; payload: { type: PanelType; parentId?: string; direction?: 'horizontal' | 'vertical'; size?: number } }
   | { type: 'REMOVE_PANEL'; payload: { panelId: string } }
   | { type: 'SPLIT_PANEL'; payload: { panelId: string; direction: 'horizontal' | 'vertical' } }
@@ -60,7 +60,7 @@ interface TabContextType {
   activateTab: (tabId: string, panelId: string) => void;
   updateTabProps: (tabId: string, props: any) => void;
   renameTab: (tabId: string, title: string) => void;
-  moveTab: (tabId: string, toPanelId: string, index?: number) => void;
+  moveTab: (tabId: string, sourcePanelId: string, toPanelId: string, index?: number) => void;
   addPanel: (type: PanelType, parentId?: string, options?: { direction?: 'horizontal' | 'vertical', size?: number }) => string;
   removePanel: (panelId: string) => void;
   splitPanel: (panelId: string, direction: 'horizontal' | 'vertical') => void;
@@ -358,17 +358,23 @@ function tabReducer(state: TabState, action: TabAction): TabState {
     }
 
     case 'MOVE_TAB': {
-      const { tabId, toPanelId, index } = action.payload;
+      const { tabId, sourcePanelId, toPanelId, index } = action.payload;
       const tab = state.tabs[tabId];
       
       if (!tab) {
         return state;
       }
 
-      const sourcePanel = state.panels[tab.panelId];
+      const sourcePanel = state.panels[sourcePanelId];
       const targetPanel = state.panels[toPanelId];
       
       if (!sourcePanel || !targetPanel) {
+        return state;
+      }
+
+      // Check if tab is in the source panel
+      if (!sourcePanel.tabs.includes(tabId)) {
+        console.error(`Tab ${tabId} not found in source panel ${sourcePanelId}`);
         return state;
       }
 
@@ -588,10 +594,10 @@ export function TabProvider({ children }: TabProviderProps) {
     });
   }, []);
 
-  const moveTab = useCallback((tabId: string, toPanelId: string, index?: number) => {
+  const moveTab = useCallback((tabId: string, sourcePanelId: string, toPanelId: string, index?: number) => {
     dispatch({
       type: 'MOVE_TAB',
-      payload: { tabId, toPanelId, index },
+      payload: { tabId, sourcePanelId, toPanelId, index },
     });
   }, []);
 

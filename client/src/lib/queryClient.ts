@@ -8,14 +8,47 @@ async function throwIfResNotOk(res: Response) {
 }
 
 export async function apiRequest(
-  method: string,
-  url: string,
-  data?: unknown | undefined,
+  urlOrOptions: string | {
+    method?: string,
+    url: string,
+    body?: unknown,
+    headers?: Record<string, string>
+  },
+  options?: {
+    method?: string,
+    body?: unknown,
+    headers?: Record<string, string>
+  }
 ): Promise<Response> {
+  let url: string;
+  let method = 'GET';
+  let body: unknown | undefined;
+  let headers: Record<string, string> = {};
+  
+  // Handle overloaded function signature
+  if (typeof urlOrOptions === 'string') {
+    url = urlOrOptions;
+    if (options) {
+      method = options.method || method;
+      body = options.body;
+      headers = options.headers || headers;
+    }
+  } else {
+    url = urlOrOptions.url;
+    method = urlOrOptions.method || method;
+    body = urlOrOptions.body;
+    headers = urlOrOptions.headers || headers;
+  }
+  
+  // Add content-type header if body is present
+  if (body && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+  
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
     credentials: "include",
   });
 

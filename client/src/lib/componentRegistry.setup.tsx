@@ -4,6 +4,9 @@ import componentRegistry, { defineComponent } from './componentRegistry';
 import { PlaceholderComponent } from '../components/PlaceholderComponent';
 import { TagManager } from '../components/TagManager';
 import { SettingsPanel } from '../components/SettingsPanel';
+import { EmailListPane } from '../components/EmailListPane';
+import { EmailDetailPane } from '../components/EmailDetailPane';
+import { FolderExplorer } from '../components/FolderExplorer';
 
 // Helper types to patch missing imports
 // In a real implementation, you would import these from their respective files
@@ -26,7 +29,7 @@ export function registerComponents() {
     displayName: 'Email List',
     category: 'email',
     icon: InboxIcon,
-    component: (props: ComponentProps) => <PlaceholderComponent name="Email List" />, 
+    component: EmailListPane,
     supportedPanelTypes: ['main', 'any'],
   });
 
@@ -35,7 +38,7 @@ export function registerComponents() {
     displayName: 'Email Viewer',
     category: 'email',
     icon: MailOpenIcon,
-    component: (props: ComponentProps) => <PlaceholderComponent name="Email Viewer" />,
+    component: EmailDetailPane,
     supportedPanelTypes: ['main', 'any'],
   });
 
@@ -45,7 +48,7 @@ export function registerComponents() {
     displayName: 'Folder Explorer',
     category: 'email',
     icon: FolderIcon,
-    component: (props: ComponentProps) => <PlaceholderComponent name="Folder Explorer" />,
+    component: FolderExplorer,
     supportedPanelTypes: ['sidebar', 'any'],
   });
 

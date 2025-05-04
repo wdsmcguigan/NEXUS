@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useEffect } from 'react';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
-import { useTabContext, Panel as PanelType } from '../context/TabContext';
+import { useTabContext, Panel as PanelType, PanelType as TPanelType } from '../context/TabContext';
 import { UniversalTabPanel } from './UniversalTabPanel';
 import { ComponentSelector } from './ComponentSelector';
 
@@ -104,8 +104,41 @@ export function PanelManager() {
         // Left sidebar - Folder Explorer
         addTab('folder-explorer', 'leftSidebar');
         
-        // Main panel - Email List
-        addTab('email-list', 'mainPanel');
+        // We need to manually create the split panels since we don't have direct access to splitPanel
+        // First create the child panels
+        const leftMainPanel: PanelType = {
+          id: 'leftMainPanel',
+          parentId: 'mainPanel',
+          type: 'main' as TPanelType,
+          direction: undefined,
+          tabs: [],
+          activeTabId: undefined,
+          size: 50
+        };
+        
+        const rightMainPanel: PanelType = {
+          id: 'rightMainPanel',
+          parentId: 'mainPanel',
+          type: 'main' as TPanelType,
+          direction: undefined,
+          tabs: [],
+          activeTabId: undefined,
+          size: 50
+        };
+        
+        // Then update the parent panel to be a container
+        const mainPanel = state.panels['mainPanel'];
+        if (mainPanel) {
+          mainPanel.direction = 'horizontal';
+          mainPanel.tabs = [];
+          mainPanel.activeTabId = undefined;
+          
+          // Add the child panels to the state
+          state.panels['leftMainPanel'] = leftMainPanel;
+          state.panels['rightMainPanel'] = rightMainPanel;
+        }
+        addTab('email-list', 'leftMainPanel');
+        addTab('email-detail', 'rightMainPanel');
         
         // Bottom panel
         addTab('settings', 'bottomPanel');

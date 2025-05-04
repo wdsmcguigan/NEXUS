@@ -57,6 +57,13 @@ export function AdvancedTabBar({
   useEffect(() => {
     if (!isDragging || !tabBarRef.current || dragItem?.type !== 'tab') return;
     
+    // Skip if we're dragging a tab from the same panel
+    if (dragItem.sourcePanelId === panelId) {
+      // Only allow internal reordering later when we support index-based moves
+      // For now, we'll just avoid setting a drop target within the same panel
+      return;
+    }
+    
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
       
@@ -70,35 +77,15 @@ export function AdvancedTabBar({
       );
       
       if (isInTabbar) {
-        // Detect tab position for insertion
-        let targetIndex = -1;
-        let minDistance = Infinity;
-        
-        dropZones.forEach((zone) => {
-          const distance = Math.abs(e.clientX - (zone.rect.left + zone.rect.width / 2));
-          if (distance < minDistance) {
-            minDistance = distance;
-            targetIndex = zone.index;
-          }
-        });
-        
-        // If we have a valid target position
-        if (targetIndex !== -1) {
-          setDropTarget({
-            type: 'position',
-            id: `${panelId}-position-${targetIndex}`,
-            position: {
-              panelId: panelId,
-              index: targetIndex
-            }
-          });
-          return;
-        }
+        // For now, we'll simplify by just allowing drops onto the tabbar
+        // Later we can enhance to support position-based tab insertion
+        console.log('Mouse in tabbar', panelId);
         
         // Default to dropping in the tabbar (at the end)
         setDropTarget({
           type: 'tabbar',
-          id: panelId
+          id: panelId,
+          rect: tabBarRect
         });
       } else if (dropTarget?.id === panelId || dropTarget?.id?.startsWith(`${panelId}-position-`)) {
         // Clear the drop target if we're not in the tabbar anymore

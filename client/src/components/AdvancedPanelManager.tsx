@@ -152,53 +152,73 @@ export function AdvancedPanelManager() {
 
   // Handle dropping a tab onto a panel
   const handlePanelDrop = useCallback((target: DropTarget) => {
-    if (!dragData) return;
-    
-    const { type, id: panelId, direction, position } = target;
-    
-    if (type === 'panel' || type === 'tabbar') {
-      // Move the tab to the target panel
-      moveTab(dragData.tabId, dragData.sourcePanelId, panelId);
-    } else if (type === 'edge' && direction) {
-      // Make sure direction is a valid split direction
-      if (direction === 'top' || direction === 'right' || direction === 'bottom' || direction === 'left') {
-        // Create a new panel by splitting in the direction
-        const splitDirection = (direction === 'left' || direction === 'right') ? 'horizontal' : 'vertical';
-        handleSplitPanel(panelId, splitDirection);
-      }
-    } else if (type === 'position' && position) {
-      // For position drop, just move to the target panel
-      // Since our moveTab doesn't support index positioning yet
-      moveTab(
-        dragData.tabId,
-        dragData.sourcePanelId,
-        position.panelId
-      );
-    }
-    
-    handleDragEnd();
-  }, [dragData, handleDragEnd, handleSplitPanel, moveTab]);
-
-  // Process drop target when it changes - placed after handlePanelDrop is defined
-  useEffect(() => {
-    // Skip if no drop target, no drag data, or already processing
-    if (!dropTarget || !dragData || processingDropRef.current) {
+    if (!dragData) {
+      console.error('handlePanelDrop called with no dragData', target);
       return;
     }
     
-    console.log('Processing drop target in AdvancedPanelManager:', dropTarget);
+    console.log('Handling panel drop with target:', target, 'and dragData:', dragData);
+    const { type, id: panelId, direction, position } = target;
+    
+    try {
+      // If source and target are the same, don't do anything
+      if (type !== 'edge' && dragData.sourcePanelId === panelId) {
+        console.log('Source and target panels are the same, ignoring drop');
+        return;
+      }
+      
+      if (type === 'panel' || type === 'tabbar') {
+        console.log('Moving tab to panel', dragData.tabId, 'from', dragData.sourcePanelId, 'to', panelId);
+        
+        // Move the tab to the target panel
+        moveTab(dragData.tabId, dragData.sourcePanelId, panelId);
+      } else if (type === 'edge' && direction) {
+        // Make sure direction is a valid split direction
+        if (direction === 'top' || direction === 'right' || direction === 'bottom' || direction === 'left') {
+          console.log('Creating split in direction', direction);
+          
+          // Create a new panel by splitting in the direction
+          const splitDirection = (direction === 'left' || direction === 'right') ? 'horizontal' : 'vertical';
+          handleSplitPanel(panelId, splitDirection);
+        }
+      } else if (type === 'position' && position) {
+        console.log('Moving tab to position', position);
+        
+        // For position drop, move to the target panel
+        moveTab(
+          dragData.tabId,
+          dragData.sourcePanelId,
+          position.panelId
+        );
+      } else {
+        console.warn('Unhandled drop target type', type);
+      }
+    } catch (err) {
+      console.error('Error in handlePanelDrop:', err);
+    }
+  }, [dragData, handleSplitPanel, moveTab]);
+
+  // Process drop target when it changes but only when no longer dragging
+  // This handles the case where a valid drop has occurred but wasn't caught by the mouseup
+  useEffect(() => {
+    // Skip if still dragging, no drop target, no drag data, or already processing
+    if (isDragging || !dropTarget || !dragData || processingDropRef.current) {
+      return;
+    }
+    
+    console.log('Processing drop target in AdvancedPanelManager useEffect:', dropTarget);
     processingDropRef.current = true;
 
     try {
-      // Process the drop - this uses the same logic as handlePanelDrop
+      // If the drag is over but we still have a valid drop target, process it now
       handlePanelDrop(dropTarget);
     } catch (err) {
-      console.error('Error processing drop target:', err);
+      console.error('Error processing drop target in useEffect:', err);
     } finally {
       // Reset processing flag
       processingDropRef.current = false;
     }
-  }, [dropTarget, dragData, handlePanelDrop]);
+  }, [isDragging, dropTarget, dragData, handlePanelDrop]);
 
   return (
     <div className="h-full relative">

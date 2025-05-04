@@ -89,13 +89,29 @@ export function DragProvider({ children }: { children: ReactNode }) {
   
   // Method to end a drag operation
   const endDrag = useCallback((dropped: boolean = false) => {
-    setIsDragging(false);
-    setDragItem(null);
-    setMousePosition(null);
-    if (!dropped) {
+    console.log('Ending drag operation, dropped:', dropped, 'current dropTarget:', dropTarget);
+    
+    // If this was a successful drop and we have a drop target,
+    // leave the drop target info in place briefly to allow the handler to process it
+    if (dropped && dropTarget) {
+      // Set drag state to inactive but preserve the drop target briefly
+      setIsDragging(false);
+      setDragItem(null);
+      setMousePosition(null);
+      
+      // After a small delay, clean up the drop target
+      // This ensures any effects that depend on the drop target have time to process
+      setTimeout(() => {
+        setDropTarget(null);
+      }, 100);
+    } else {
+      // If not a valid drop or no target, clean up everything immediately
+      setIsDragging(false);
+      setDragItem(null);
+      setMousePosition(null);
       setDropTarget(null);
     }
-  }, []);
+  }, [dropTarget]);
   
   // Method to update mouse position
   const updateMousePosition = useCallback((x: number, y: number) => {

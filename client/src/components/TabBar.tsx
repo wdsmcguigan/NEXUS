@@ -37,32 +37,31 @@ export function TabBar({
   isMaximized
 }: TabBarProps) {
   return (
-    <div className="flex items-center gap-1 p-1 bg-neutral-100 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800">
-      <div className="flex-1 flex items-center overflow-x-auto hide-scrollbar">
+    <div className="flex items-center h-9 bg-neutral-950 border-b border-neutral-800">
+      <div className="flex-1 flex items-center overflow-x-auto scrollbar-none">
         {tabs.map((tab) => (
           <div
             key={tab.id}
             draggable={tab.closeable}
             onDragStart={(e) => onDragStart(tab.id, e)}
             onDragEnd={(e) => {
-              // We can add drag end handling here if needed
               e.preventDefault();
             }}
             className={cn(
-              'flex items-center gap-1 px-3 py-1 text-sm rounded-md cursor-pointer select-none',
+              'flex items-center h-full px-3 text-xs font-medium border-r border-neutral-800 cursor-pointer select-none transition-colors',
               activeTabId === tab.id
-                ? 'bg-white dark:bg-neutral-800 shadow-sm'
-                : 'hover:bg-neutral-200 dark:hover:bg-neutral-800'
+                ? 'bg-neutral-900 text-white'
+                : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-900/50'
             )}
             onClick={() => onTabChange(tab.id)}
           >
-            {tab.icon && <span className="mr-1">{tab.icon}</span>}
+            {tab.icon && <span className="mr-1.5 text-neutral-400">{tab.icon}</span>}
             <span>{tab.title}</span>
             {tab.closeable && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="w-4 h-4 ml-1 -mr-1 rounded-full opacity-60 hover:opacity-100 hover:bg-neutral-200 dark:hover:bg-neutral-700"
+                className="w-4 h-4 ml-2 rounded-full opacity-0 group-hover:opacity-60 hover:opacity-100 hover:bg-neutral-700"
                 onClick={(e) => {
                   e.stopPropagation();
                   onTabClose(tab.id);
@@ -75,23 +74,27 @@ export function TabBar({
         ))}
       </div>
       
-      <div className="flex items-center gap-1">
-        <TabControls panelId={panelId} onAddTab={onTabAdd} />
+      <div className="flex items-center">
+        <button 
+          onClick={onTabAdd}
+          className="flex items-center justify-center w-7 h-full text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
+          title="Add tab"
+        >
+          <PlusIcon className="w-3.5 h-3.5" />
+        </button>
         
         {onMaximize && onRestore && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-6 h-6 rounded hover:bg-neutral-200 dark:hover:bg-neutral-800"
+          <button
+            className="flex items-center justify-center w-7 h-full text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
             onClick={isMaximized ? onRestore : onMaximize}
             title={isMaximized ? 'Restore' : 'Maximize'}
           >
             {isMaximized ? (
-              <MinimizeIcon className="w-4 h-4" />
+              <MinimizeIcon className="w-3.5 h-3.5" />
             ) : (
-              <MaximizeIcon className="w-4 h-4" />
+              <MaximizeIcon className="w-3.5 h-3.5" />
             )}
-          </Button>
+          </button>
         )}
       </div>
     </div>

@@ -4,20 +4,26 @@ import { TabBar, Tab } from './TabBar';
 // Helper components for rendering panel content
 // These components will be replaced with real implementations
 const LeftSidebar = ({ ...props }: any) => (
-  <div className="h-full overflow-auto p-4">
-    <h3 className="text-lg font-semibold mb-4">Accounts & Labels</h3>
-    <div className="space-y-2">
-      <div className="cursor-pointer p-2 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800">All Mail</div>
-      <div className="cursor-pointer p-2 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800">Todo</div>
-      <div className="cursor-pointer p-2 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800">Archived</div>
-      <div className="cursor-pointer p-2 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800">
-        <span className="mr-2">🔴</span>Important
+  <div className="h-full overflow-auto p-2 text-neutral-200">
+    <div className="px-2 py-3 text-xs font-medium uppercase tracking-wider text-neutral-400">Accounts & Labels</div>
+    <div className="space-y-0.5">
+      <div className="cursor-pointer px-2 py-1.5 text-sm rounded hover:bg-neutral-800 transition-colors">All Mail</div>
+      <div className="cursor-pointer px-2 py-1.5 text-sm rounded hover:bg-neutral-800 transition-colors">Todo</div>
+      <div className="cursor-pointer px-2 py-1.5 text-sm rounded hover:bg-neutral-800 transition-colors">Archived</div>
+      
+      <div className="mt-4 mb-2 px-2 py-1 text-xs font-medium uppercase tracking-wider text-neutral-400">Tags</div>
+      
+      <div className="cursor-pointer px-2 py-1.5 text-sm rounded hover:bg-neutral-800 transition-colors group flex items-center">
+        <span className="w-2 h-2 rounded-full bg-red-500 mr-2 group-hover:scale-110 transition-transform"></span>
+        Important
       </div>
-      <div className="cursor-pointer p-2 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800">
-        <span className="mr-2">🟢</span>Work
+      <div className="cursor-pointer px-2 py-1.5 text-sm rounded hover:bg-neutral-800 transition-colors group flex items-center">
+        <span className="w-2 h-2 rounded-full bg-green-500 mr-2 group-hover:scale-110 transition-transform"></span>
+        Work
       </div>
-      <div className="cursor-pointer p-2 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800">
-        <span className="mr-2">🔵</span>Personal
+      <div className="cursor-pointer px-2 py-1.5 text-sm rounded hover:bg-neutral-800 transition-colors group flex items-center">
+        <span className="w-2 h-2 rounded-full bg-blue-500 mr-2 group-hover:scale-110 transition-transform"></span>
+        Personal
       </div>
     </div>
   </div>
@@ -25,12 +31,21 @@ const LeftSidebar = ({ ...props }: any) => (
 
 const EmailListPane = ({ view, ...props }: { view?: string } & any) => (
   <div className="h-full overflow-auto">
-    <div className="p-4">
-      <h3 className="text-lg font-semibold mb-4">{view || 'Inbox'}</h3>
+    <div className="sticky top-0 z-10 px-4 py-2 border-b border-neutral-800 flex items-center justify-between bg-neutral-900">
+      <h3 className="text-sm font-medium text-neutral-200">{view || 'Inbox'}</h3>
+      <div className="text-xs text-neutral-400">10 messages</div>
+    </div>
+    <div>
       {Array.from({ length: 10 }).map((_, i) => (
-        <div key={i} className="border-b border-neutral-200 dark:border-neutral-800 py-2 cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800">
-          <div className="font-medium">Email Subject {i+1}</div>
-          <div className="text-sm text-neutral-500">Brief preview of email content...</div>
+        <div 
+          key={i} 
+          className="border-b border-neutral-800 py-3 px-4 cursor-pointer hover:bg-neutral-800/50 transition-colors"
+        >
+          <div className="flex justify-between items-center mb-1">
+            <div className="font-medium text-sm text-neutral-200">Email Subject {i+1}</div>
+            <div className="text-xs text-neutral-400">{`${i+1}:${(30 + i * 5).toString().padStart(2, '0')} PM`}</div>
+          </div>
+          <div className="text-xs text-neutral-400 line-clamp-1">Brief preview of email content that might be longer and will truncate properly...</div>
         </div>
       ))}
     </div>
@@ -38,35 +53,56 @@ const EmailListPane = ({ view, ...props }: { view?: string } & any) => (
 );
 
 const EmailDetailPane = ({ ...props }: any) => (
-  <div className="h-full overflow-auto p-4">
-    <h2 className="text-xl font-bold mb-2">Email Subject</h2>
-    <div className="flex justify-between text-sm text-neutral-500 mb-4">
-      <div>From: sender@example.com</div>
-      <div>Today, 10:30 AM</div>
+  <div className="h-full overflow-auto text-neutral-200">
+    <div className="sticky top-0 z-10 px-4 py-3 border-b border-neutral-800 bg-neutral-900">
+      <h2 className="text-base font-medium mb-1">Email Subject</h2>
+      <div className="flex justify-between text-xs text-neutral-400">
+        <div>From: sender@example.com</div>
+        <div>Today, 10:30 AM</div>
+      </div>
     </div>
-    <div className="prose dark:prose-invert max-w-none">
-      <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-      <p>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+    <div className="p-4 text-sm">
+      <p className="mb-3">Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
+      <p className="mb-3">Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+      
+      <div className="mt-6 pt-4 border-t border-neutral-800">
+        <div className="text-xs text-neutral-400 mb-2">Actions</div>
+        <div className="flex gap-2">
+          <button className="text-xs px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 transition-colors text-neutral-200">Reply</button>
+          <button className="text-xs px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 transition-colors text-neutral-200">Forward</button>
+          <button className="text-xs px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 transition-colors text-neutral-200">Archive</button>
+        </div>
+      </div>
     </div>
   </div>
 );
 
 const RightSidebar = ({ ...props }: any) => (
-  <div className="h-full overflow-auto p-4">
-    <h3 className="text-lg font-semibold mb-4">Contact Info</h3>
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-medium">JS</div>
+  <div className="h-full overflow-auto bg-neutral-900 border-l border-neutral-800 text-neutral-200">
+    <div className="px-4 py-3 border-b border-neutral-800">
+      <div className="text-xs font-medium uppercase tracking-wider text-neutral-400 mb-3">Contact Info</div>
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 text-sm font-medium">JS</div>
         <div>
-          <div className="font-medium">John Smith</div>
-          <div className="text-sm text-neutral-500">john@example.com</div>
+          <div className="font-medium text-sm">John Smith</div>
+          <div className="text-xs text-neutral-400">john@example.com</div>
         </div>
       </div>
-      <div className="text-sm">
-        <div className="font-medium mb-1">Recent Conversations</div>
-        <div className="text-neutral-500">
-          Last conversation: 2 days ago
-        </div>
+    </div>
+    
+    <div className="px-4 py-3 border-b border-neutral-800">
+      <div className="text-xs font-medium uppercase tracking-wider text-neutral-400 mb-2">Recent Conversations</div>
+      <div className="text-xs text-neutral-400">
+        Last conversation: 2 days ago
+      </div>
+    </div>
+    
+    <div className="px-4 py-3">
+      <div className="text-xs font-medium uppercase tracking-wider text-neutral-400 mb-2">Email Tags</div>
+      <div className="flex flex-wrap gap-1">
+        <div className="px-2 py-0.5 text-xs rounded-full bg-blue-500/20 text-blue-400">Work</div>
+        <div className="px-2 py-0.5 text-xs rounded-full bg-green-500/20 text-green-400">Important</div>
+        <div className="px-2 py-0.5 text-xs rounded-full bg-purple-500/20 text-purple-400">Project</div>
       </div>
     </div>
   </div>
@@ -165,7 +201,7 @@ export function TabPanel({
   
   return (
     <div 
-      className="flex flex-col h-full border border-neutral-200 dark:border-neutral-800 rounded-md overflow-hidden"
+      className="flex flex-col h-full bg-neutral-950 overflow-hidden border border-neutral-800"
       onDragOver={handleDragOver}
       onDrop={onDrop}
     >
@@ -182,7 +218,7 @@ export function TabPanel({
         isMaximized={isMaximized}
       />
       
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto bg-neutral-900 scrollbar-thin scrollbar-track-neutral-900 scrollbar-thumb-neutral-700">
         {activeContent && renderContent(activeContent)}
       </div>
     </div>

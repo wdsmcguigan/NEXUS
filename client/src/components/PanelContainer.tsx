@@ -189,10 +189,16 @@ export function PanelContainer({
                     key={`handle-${childPanel.id}`}
                     className={
                       panelConfig.direction === 'horizontal'
-                        ? 'w-1 bg-neutral-200 dark:bg-neutral-800 hover:bg-primary'
-                        : 'h-1 bg-neutral-200 dark:bg-neutral-800 hover:bg-primary'
+                        ? 'group w-[2px] bg-neutral-900 data-[panel-group-direction=horizontal]:hover:w-1 data-[panel-group-direction=horizontal]:hover:bg-blue-500/30 data-[panel-group-direction=horizontal]:active:bg-blue-500/60 transition-all'
+                        : 'group h-[2px] bg-neutral-900 data-[panel-group-direction=vertical]:hover:h-1 data-[panel-group-direction=vertical]:hover:bg-blue-500/30 data-[panel-group-direction=vertical]:active:bg-blue-500/60 transition-all'
                     }
-                  />
+                  >
+                    <div className={
+                      panelConfig.direction === 'horizontal'
+                        ? 'w-full h-full bg-transparent group-hover:bg-blue-500/60 group-active:bg-blue-500/80'
+                        : 'w-full h-full bg-transparent group-hover:bg-blue-500/60 group-active:bg-blue-500/80'
+                    } />
+                  </PanelResizeHandle>
                 );
               }
               

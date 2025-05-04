@@ -1,0 +1,129 @@
+NEXUS.email UI Enhancement Request
+I'm building NEXUS.email, an AI-powered email client with a customizable panel system. While I've implemented basic functionality, the UI needs significant refinement to match the polished look of Replit's workspace interface. I need help improving the visual design and user experience of my panel/tab system.
+Current Issues
+Looking at my current implementation:
+
+The panels look basic and lack proper styling
+Tab design is too simple and lacks modern aesthetics
+The overall UI feels unpolished compared to Replit's sleek interface
+Missing proper spacing, shadows, and visual hierarchy
+
+UI Enhancement Goals
+
+Polish the panel system:
+
+Sleek, subtle borders with proper shadows
+Smoother drag handles with visual feedback
+Proper spacing between panels
+Clean, minimal scrollbars that match the theme
+
+
+Improve tab design:
+
+Create more modern and minimal tabs similar to the replit workspace ui
+Subtle hover and active states
+Proper icons with consistent sizing
+Clean typography with proper spacing
+
+
+Overall aesthetic improvements:
+
+Cohesive color scheme with dark mode support
+Consistent spacing and alignment
+Proper visual hierarchy
+Smooth transitions and animations
+
+
+
+Recommended Libraries & Tools
+Please help me enhance my UI using these modern React libraries:
+
+react-resizable-panels - A lightweight, headless library for resizable panel layouts. It's much more modern and customizable than older alternatives.
+Radix UI - Provides unstyled, accessible UI primitives that can be fully customized:
+
+Tabs component for better tab management
+Dialog for modal windows
+Popover for tooltips and contextual menus
+
+
+Tailwind CSS - For consistent styling and rapid UI development:
+
+Provides design tokens for spacing, colors, etc.
+Makes responsive design easier
+Perfect for creating custom component designs
+
+
+Framer Motion - For smooth animations and transitions:
+
+Panel resize animations
+Tab switching effects
+Drag and drop visual feedback
+
+
+Lucide React - Modern, consistent icon set that works well with React and matches Replit's clean aesthetic
+
+Implementation Priorities
+
+First, set up Tailwind CSS and create a cohesive theme system
+Replace current panel implementation with react-resizable-panels
+Implement Radix UI tabs with custom styling
+Add subtle animations with Framer Motion
+Polish the overall UI with consistent spacing, typography, and visual hierarchy
+
+Specific UI Elements to Improve
+
+Panel System:
+
+Create sleek, minimal drag handles
+Implement smooth resize animations
+Add visual feedback during drag operations
+
+
+Tab Bar:
+
+Create more modern and minimal tabs similar to the replit workspace ui
+Add subtle hover and active states
+Implement overflow handling for many tabs
+Add close buttons and icons
+
+
+Overall Layout:
+
+Fix spacing inconsistencies
+Improve typography hierarchy
+Create consistent borders and separators
+Polish or remove scrollbars to match the theme
+Panels and Tabs should begin with a darker theme aesthetic
+
+
+
+Please help me implement these UI improvements to make my NEXUS.email application look as sleek and professional as Replit's interface. I need both the technical implementation and styling guidance to achieve a modern, polished UI.
+Code Reference
+Here's my current component structure - I need help modernizing these:
+/components
+  /ui
+    - AdvancedPanelLayout.tsx
+    - AdvancedPanelManager.tsx
+    - BottomPane.tsx
+    - DragOverlay.tsx
+    - EdgeIndicator.tsx
+    - email-client.tsx
+    - EmailDetailPane.tsx
+    - EmailListPane.tsx
+    - ExportDialog.tsx
+    - Header.tsx
+    - LayoutControls.tsx
+    - LayoutManager.tsx
+    - LayoutSelector.tsx
+    - left-sidebar.tsx
+    - LeftSidebar.tsx
+    - PanelContainer.tsx
+    - ResizablePanel.tsx
+    - RightSidebar.tsx
+    - SimplePanelLayout.tsx
+    - TabBar.tsx
+    - TabBarPanelLayout.tsx
+    - TabContainer.tsx
+    - TabControls.tsx
+    - TabPanel.tsx
+I'd like to maintain the same component architecture while significantly improving the visual design and user experience.

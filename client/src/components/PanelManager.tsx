@@ -48,16 +48,16 @@ function PanelLayout({ panelId, maximizedPanelId, onMaximizePanel, onRestorePane
         >
           {childPanels.map((childPanel, index) => (
             <React.Fragment key={childPanel.id}>
-              <ResizablePanel defaultSize={childPanel.size || 100 / childPanels.length}>
-                <div data-panel-id={childPanel.id}>
+              <div className="w-full h-full" style={{ flex: 1 }}>
+                <ResizablePanel defaultSize={childPanel.size || 100 / childPanels.length} data-panel-id={childPanel.id}>
                   <PanelLayout 
                     panelId={childPanel.id} 
                     maximizedPanelId={maximizedPanelId}
                     onMaximizePanel={onMaximizePanel}
                     onRestorePanel={onRestorePanel}
                   />
-                </div>
-              </ResizablePanel>
+                </ResizablePanel>
+              </div>
               
               {index < childPanels.length - 1 && (
                 <ResizableHandle withHandle />
@@ -181,7 +181,7 @@ export function PanelManager() {
     <div className="h-full w-full">
       <ResizablePanelGroup direction="horizontal" className="h-full">
         {/* Left Sidebar */}
-        <ResizablePanel defaultSize={20} minSize={15} maxSize={30} className="bg-neutral-900">
+        <ResizablePanel defaultSize={20} minSize={15} maxSize={30} className="bg-neutral-900" data-panel-id="leftSidebar">
           <PanelLayout 
             panelId="leftSidebar" 
             maximizedPanelId={maximizedPanelId}
@@ -196,7 +196,7 @@ export function PanelManager() {
         <ResizablePanel defaultSize={60}>
           <ResizablePanelGroup direction="vertical" className="h-full">
             {/* Main Content */}
-            <ResizablePanel defaultSize={70}>
+            <ResizablePanel defaultSize={70} data-panel-id="mainPanel">
               <PanelLayout 
                 panelId="mainPanel" 
                 maximizedPanelId={maximizedPanelId}
@@ -208,7 +208,7 @@ export function PanelManager() {
             <ResizableHandle withHandle />
             
             {/* Bottom Panel */}
-            <ResizablePanel defaultSize={30} className="bg-neutral-900">
+            <ResizablePanel defaultSize={30} className="bg-neutral-900" data-panel-id="bottomPanel">
               <PanelLayout 
                 panelId="bottomPanel" 
                 maximizedPanelId={maximizedPanelId}
@@ -222,7 +222,7 @@ export function PanelManager() {
         <ResizableHandle withHandle />
         
         {/* Right Sidebar */}
-        <ResizablePanel defaultSize={20} minSize={15} maxSize={30} className="bg-neutral-900">
+        <ResizablePanel defaultSize={20} minSize={15} maxSize={30} className="bg-neutral-900" data-panel-id="rightSidebar">
           <PanelLayout 
             panelId="rightSidebar" 
             maximizedPanelId={maximizedPanelId}

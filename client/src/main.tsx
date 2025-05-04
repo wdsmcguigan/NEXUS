@@ -2,9 +2,18 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 import { EmailProvider } from "./context/EmailContext";
+import { ShortcutProvider } from "./context/ShortcutContext";
+import { ComponentProvider } from "./context/ComponentContext";
+import { initializeComponentRegistry } from "./context/ComponentContext";
 
-createRoot(document.getElementById("root")!).render(
+const root = createRoot(document.getElementById("root")!);
+
+root.render(
   <EmailProvider>
-    <App />
+    <ShortcutProvider>
+      <ComponentProvider>
+        <App />
+      </ComponentProvider>
+    </ShortcutProvider>
   </EmailProvider>
 );

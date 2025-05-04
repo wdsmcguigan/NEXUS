@@ -31,6 +31,7 @@ interface PanelContextType {
   changeTab: (panelId: string, tabId: string) => void;
   moveTab: (sourceId: string, sourceTabId: string, targetId: string) => void;
   splitPanel: (panelId: string, direction: PanelDirection, newPanel: PanelConfig) => void;
+  findPanel: (layout: PanelConfig, panelId: string) => PanelConfig | null;
   savedLayouts: { name: string; data: PanelConfig }[];
   saveLayout: (name: string) => void;
   loadLayout: (name: string) => void;
@@ -474,6 +475,7 @@ export function PanelProvider({ children }: { children: React.ReactNode }) {
     changeTab,
     moveTab,
     splitPanel,
+    findPanel,
     savedLayouts,
     saveLayout,
     loadLayout,

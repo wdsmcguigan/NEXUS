@@ -192,7 +192,7 @@ export function PanelContextMenu({
     
     // Remove the tab from the panel
     if (panel.tabs) {
-      panel.tabs = panel.tabs.filter(t => t.id !== tabId);
+      panel.tabs = panel.tabs.filter((t: { id: string }) => t.id !== tabId);
       
       // Update the active tab if needed
       if (panel.activeTabId === tabId) {
@@ -227,7 +227,7 @@ export function PanelContextMenu({
           </ContextMenuSubTrigger>
           <ContextMenuSubContent className="bg-neutral-800 border-neutral-700">
             {tabs.length > 0 ? (
-              tabs.map(tab => (
+              tabs.map((tab: { id: string; title: string }) => (
                 <ContextMenuItem 
                   key={tab.id} 
                   className={`flex items-center ${tab.id === activeTabId ? 'bg-neutral-700' : 'focus:bg-neutral-700'}`}

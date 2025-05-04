@@ -49,7 +49,9 @@ function Header() {
 function EmailClientContent() {
   return (
     <TabProvider>
-      <PanelManager />
+      <div className="h-full w-full">
+        <PanelManager />
+      </div>
     </TabProvider>
   );
 }

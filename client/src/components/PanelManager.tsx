@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
 import { useTabContext, Panel as PanelType } from '../context/TabContext';
 import { UniversalTabPanel } from './UniversalTabPanel';
@@ -90,8 +90,34 @@ function PanelLayout({ panelId, maximizedPanelId, onMaximizePanel, onRestorePane
 }
 
 export function PanelManager() {
-  const { state } = useTabContext();
+  const { state, addTab } = useTabContext();
   const [maximizedPanelId, setMaximizedPanelId] = useState<string | null>(null);
+  
+  // Initialize default tabs for each panel if empty
+  useEffect(() => {
+    // Check if panels have tabs
+    const hasNoTabs = Object.values(state.panels).every(panel => panel.tabs.length === 0);
+    
+    if (hasNoTabs) {
+      // Add default tabs to each panel
+      setTimeout(() => {
+        // Left sidebar - Folder Explorer
+        addTab('folder-explorer', 'leftSidebar');
+        
+        // Main panel - Email List
+        addTab('email-list', 'mainPanel');
+        
+        // Bottom panel
+        addTab('settings', 'bottomPanel');
+        addTab('integrations', 'bottomPanel');
+        addTab('templates', 'bottomPanel');
+        
+        // Right sidebar
+        addTab('contact-details', 'rightSidebar');
+        addTab('tag-manager', 'rightSidebar');
+      }, 100);
+    }
+  }, [state.panels, addTab]);
 
   const handleMaximizePanel = useCallback((panelId: string) => {
     setMaximizedPanelId(panelId);

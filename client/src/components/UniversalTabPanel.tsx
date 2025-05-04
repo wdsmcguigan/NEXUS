@@ -38,9 +38,9 @@ export function UniversalTabPanel({
           const isActive = tabId === activeTabId;
           
           return (
-            <button
+            <div
               key={tabId}
-              className={`px-4 py-2 flex items-center space-x-2 min-w-[120px] max-w-[200px] ${
+              className={`px-4 py-2 flex items-center space-x-2 min-w-[120px] max-w-[200px] cursor-pointer ${
                 isActive 
                   ? 'text-white bg-neutral-800 border-t-2 border-t-blue-500' 
                   : 'text-neutral-400 hover:text-white hover:bg-neutral-800/50'
@@ -58,7 +58,7 @@ export function UniversalTabPanel({
                 </div>
                 
                 {tab.closeable && (
-                  <button
+                  <div
                     className="ml-2 text-neutral-500 hover:text-white p-1 rounded-sm hover:bg-neutral-700"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -66,10 +66,10 @@ export function UniversalTabPanel({
                     }}
                   >
                     <X size={14} />
-                  </button>
+                  </div>
                 )}
               </div>
-            </button>
+            </div>
           );
         })}
         

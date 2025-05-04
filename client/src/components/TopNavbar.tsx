@@ -271,16 +271,20 @@ export function TopNavbar() {
       </div>
 
       {/* Template Manager Dialog */}
-      <TemplateManager 
-        open={showTemplateManager} 
-        onOpenChange={setShowTemplateManager} 
-      />
+      {showTemplateManager && (
+        <TemplateManager 
+          open={showTemplateManager} 
+          onOpenChange={setShowTemplateManager} 
+        />
+      )}
 
       {/* Shortcut Manager Dialog */}
-      <ShortcutManager
-        open={showShortcutManager}
-        onOpenChange={setShowShortcutManager}
-      />
+      {showShortcutManager && (
+        <ShortcutManager
+          open={showShortcutManager}
+          onOpenChange={setShowShortcutManager}
+        />
+      )}
 
       {/* Save Layout Dialog */}
       <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>

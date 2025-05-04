@@ -156,9 +156,13 @@ export function PanelSplitter() {
       console.log(`🔧 [EDGE DROP HANDLER] Split direction:${splitDirection}, positionAfter:${positionAfter}`);
       
       // Step 3: Generate new panel ID with timestamp for uniqueness
+      // Make sure the panel ID is simple and doesn't have special characters
       const timestamp = Date.now();
-      const newPanelId = `${targetPanelId}-split-${timestamp}`;
+      // Clean panel ID to remove any special characters
+      const sanitizedTargetId = targetPanelId.replace(/[^a-zA-Z0-9]/g, '');
+      const newPanelId = `panel-${sanitizedTargetId}-${timestamp}`;
       
+      console.log(`🔧 [EDGE DROP HANDLER] Original target ID: ${targetPanelId}, sanitized: ${sanitizedTargetId}`);
       console.log(`🔧 [EDGE DROP HANDLER] Created new panel ID: ${newPanelId}`);
       
       // Step 4: Execute the panel split with new panel ID
@@ -171,7 +175,7 @@ export function PanelSplitter() {
       };
       console.log(`🔧 [EDGE DROP HANDLER] Split options (full object):`, splitOptions);
       
-      // Execute split panel action synchronously
+      // Execute split panel action
       splitPanel(targetPanelId, splitDirection, splitOptions);
       
       // Step 5: Verify the panel was created
@@ -217,21 +221,66 @@ export function PanelSplitter() {
       console.log(`🔧 [EDGE DROP HANDLER] Setting timeout to move tab ${tabId} from ${sourcePanelId} to ${newPanelId}`);
       
       // Use a delay to ensure the panel state update is processed
+      // Increased timeout to give more time for state to update
       setTimeout(() => {
         try {
           console.log(`🔧 [EDGE DROP HANDLER] Executing moveTab(${tabId}, ${sourcePanelId}, ${newPanelId})`);
           console.log(`🔧 [EDGE DROP HANDLER] Current panels:`, Object.keys(state.panels));
           
+          // Check all panels again for debugging
+          const updatedPanelsList = Object.keys(state.panels);
+          console.log(`🔧 [EDGE DROP HANDLER] Updated panels list:`, updatedPanelsList);
+          
+          // Try to find child panels of the target panel as an alternative
+          const updatedTargetPanel = state.panels[targetPanelId];
+          if (updatedTargetPanel && updatedTargetPanel.childPanels && updatedTargetPanel.childPanels.length > 0) {
+            console.log(`🔧 [EDGE DROP HANDLER] Target panel now has child panels:`, updatedTargetPanel.childPanels);
+          }
+          
           // Double check the panel exists before moving the tab
           if (state.panels[newPanelId]) {
+            // Panel exists, proceed with tab move
             moveTab(tabId, sourcePanelId, newPanelId);
             console.log(`🔧 [EDGE DROP HANDLER] Tab moved successfully to new panel`);
             safeEndDrag(true);
           } else {
-            console.error(`🔧 [EDGE DROP HANDLER] ERROR: Panel ${newPanelId} not found after waiting, attempting fallback`);
+            console.log(`🔧 [EDGE DROP HANDLER] Panel ${newPanelId} not found directly, searching for recently created panels`);
             
-            // Fallback: Try to find a suitable panel to move to
+            // Look for any newly created panels
             const allPanelIds = Object.keys(state.panels);
+            
+            // Find any panel IDs containing our timestamp 
+            const parts = newPanelId.split('-');
+            const timestampPart = parts.length > 0 ? parts[parts.length - 1] : '';
+            
+            if (timestampPart) {
+              const recentPanels = allPanelIds.filter(id => id.includes(timestampPart));
+              
+              if (recentPanels.length > 0) {
+                const matchingPanelId = recentPanels[0];
+                console.log(`🔧 [EDGE DROP HANDLER] Found panel with matching timestamp: ${matchingPanelId}`);
+                moveTab(tabId, sourcePanelId, matchingPanelId);
+                safeEndDrag(true);
+                return;
+              }
+            }
+            
+            // Fallback to any empty child panel that may have been created
+            if (updatedTargetPanel && updatedTargetPanel.childPanels && updatedTargetPanel.childPanels.length > 0) {
+              const childPanels = updatedTargetPanel.childPanels;
+              for (let i = 0; i < childPanels.length; i++) {
+                const childId = childPanels[i];
+                const childPanel = state.panels[childId];
+                if (childPanel && childPanel.tabs && childPanel.tabs.length === 0) {
+                  console.log(`🔧 [EDGE DROP HANDLER] Found empty child panel ${childId} to use`);
+                  moveTab(tabId, sourcePanelId, childId);
+                  safeEndDrag(true);
+                  return;
+                }
+              }
+            }
+            
+            // Last resort: Try to find a different panel to move to
             const newPanels = allPanelIds.filter(id => !id.includes(sourcePanelId) && id !== targetPanelId);
             
             if (newPanels.length > 0) {
@@ -240,7 +289,7 @@ export function PanelSplitter() {
               moveTab(tabId, sourcePanelId, fallbackPanelId);
               safeEndDrag(true);
             } else {
-              console.error(`🔧 [EDGE DROP HANDLER] Fallback failed, no suitable panels found`);
+              console.error(`🔧 [EDGE DROP HANDLER] All fallbacks failed, no suitable panels found`);
               safeEndDrag(false);
             }
           }
@@ -248,7 +297,7 @@ export function PanelSplitter() {
           console.error('🔧 [EDGE DROP HANDLER] ERROR during tab move operation:', error);
           safeEndDrag(false);
         }
-      }, 150);
+      }, 250); // Increased delay for more reliable state updates
     } catch (error) {
       console.error('🔧 [EDGE DROP HANDLER] ERROR during panel split operation:', error);
       safeEndDrag(false);

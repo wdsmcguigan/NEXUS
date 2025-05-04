@@ -540,14 +540,15 @@ function tabReducer(state: TabState, action: TabAction): TabState {
       }
 
       // Create a new panel with optional custom ID
+      // Use the provided ID from options if available, or generate one
       const newPanelId = options?.newPanelId || nanoid();
       console.log(`🔄 [SPLIT_PANEL] Using panel ID for new panel: ${newPanelId}`);
       
-      // Generate unique IDs for child panels that include a timestamp
+      // Generate unique IDs for child panels that include a timestamp for uniqueness
       const timestamp = Date.now();
       
       // First child panel (original tabs go here)
-      const childPanel1Id = `${panelId}-child1-${timestamp}`;
+      const childPanel1Id = `${panelId.replace(/[^a-zA-Z0-9]/g, '')}-child1-${timestamp}`;
       const childPanel1: Panel = {
         id: childPanel1Id,
         type: panel.type,
@@ -559,8 +560,9 @@ function tabReducer(state: TabState, action: TabAction): TabState {
       
       // Second child panel (new empty panel) - this is where we'll move the tab
       // IMPORTANT: Always use the newPanelId if provided in options
-      const childPanel2Id = options?.newPanelId || `${panelId}-child2-${timestamp}`;
-      console.log(`🔄 [SPLIT_PANEL] Using ID for second panel: ${childPanel2Id} (newPanelId from options: ${options?.newPanelId})`);
+      // Make sure to use exactly the same newPanelId provided in options for the second panel
+      const childPanel2Id = newPanelId;
+      console.log(`🔄 [SPLIT_PANEL] Using ID for second panel: ${childPanel2Id}`);
       
       const childPanel2: Panel = {
         id: childPanel2Id,
@@ -569,8 +571,6 @@ function tabReducer(state: TabState, action: TabAction): TabState {
         parentId: panelId,
         size: 50, // Default 50% split
       };
-      
-      console.log(`🔄 [SPLIT_PANEL] Second panel ID is: ${childPanel2Id} (should match newPanelId ${newPanelId} if provided)`)
       
       console.log(`🔄 [SPLIT_PANEL] Created child panel IDs: ${childPanel1Id} (with tabs) and ${childPanel2Id} (empty)`);
       
@@ -599,19 +599,20 @@ function tabReducer(state: TabState, action: TabAction): TabState {
         options
       });
       
-      // Make sure we're adding the proper panels and updating state correctly
-      const newPanels = {
-        ...state.panels,
-        [panelId]: updatedPanel,
-      };
+      // Make a deep copy of the panels to avoid mutation issues
+      const newPanels = {...state.panels};
+      
+      // Update the original panel to be a container
+      newPanels[panelId] = updatedPanel;
       
       // Add both child panels
       newPanels[childPanel1Id] = childPanel1;
       newPanels[childPanel2Id] = childPanel2;
       
-      console.log(`🔄 [SPLIT_PANEL] Returning new state with child panels added: ${childPanel1Id}, ${childPanel2Id}`);
       console.log(`🔄 [SPLIT_PANEL] New panel keys in state: ${Object.keys(newPanels).join(', ')}`);
+      console.log(`🔄 [SPLIT_PANEL] Verifying new panel was added: ${Object.keys(newPanels).includes(childPanel2Id)}`);
 
+      // Create a completely fresh state to avoid any reference issues
       const newState = {
         ...state,
         panels: newPanels,

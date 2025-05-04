@@ -1,5 +1,5 @@
 import React from 'react';
-import { Inbox as InboxIcon, User as UserIcon, Settings as SettingsIcon, Tag as TagIcon, Mail as MailIcon, MailOpen as MailOpenIcon, FileText as FileTextIcon, Sliders as SlidersIcon, PanelLeft as PanelLeftIcon, Folder as FolderIcon } from 'lucide-react';
+import { Inbox as InboxIcon, User as UserIcon, Settings as SettingsIcon, Tag as TagIcon, Mail as MailIcon, MailOpen as MailOpenIcon, FileText as FileTextIcon, Sliders as SlidersIcon, PanelLeft as PanelLeftIcon, Folder as FolderIcon, Search as SearchIcon } from 'lucide-react';
 import componentRegistry, { defineComponent } from './componentRegistry';
 import { PlaceholderComponent } from '../components/PlaceholderComponent';
 import { TagManager } from '../components/TagManager';
@@ -7,6 +7,7 @@ import { SettingsPanel } from '../components/SettingsPanel';
 import { EmailListPane } from '../components/EmailListPane';
 import { EmailDetailPane } from '../components/EmailDetailPane';
 import { FolderExplorer } from '../components/FolderExplorer';
+import { EmailWorkspace } from '../components/EmailWorkspace';
 
 // Helper types to patch missing imports
 // In a real implementation, you would import these from their respective files
@@ -98,6 +99,16 @@ export function registerComponents() {
     icon: FileTextIcon,
     component: TemplatesPanel,
     supportedPanelTypes: ['bottom', 'any'],
+  });
+  
+  // Search-enabled components
+  defineComponent({
+    id: 'email-workspace-searchable',
+    displayName: 'Email Workspace (with Search)',
+    category: 'email',
+    icon: SearchIcon,
+    component: EmailWorkspace,
+    supportedPanelTypes: ['main', 'any'],
   });
 
   return componentRegistry;

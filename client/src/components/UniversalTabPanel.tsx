@@ -30,7 +30,7 @@ export function UniversalTabPanel({
   // Render the tabs for this panel
   return (
     <div className="flex flex-col h-full bg-neutral-950">
-      <div className="flex border-b border-neutral-800 bg-neutral-900 overflow-x-auto hide-scrollbar">
+      <div className="flex border-b border-neutral-800 bg-neutral-900 overflow-x-auto thin-scrollbar h-[40px]">
         {tabIds.map(tabId => {
           const tab = state.tabs[tabId];
           if (!tab) return null;
@@ -40,7 +40,7 @@ export function UniversalTabPanel({
           return (
             <div
               key={tabId}
-              className={`px-4 py-2 flex items-center space-x-2 min-w-[120px] max-w-[200px] cursor-pointer ${
+              className={`px-4 flex items-center space-x-2 w-[160px] h-[40px] cursor-pointer ${
                 isActive 
                   ? 'text-white bg-neutral-800 border-t-2 border-t-blue-500' 
                   : 'text-neutral-400 hover:text-white hover:bg-neutral-800/50'
@@ -74,7 +74,7 @@ export function UniversalTabPanel({
         })}
         
         <button
-          className="px-3 text-neutral-400 hover:text-white hover:bg-neutral-800/50"
+          className="px-3 h-[40px] flex items-center text-neutral-400 hover:text-white hover:bg-neutral-800/50"
           onClick={onAddTab}
         >
           <Plus size={16} />
@@ -83,7 +83,7 @@ export function UniversalTabPanel({
         <div className="flex-grow"></div>
         
         <button
-          className="px-3 text-neutral-400 hover:text-white hover:bg-neutral-800/50"
+          className="px-3 h-[40px] flex items-center text-neutral-400 hover:text-white hover:bg-neutral-800/50"
           onClick={isMaximized ? onRestore : onMaximize}
         >
           {isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}

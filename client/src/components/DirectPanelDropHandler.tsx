@@ -295,12 +295,60 @@ export function DirectPanelDropHandler() {
     targetPanelId: string,
     direction: DropDirection
   ) => {
-    console.log('🚧 [DIRECT_HANDLER] handlePanelEdgeDrop called with:', {
+    console.log('🔧 [EDGE DROP HANDLER] START - handleEdgeDrop called', {
       tabId,
       sourcePanelId,
       targetPanelId,
       direction
     });
+    
+    // First validate all inputs to avoid mysterious errors
+    if (!tabId || !sourcePanelId || !targetPanelId || !direction) {
+      console.error('🔧 [EDGE DROP HANDLER] ERROR - Missing required parameters:', {
+        tabId,
+        sourcePanelId, 
+        targetPanelId,
+        direction
+      });
+      endDrag(false);
+      processingDrop.current = false;
+      return;
+    }
+    
+    // Validate that the tab exists
+    if (!state.tabs[tabId]) {
+      console.error(`🔧 [EDGE DROP HANDLER] ERROR - Tab ${tabId} not found in state`);
+      endDrag(false);
+      processingDrop.current = false;
+      return;
+    }
+    
+    // Validate source panel exists
+    if (!state.panels[sourcePanelId]) {
+      console.error(`🔧 [EDGE DROP HANDLER] ERROR - Source panel ${sourcePanelId} not found`);
+      endDrag(false);
+      processingDrop.current = false;
+      return;
+    }
+    
+    // Validate target panel exists
+    if (!state.panels[targetPanelId]) {
+      console.error(`🔧 [EDGE DROP HANDLER] ERROR - Target panel ${targetPanelId} not found`);
+      endDrag(false);
+      processingDrop.current = false;
+      return;
+    }
+    
+    // Validate tab is in source panel
+    const sourcePanel = state.panels[sourcePanelId];
+    if (!sourcePanel.tabs.includes(tabId)) {
+      console.error(`🔧 [EDGE DROP HANDLER] ERROR - Tab ${tabId} not found in source panel ${sourcePanelId}`);
+      endDrag(false);
+      processingDrop.current = false;
+      return;
+    }
+    
+    console.log('🔧 [EDGE DROP HANDLER] Validation passed, processing valid edge drop');
     
     // Step 1: Determine the split direction
     let splitDirection: 'horizontal' | 'vertical';
@@ -319,74 +367,101 @@ export function DirectPanelDropHandler() {
     const sanitizedTargetId = targetPanelId.replace(/[^a-zA-Z0-9]/g, '');
     const newPanelId = `panel-${sanitizedTargetId}-${executionId}-${timestamp}`;
     
-    console.log(`🚧 [DIRECT_HANDLER] Generated new panel ID: ${newPanelId}`);
-    console.log(`🚧 [DIRECT_HANDLER] Split config: direction=${splitDirection}, positionAfter=${positionAfter}`);
+    console.log(`🔧 [EDGE DROP HANDLER] Using direction=${splitDirection}, positionAfter=${positionAfter}, newPanelId=${newPanelId}`);
     
     try {
-      // Step 4: Create a properly typed panel config for the new panel
-      const newPanelConfig = {
-        id: newPanelId,
-        type: 'panel' as const, // Explicitly type as 'panel'
-        tabs: [] as string[],  // Start with empty tabs array
-        size: 50               // Default to 50% size
-      };
-      
-      console.log(`🚧 [DIRECT_HANDLER] Creating new panel with config:`, newPanelConfig);
-      
-      // Step 5: Execute the panel split - using the TabContext splitPanel method
-      // Convert the panel config to the expected format for splitPanel
+      // Step 4: Execute the panel split
       const splitOptions = {
         newPanelId: newPanelId,
         positionAfter: positionAfter
       };
-      splitPanel(targetPanelId, splitDirection, splitOptions);
       
-      console.log(`🚧 [DIRECT_HANDLER] Split panel executed, about to check if successful`);
+      // Important: Handle any exception that might occur during the split operation
+      try {
+        console.log('🔧 [EDGE DROP HANDLER] About to call splitPanel with:', {
+          targetPanelId,
+          splitDirection,
+          splitOptions
+        });
+        
+        splitPanel(targetPanelId, splitDirection, splitOptions);
+        
+        console.log('🔧 [EDGE DROP HANDLER] splitPanel called successfully');
+      } catch (error) {
+        console.error('🔧 [EDGE DROP HANDLER] ERROR during panel split operation:', error);
+        endDrag(false);
+        processingDrop.current = false;
+        return;
+      }
       
-      // Step 6: Wait for the panel to be created, then move the tab
+      // Step 5: Wait for the panel to be created, then move the tab
+      // Use a longer timeout to ensure state updates
       setTimeout(() => {
-        console.log(`🚧 [DIRECT_HANDLER] Checking for new panel...`);
-        
-        // Check if the new panel was created
-        const panelExists = state.panels[newPanelId];
-        console.log(`🚧 [DIRECT_HANDLER] New panel exists: ${!!panelExists}`);
-        
-        if (panelExists) {
-          // Move the tab to the new panel
-          console.log(`🚧 [DIRECT_HANDLER] Moving tab ${tabId} to new panel ${newPanelId}`);
-          moveTab(tabId, sourcePanelId, newPanelId);
-          console.log(`🚧 [DIRECT_HANDLER] Tab move executed`);
-        } else {
-          // Check for child panels
-          const targetPanel = state.panels[targetPanelId];
+        try {
+          // First check if the panel was created with the exact ID we specified
+          let targetPanelForTab = state.panels[newPanelId];
           
-          if (targetPanel && targetPanel.childPanels && targetPanel.childPanels.length > 0) {
-            console.log(`🚧 [DIRECT_HANDLER] Target panel now has child panels:`, targetPanel.childPanels);
+          if (targetPanelForTab) {
+            console.log(`🔧 [EDGE DROP HANDLER] Found new panel with ID ${newPanelId}`);
+          } else {
+            // Check for child panels of the target if our exact panel wasn't created
+            const targetPanel = state.panels[targetPanelId];
             
-            // Find the empty child panel (the one without tabs)
-            const emptyChildId = targetPanel.childPanels.find(
-              childId => state.panels[childId] && state.panels[childId].tabs.length === 0
-            );
-            
-            if (emptyChildId) {
-              console.log(`🚧 [DIRECT_HANDLER] Found empty child panel ${emptyChildId}, moving tab there`);
-              moveTab(tabId, sourcePanelId, emptyChildId);
-            } else {
-              console.error('🚧 [DIRECT_HANDLER] Could not find empty child panel to move tab to');
+            if (targetPanel && targetPanel.childPanels && targetPanel.childPanels.length > 0) {
+              console.log(`🔧 [EDGE DROP HANDLER] Target panel has child panels:`, targetPanel.childPanels);
+              
+              // Find an empty child panel
+              const emptyChildId = targetPanel.childPanels.find(
+                childId => state.panels[childId] && state.panels[childId].tabs.length === 0
+              );
+              
+              if (emptyChildId) {
+                console.log(`🔧 [EDGE DROP HANDLER] Will move tab to empty child panel ${emptyChildId}`);
+                targetPanelForTab = state.panels[emptyChildId];
+              } else {
+                console.warn('🔧 [EDGE DROP HANDLER] No empty child panel found');
+              }
+            }
+          }
+          
+          // If we found a valid target panel, move the tab
+          if (targetPanelForTab) {
+            try {
+              console.log(`🔧 [EDGE DROP HANDLER] Moving tab ${tabId} from ${sourcePanelId} to ${targetPanelForTab.id}`);
+              moveTab(tabId, sourcePanelId, targetPanelForTab.id);
+              console.log('🔧 [EDGE DROP HANDLER] Tab moved successfully');
+              endDrag(true);
+            } catch (moveError) {
+              console.error('🔧 [EDGE DROP HANDLER] ERROR moving tab:', moveError);
+              endDrag(false);
             }
           } else {
-            console.error('🚧 [DIRECT_HANDLER] New panel was not created and no child panels found');
+            console.error('🔧 [EDGE DROP HANDLER] No suitable target panel found for the tab');
+            endDrag(false);
           }
+        } catch (error) {
+          console.error('🔧 [EDGE DROP HANDLER] ERROR in tab move phase:', error);
+          endDrag(false);
+        } finally {
+          // Cleanup regardless of success/failure 
+          processingDrop.current = false;
+          
+          // Dispatch a custom event to notify that edge drop handling is complete
+          console.log('🔧 [EDGE DROP HANDLER] Dispatching panel-edge-drop-complete event');
+          document.dispatchEvent(new CustomEvent('panel-edge-drop-complete'));
         }
-        
-        // End the drag operation and clear processing flag
-        endDrag(true);
-        processingDrop.current = false;
-      }, 200); // Slightly longer timeout to ensure state updates
-    } catch (error) {
-      console.error('🚧 [DIRECT_HANDLER] Error handling panel edge drop:', error);
+      }, 300); // Longer timeout to ensure state updates
+    } catch (outerError) {
+      console.error('🔧 [EDGE DROP HANDLER] CRITICAL ERROR in edge drop handler:', outerError);
+      
+      // Safely end the drag operation even if things go very wrong
+      console.log('🔧 [EDGE DROP HANDLER] Safely ending drag (success: false)');
       endDrag(false);
       processingDrop.current = false;
+      
+      // Still dispatch the event to ensure cleanup
+      console.log('🔧 [EDGE DROP HANDLER] Dispatching panel-edge-drop-complete event');
+      document.dispatchEvent(new CustomEvent('panel-edge-drop-complete'));
     }
   };
   

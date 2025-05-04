@@ -63,39 +63,97 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
     setMousePosition(newPosition);
     updateMousePosition(newPosition.x, newPosition.y);
     
-    // First check for edge zones - these have highest priority
+    // Track if we found a drop target
     let foundDropTarget = false;
     
-    // Edge zone detection (for panel splitting)
-    edgeZones.forEach(({ rect, panelId }) => {
-      if (foundDropTarget) return; // Skip if we already found a target
+    // PRIORITY 1: Check tab bars first - tab bars have highest priority for tab dragging
+    if (dragItem.type === 'tab') {
+      const tabBars = document.querySelectorAll('[data-tabbar-id]');
       
-      const direction = detectEdgeZone(rect, newPosition.x, newPosition.y);
-      
-      if (direction) {
-        foundDropTarget = true;
-        setActiveEdgeZone({ panelId, direction });
+      // Convert NodeList to Array to avoid iteration issues
+      let foundTabBar = false;
+      Array.from(tabBars).forEach(tabBar => {
+        if (foundDropTarget || foundTabBar) return;
         
-        // Update drop target with edge information
-        const target: DropTarget = {
-          type: 'edge',
-          id: panelId,
-          direction,
-          rect
-        };
+        const panelId = tabBar.getAttribute('data-tabbar-id');
+        if (!panelId) return;
         
-        // Update the drop target
-        setDropTarget(target);
-        return;
-      }
-    });
+        // Skip if we're dragging from same panel (not implementing reordering yet)
+        if (dragItem.sourcePanelId === panelId) {
+          return;
+        }
+        
+        const rect = tabBar.getBoundingClientRect();
+        
+        // Check if mouse is inside this tabbar with some padding to make it easier to hit
+        // Extend the hit area slightly below the tabbar to make it easier to drop
+        if (
+          newPosition.x >= rect.left &&
+          newPosition.x <= rect.right &&
+          newPosition.y >= rect.top - 5 && // Add a small buffer zone above
+          newPosition.y <= rect.bottom + 10 // Add larger buffer zone below
+        ) {
+          foundDropTarget = true;
+          foundTabBar = true;
+          
+          // Clear any active edge zone since tab bar has priority
+          setActiveEdgeZone(null);
+          
+          // Create drop target for tabbar
+          const target: DropTarget = {
+            type: 'tabbar',
+            id: panelId,
+            rect
+          };
+          
+          console.log(`✨ Found tabbar drop target: ${panelId}`);
+          
+          // Update the drop target
+          setDropTarget(target);
+        }
+      });
+    }
+    
+    // PRIORITY 2: Only check edge zones if we haven't found a tab bar
+    if (!foundDropTarget) {
+      // Edge zone detection (for panel splitting)
+      edgeZones.forEach(({ rect, panelId }) => {
+        if (foundDropTarget) return; // Skip if we already found a target
+        
+        // Skip if we're dragging from the same panel
+        if (dragItem.type === 'tab' && dragItem.sourcePanelId === panelId) {
+          return;
+        }
+        
+        const direction = detectEdgeZone(rect, newPosition.x, newPosition.y);
+        
+        if (direction) {
+          foundDropTarget = true;
+          setActiveEdgeZone({ panelId, direction });
+          
+          // Update drop target with edge information
+          const target: DropTarget = {
+            type: 'edge',
+            id: panelId,
+            direction,
+            rect
+          };
+          
+          console.log(`🔲 Found edge drop target: ${panelId}-${direction}`);
+          
+          // Update the drop target
+          setDropTarget(target);
+          return;
+        }
+      });
+    }
     
     // Reset if not in any edge zone
     if (!foundDropTarget && activeEdgeZone) {
       setActiveEdgeZone(null);
     }
     
-    // If we didn't find an edge zone, check for tab bars and panel bodies
+    // PRIORITY 3: If we didn't find a tab bar or edge zone, check for panel bodies
     if (!foundDropTarget) {
       // Find all panels for dropping into the panel body
       const panels = document.querySelectorAll('[data-panel-body-id]');
@@ -505,21 +563,52 @@ function DropPreview({ target }: { target: DropTarget }) {
   // Tabbar drop preview - show distinct visual for dropping on tabbar (adding to existing tabs)
   if (target.type === 'tabbar' && target.rect) {
     return (
-      <div
-        className="fixed bg-blue-500 bg-opacity-15 border-2 border-blue-500 rounded-t z-40 pointer-events-none shadow-lg animate-pulse"
-        style={{
-          left: `${target.rect.left}px`,
-          top: `${target.rect.top}px`,
-          width: `${target.rect.width}px`,
-          height: `${target.rect.height}px`,
-          boxShadow: '0 0 15px rgba(59, 130, 246, 0.4) inset, 0 0 8px rgba(59, 130, 246, 0.4)'
-        }}
-      >
+      <div className="fixed z-50 pointer-events-none" style={{ 
+        position: 'absolute',
+        left: `${target.rect.left}px`,
+        top: `${target.rect.top}px`,
+        width: `${target.rect.width}px`,
+        height: `${target.rect.height}px`
+      }}>
+        {/* Tab bar highlight with a different color to distinguish from panel edge */}
+        <div 
+          className="absolute inset-0 bg-green-500 bg-opacity-15 border-2 border-green-500 rounded-t shadow-lg"
+          style={{
+            boxShadow: '0 0 15px rgba(16, 185, 129, 0.4) inset, 0 0 8px rgba(16, 185, 129, 0.4)'
+          }}
+        />
+        
+        {/* Tab indicator label */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="bg-blue-500 bg-opacity-80 text-white px-3 py-1 rounded-md text-sm font-medium shadow-sm">
-            Add to Tabs
+          <div className="bg-green-500 bg-opacity-90 text-white px-3 py-1 rounded-md text-sm font-medium shadow-md">
+            Add to Tab Bar
           </div>
         </div>
+        
+        {/* Add visual "insertion" indicators along the tab bar */}
+        <div className="absolute top-0 inset-x-0 flex justify-between items-center" style={{ height: `${target.rect.height}px` }}>
+          {/* Insertion markers at regular intervals */}
+          {[...Array(5)].map((_, i) => (
+            <div 
+              key={i} 
+              className="h-full w-0.5 bg-green-400 opacity-70 animate-pulse shadow-sm"
+              style={{ 
+                animationDelay: `${i * 0.1}s`,
+                boxShadow: '0 0 8px rgba(16, 185, 129, 0.7)' 
+              }}
+            />
+          ))}
+        </div>
+        
+        {/* Tab insertion preview */}
+        <div className="absolute right-8 top-0 h-full flex items-center">
+          <div className="h-[70%] w-0.5 bg-green-400 animate-pulse shadow-lg"
+               style={{ boxShadow: '0 0 15px rgba(16, 185, 129, 0.9)' }} />
+        </div>
+        
+        {/* Glow effect */}
+        <div className="absolute inset-0 rounded-t opacity-30 animate-pulse" 
+             style={{ boxShadow: 'inset 0 0 20px rgba(16, 185, 129, 0.7)' }} />
       </div>
     );
   }
@@ -528,18 +617,18 @@ function DropPreview({ target }: { target: DropTarget }) {
   if (target.type === 'panel' && target.rect) {
     return (
       <div
-        className="fixed bg-blue-500 bg-opacity-15 border-2 border-blue-500 rounded z-40 pointer-events-none shadow-lg animate-pulse"
+        className="fixed bg-purple-500 bg-opacity-15 border-2 border-purple-500 rounded z-40 pointer-events-none animate-pulse"
         style={{
           left: `${target.rect.left}px`,
           top: `${target.rect.top}px`,
           width: `${target.rect.width}px`,
           height: `${target.rect.height}px`,
-          boxShadow: '0 0 15px rgba(59, 130, 246, 0.4) inset, 0 0 8px rgba(59, 130, 246, 0.4)'
+          boxShadow: '0 0 15px rgba(139, 92, 246, 0.4) inset, 0 0 8px rgba(139, 92, 246, 0.4)'
         }}
       >
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="bg-blue-500 bg-opacity-80 text-white px-3 py-1 rounded-md text-sm font-medium shadow-sm">
-            Add to Panel
+          <div className="bg-purple-500 bg-opacity-90 text-white px-3 py-1 rounded-md text-sm font-medium shadow-md">
+            Add to Panel Content
           </div>
         </div>
         

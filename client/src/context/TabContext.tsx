@@ -13,6 +13,7 @@ export interface Tab {
   closeable: boolean;
   panelId: string;
   active: boolean;
+  pinned?: boolean;
   lastActive?: number; // Timestamp for tracking most recently used tabs
 }
 
@@ -49,7 +50,9 @@ type TabAction =
   | { type: 'ADD_PANEL'; payload: { type: PanelType; parentId?: string; direction?: 'horizontal' | 'vertical'; size?: number } }
   | { type: 'REMOVE_PANEL'; payload: { panelId: string } }
   | { type: 'SPLIT_PANEL'; payload: { panelId: string; direction: 'horizontal' | 'vertical'; options?: { newPanelId?: string; positionAfter?: boolean } } }
-  | { type: 'MOVE_PANEL'; payload: { panelId: string; targetId: string; position: 'before' | 'after' | 'inside' } };
+  | { type: 'MOVE_PANEL'; payload: { panelId: string; targetId: string; position: 'before' | 'after' | 'inside' } }
+  | { type: 'CHANGE_TAB_COMPONENT'; payload: { tabId: string; componentId: string } }
+  | { type: 'TOGGLE_TAB_PIN'; payload: { tabId: string } };
 
 // Context type
 interface TabContextType {
@@ -71,6 +74,8 @@ interface TabContextType {
   restorePanel: () => void;
   closePanel: (panelId: string) => void;
   restoreMaximizedPanel: () => void;
+  changeTabComponent: (tabId: string, componentId: string) => void;
+  toggleTabPin: (tabId: string) => void;
 }
 
 // Initial state

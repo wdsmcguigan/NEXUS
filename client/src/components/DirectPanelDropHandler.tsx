@@ -334,7 +334,12 @@ export function DirectPanelDropHandler() {
       console.log(`🚧 [DIRECT_HANDLER] Creating new panel with config:`, newPanelConfig);
       
       // Step 5: Execute the panel split - using the TabContext splitPanel method
-      splitPanel(targetPanelId, splitDirection, newPanelConfig);
+      // Convert the panel config to the expected format for splitPanel
+      const splitOptions = {
+        newPanelId: newPanelId,
+        positionAfter: positionAfter
+      };
+      splitPanel(targetPanelId, splitDirection, splitOptions);
       
       console.log(`🚧 [DIRECT_HANDLER] Split panel executed, about to check if successful`);
       

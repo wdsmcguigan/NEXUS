@@ -1,19 +1,16 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { useDragContext, DropDirection, DropTarget } from '../context/DragContext';
-
-interface DropZone {
-  id: string;
-  rect: DOMRect;
-  type: 'panel' | 'edge' | 'tabbar' | 'position';
-  direction?: DropDirection;
-  index?: number;
-}
+import { useDragContext, DropTarget } from '../context/DragContext';
 
 interface DragOverlayProps {
   active: boolean;
   onDrop: (target: DropTarget) => void;
 }
 
+/**
+ * DragOverlay provides visual feedback and drop target detection for drag operations.
+ * Currently only supports tab bar and panel body drops. Panel edge drop functionality
+ * has been temporarily removed for stability.
+ */
 export function DragOverlay({ active, onDrop }: DragOverlayProps) {
   // Refs for DOM elements
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -25,36 +22,11 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
     endDrag, 
     dropTarget,
     setDropTarget,
-    updateMousePosition, 
-    detectEdgeZone 
+    updateMousePosition
   } = useDragContext();
   
   // Local state
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const [edgeZones, setEdgeZones] = useState<Map<string, { rect: DOMRect, panelId: string }>>(new Map());
-  const [activeEdgeZone, setActiveEdgeZone] = useState<{
-    panelId: string, 
-    direction: DropDirection
-  } | null>(null);
-  
-  // Detect edge zones on page
-  useEffect(() => {
-    if (!active || !dragItem) return;
-    
-    // Get all panels on the page
-    const panels = document.querySelectorAll('[data-panel-id]');
-    const newEdgeZones = new Map();
-    
-    panels.forEach(panel => {
-      const panelId = panel.getAttribute('data-panel-id');
-      if (panelId) {
-        const rect = panel.getBoundingClientRect();
-        newEdgeZones.set(panelId, { rect, panelId });
-      }
-    });
-    
-    setEdgeZones(newEdgeZones);
-  }, [active, dragItem]);
   
   // Handle mouse movements during drag
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -75,7 +47,7 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
     
     // Only process tab drops - most common drag operation
     if (dragItem.type === 'tab') {
-      // --- PRIORITY 1: Check for tab bars first (highest priority) ---
+      // Check for tab bars first (highest priority)
       const tabBars = document.querySelectorAll('[data-tabbar-id]');
       
       // Check if mouse is over any tab bar
@@ -101,10 +73,7 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
         ) {
           foundDropTarget = true;
           
-          // Clear any active edge zone
-          setActiveEdgeZone(null);
-          
-          // Create drop target for tabbar with distinctive green color
+          // Create drop target for tabbar
           const target: DropTarget = {
             type: 'tabbar',
             id: panelId,
@@ -119,36 +88,7 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
         return false;
       });
       
-      // --- PRIORITY 2: If not over a tab bar, check for panel edges ---
-      if (!foundDropTarget) {
-        edgeZones.forEach(({ rect, panelId }) => {
-          if (foundDropTarget) return;
-          
-          // Skip if we're dragging from the same panel
-          if (dragItem.sourcePanelId === panelId) return;
-          
-          // Check if we're in an edge zone of this panel
-          const direction = detectEdgeZone(rect, newPosition.x, newPosition.y);
-          
-          if (direction) {
-            foundDropTarget = true;
-            setActiveEdgeZone({ panelId, direction });
-            
-            // Create drop target for edge with blue color scheme
-            const target: DropTarget = {
-              type: 'edge',
-              id: panelId,
-              direction,
-              rect
-            };
-            
-            console.log(`🔷 Edge drop target: ${panelId}-${direction}`);
-            setDropTarget(target);
-          }
-        });
-      }
-      
-      // --- PRIORITY 3: If not over a tab bar or edge, check for panel bodies ---
+      // If not over a tab bar, check for panel bodies as secondary option
       if (!foundDropTarget) {
         const panels = document.querySelectorAll('[data-panel-body-id]');
         
@@ -172,10 +112,7 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
           ) {
             foundDropTarget = true;
             
-            // Clear any active edge zone
-            setActiveEdgeZone(null);
-            
-            // Create drop target for panel body with purple color scheme
+            // Create drop target for panel body
             const target: DropTarget = {
               type: 'panel',
               id: panelId,
@@ -191,17 +128,12 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
         });
       }
       
-      // Reset edge zone highlight if not over any drop target
-      if (!foundDropTarget && activeEdgeZone) {
-        setActiveEdgeZone(null);
-      }
-      
       // Clear drop target if nothing was found
       if (!foundDropTarget && dropTarget) {
         setDropTarget(null);
       }
     }
-  }, [active, dragItem, edgeZones, detectEdgeZone, activeEdgeZone, dropTarget, setDropTarget, updateMousePosition]);
+  }, [active, dragItem, dropTarget, setDropTarget, updateMousePosition]);
   
   // Handle mouse up to end drag
   const handleMouseUp = useCallback((e: MouseEvent) => {
@@ -274,9 +206,6 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
       console.log('No drop target found');
       endDrag(false);
     }
-    
-    // Reset active edge zone
-    setActiveEdgeZone(null);
   }, [active, dragItem, dropTarget, endDrag, onDrop, setDropTarget]);
   
   // Add/remove event listeners
@@ -308,17 +237,6 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
           ref={overlayRef}
           className="fixed inset-0 z-50 bg-neutral-950 bg-opacity-10 cursor-grabbing"
         />
-        
-        {/* Edge zone indicators */}
-        {Array.from(edgeZones.values()).map(({ rect, panelId }) => (
-          <EdgeZoneIndicators 
-            key={panelId}
-            rect={rect} 
-            panelId={panelId}
-            isActive={activeEdgeZone?.panelId === panelId}
-            activeDirection={activeEdgeZone?.direction}
-          />
-        ))}
         
         {/* Tab drag preview */}
         <div
@@ -363,146 +281,9 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
   );
 }
 
-// Edge zone indicators component
-function EdgeZoneIndicators({ 
-  rect, 
-  panelId, 
-  isActive,
-  activeDirection
-}: { 
-  rect: DOMRect, 
-  panelId: string,
-  isActive: boolean,
-  activeDirection?: DropDirection
-}) {
-  // Calculate edge zone sizes (20% of panel dimension)
-  const edgeSize = Math.min(rect.width, rect.height) * 0.2;
-  
-  // Common styling for all edge zones
-  const getEdgeClasses = (direction: DropDirection) => {
-    return `fixed z-40 pointer-events-none transition-all duration-200 ${
-      isActive && activeDirection === direction
-        ? 'bg-blue-500 bg-opacity-30 border-blue-500 shadow-lg' 
-        : 'bg-blue-500 bg-opacity-0 border-blue-500 border-opacity-0'
-    } border-2`;
-  };
-  
-  // Generate arrow indicators for direction
-  const getArrowIndicator = (direction: DropDirection) => {
-    if (!isActive || activeDirection !== direction) return null;
-    
-    const arrowClasses = "absolute -translate-x-1/2 -translate-y-1/2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white animate-pulse";
-    
-    let position: React.CSSProperties = {};
-    let arrowSymbol = "";
-    
-    switch (direction) {
-      case 'top':
-      case 'bottom':
-        position = { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
-        arrowSymbol = "↕"; // Vertical split
-        break;
-      case 'left':
-      case 'right':
-        position = { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
-        arrowSymbol = "↔"; // Horizontal split 
-        break;
-      default:
-        break;
-    }
-    
-    return (
-      <div className={arrowClasses} style={position}>
-        {arrowSymbol}
-      </div>
-    );
-  };
-  
-  return (
-    <>
-      {/* Top edge zone */}
-      <div 
-        className={getEdgeClasses('top')}
-        style={{
-          left: rect.left,
-          top: rect.top,
-          width: rect.width,
-          height: edgeSize,
-          borderWidth: isActive && activeDirection === 'top' ? '2px' : '0px'
-        }}
-        data-edge-zone={`${panelId}-top`}
-      >
-        {getArrowIndicator('top')}
-        {isActive && activeDirection === 'top' && (
-          <div className="absolute inset-0 bg-gradient-to-b from-blue-500/30 to-transparent"></div>
-        )}
-      </div>
-      
-      {/* Right edge zone */}
-      <div 
-        className={getEdgeClasses('right')}
-        style={{
-          right: window.innerWidth - rect.right,
-          top: rect.top,
-          width: edgeSize,
-          height: rect.height,
-          borderWidth: isActive && activeDirection === 'right' ? '2px' : '0px'
-        }}
-        data-edge-zone={`${panelId}-right`}
-      >
-        {getArrowIndicator('right')}
-        {isActive && activeDirection === 'right' && (
-          <div className="absolute inset-0 bg-gradient-to-l from-blue-500/30 to-transparent"></div>
-        )}
-      </div>
-      
-      {/* Bottom edge zone */}
-      <div 
-        className={getEdgeClasses('bottom')}
-        style={{
-          left: rect.left,
-          bottom: window.innerHeight - rect.bottom,
-          width: rect.width,
-          height: edgeSize,
-          borderWidth: isActive && activeDirection === 'bottom' ? '2px' : '0px'
-        }}
-        data-edge-zone={`${panelId}-bottom`}
-      >
-        {getArrowIndicator('bottom')}
-        {isActive && activeDirection === 'bottom' && (
-          <div className="absolute inset-0 bg-gradient-to-t from-blue-500/30 to-transparent"></div>
-        )}
-      </div>
-      
-      {/* Left edge zone */}
-      <div 
-        className={getEdgeClasses('left')}
-        style={{
-          left: rect.left,
-          top: rect.top,
-          width: edgeSize,
-          height: rect.height,
-          borderWidth: isActive && activeDirection === 'left' ? '2px' : '0px'
-        }}
-        data-edge-zone={`${panelId}-left`}
-      >
-        {getArrowIndicator('left')}
-        {isActive && activeDirection === 'left' && (
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 to-transparent"></div>
-        )}
-      </div>
-    </>
-  );
-}
-
 // Component to render drop preview based on target type
 function DropPreview({ target }: { target: DropTarget }) {
   if (!target) return null;
-  
-  // PANEL EDGE DROP: Blue color scheme with split indicator
-  if (target.type === 'edge' && target.direction && target.rect) {
-    return <SplitPreview rect={target.rect} direction={target.direction} />;
-  }
   
   // TABBAR DROP: Green color scheme with tab insertion indicators
   if (target.type === 'tabbar' && target.rect) {
@@ -571,105 +352,4 @@ function DropPreview({ target }: { target: DropTarget }) {
   
   // Default case (unknown target type)
   return null;
-}
-
-// Component to show panel split preview
-function SplitPreview({ 
-  rect, 
-  direction,
-}: { 
-  rect: DOMRect, 
-  direction: DropDirection
-}) {
-  const isHorizontal = direction === 'left' || direction === 'right';
-  const isStart = direction === 'left' || direction === 'top';
-  
-  let previewStyle: React.CSSProperties = {
-    position: 'fixed',
-    zIndex: 40,
-    pointerEvents: 'none',
-    backgroundColor: 'rgba(59, 130, 246, 0.15)', // blue-500 with 15% opacity
-    borderRadius: '4px',
-    boxShadow: '0 0 10px rgba(59, 130, 246, 0.3)', // blue-500 shadow
-    border: '2px dashed rgba(59, 130, 246, 0.7)' // blue-500 border
-  };
-  
-  // Calculate preview size and position based on direction
-  const horizontalWidth = rect.width * 0.45; // 45% of panel width
-  const verticalHeight = rect.height * 0.45; // 45% of panel height
-  
-  if (isHorizontal) {
-    previewStyle = {
-      ...previewStyle,
-      left: isStart ? rect.left : rect.right - horizontalWidth,
-      top: rect.top,
-      width: horizontalWidth,
-      height: rect.height,
-    };
-  } else {
-    previewStyle = {
-      ...previewStyle,
-      left: rect.left,
-      top: isStart ? rect.top : rect.bottom - verticalHeight,
-      width: rect.width,
-      height: verticalHeight,
-    };
-  }
-  
-  // Direction-specific gradient styles
-  let gradientStyle: React.CSSProperties = {};
-  
-  switch (direction) {
-    case 'left':
-      gradientStyle = { 
-        background: 'linear-gradient(to right, rgba(59, 130, 246, 0.2), transparent)',
-        borderRight: '1px solid rgba(59, 130, 246, 0.5)'
-      };
-      break;
-    case 'right':
-      gradientStyle = { 
-        background: 'linear-gradient(to left, rgba(59, 130, 246, 0.2), transparent)',
-        borderLeft: '1px solid rgba(59, 130, 246, 0.5)'
-      };
-      break;
-    case 'top':
-      gradientStyle = { 
-        background: 'linear-gradient(to bottom, rgba(59, 130, 246, 0.2), transparent)',
-        borderBottom: '1px solid rgba(59, 130, 246, 0.5)'
-      };
-      break;
-    case 'bottom':
-      gradientStyle = { 
-        background: 'linear-gradient(to top, rgba(59, 130, 246, 0.2), transparent)',
-        borderTop: '1px solid rgba(59, 130, 246, 0.5)'
-      };
-      break;
-    default:
-      break;
-  }
-  
-  // Determine split direction label
-  const splitLabel = isHorizontal ? 'Horizontal Split' : 'Vertical Split';
-  
-  return (
-    <div
-      className="animate-pulse shadow-xl"
-      style={previewStyle}
-    >
-      {/* Gradient overlay */}
-      <div className="absolute inset-0" style={gradientStyle}></div>
-      
-      {/* Split indicator */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="bg-blue-500 bg-opacity-80 text-white px-3 py-1 rounded text-sm font-semibold shadow-md">
-          {splitLabel}
-        </div>
-      </div>
-      
-      {/* Arrow indicator */}
-      <div className="absolute inset-0 flex items-center justify-center text-blue-500 text-2xl font-bold">
-        {isHorizontal ? '⇔' : '⇕'}
-      </div>
-    </div>
-  );
 }

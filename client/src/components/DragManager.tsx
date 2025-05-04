@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useCallback } from 'react';
 import { useDragContext, DropTarget } from '../context/DragContext';
 import { useTabContext } from '../context/TabContext';
 import { DragOverlay } from './DragOverlay';
-import { PanelSplitter } from './PanelSplitter';
 
 /**
  * DragManager is a global component that handles drag-and-drop operations
@@ -57,22 +56,26 @@ export function DragManager() {
     if (dragItem.type === 'tab' && dragItem.sourcePanelId) {
       const { id: tabId, sourcePanelId } = dragItem;
       
+      // Verify tab and panel IDs exist
+      console.log(`🔄 Moving tab ${tabId} from panel ${sourcePanelId} to panel ${target.id}`);
+      
       // Handle different types of drop targets
       switch (target.type) {
         case 'panel':
-          console.log(`Moving tab ${tabId} from panel ${sourcePanelId} to panel ${target.id}`);
+          // Move tab to panel content
           moveTab(tabId, sourcePanelId, target.id);
           endDrag(true); // Mark as successful drop
           break;
+          
         case 'tabbar':
-          console.log(`Moving tab ${tabId} from panel ${sourcePanelId} to tabbar ${target.id}`);
+          // Move tab to tab bar
           moveTab(tabId, sourcePanelId, target.id);
           endDrag(true); // Mark as successful drop
           break;
+          
         case 'position':
           // Move tab to specific position
           if (target.position) {
-            console.log(`Moving tab ${tabId} from panel ${sourcePanelId} to position ${target.position.index} in panel ${target.position.panelId}`);
             moveTab(
               tabId, 
               sourcePanelId, 
@@ -82,17 +85,11 @@ export function DragManager() {
             endDrag(true); // Mark as successful drop
           }
           break;
-        case 'edge':
-          // Let the PanelSplitter handle this but ensure the drop target is set
-          if (target.direction) {
-            console.log(`Edge drop detected on ${target.id} with direction ${target.direction} - letting PanelSplitter handle it`);
-            // Important: We need to keep the dropTarget set for PanelSplitter
-            // But we don't call endDrag() here since PanelSplitter will do that
-            return;
-          } else {
-            console.error('Edge drop target missing direction');
-            endDrag(false);
-          }
+          
+        default:
+          // Unknown drop target type
+          console.error('Unknown drop target type:', target.type);
+          endDrag(false);
       }
     }
   }, [dragItem, setDropTarget, moveTab, endDrag]);
@@ -123,9 +120,6 @@ export function DragManager() {
         onDrop={handleDrop} 
       />
       
-      {/* Panel splitter for edge drops with enhanced visual feedback */}
-      <PanelSplitter />
-      
       {/* Add additional debug information if needed */}
       {process.env.NODE_ENV === 'development' && isDragging && mousePosition && (
         <div 
@@ -135,7 +129,6 @@ export function DragManager() {
           <div>Operation: {dragOperation}</div>
           <div>Position: {mousePosition.x.toFixed(0)}x{mousePosition.y.toFixed(0)}</div>
           <div>Target: {dropTarget?.type} {dropTarget?.id?.substring(0, 6)}</div>
-          {dropTarget?.direction && <div>Direction: {dropTarget.direction}</div>}
         </div>
       )}
     </>

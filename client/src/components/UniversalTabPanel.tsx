@@ -30,7 +30,7 @@ export function UniversalTabPanel({
   // Render the tabs for this panel
   return (
     <div className="flex flex-col h-full bg-neutral-950">
-      <div className="flex border-b border-neutral-800 bg-neutral-900 overflow-x-auto thin-scrollbar h-[40px]">
+      <div className="flex h-[40px] border-b border-neutral-800 bg-neutral-900 overflow-x-auto overflow-y-hidden thin-scrollbar">
         {tabIds.map(tabId => {
           const tab = state.tabs[tabId];
           if (!tab) return null;
@@ -90,7 +90,7 @@ export function UniversalTabPanel({
         </button>
       </div>
       
-      <div className="flex-grow overflow-auto p-0">
+      <div className="flex-grow overflow-auto p-0 thin-scrollbar">
         {activeTabId ? (
           <RenderActiveTab tabId={activeTabId} />
         ) : (
@@ -128,7 +128,7 @@ function RenderActiveTab({ tabId }: { tabId: string }) {
   const ComponentToRender = componentDef.component;
   
   return (
-    <div className="h-full overflow-auto">
+    <div className="h-full overflow-auto thin-scrollbar">
       <ComponentToRender {...(tab.props || {})} tabId={tabId} />
     </div>
   );

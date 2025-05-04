@@ -1,0 +1,50 @@
+I've discovered a critical issue with the tab drag functionality: when I drag a tab and try to drop it somewhere else (either into another panel's tab bar or to create a new panel), it has no effect at all. The tab simply returns to its original position.
+
+This is a blocker issue that needs to be fixed before we can proceed with other enhancements. Please:
+
+1. **Fix the core tab drop functionality**:
+   - Debug why tabs return to their original position when dropped
+   - Ensure the drop event is properly handled and updates the application state
+   - Make sure tabs actually move to their target location when dropped
+   - Test with dropping on existing tab bars and on panel edges
+
+2. **Only after fixing the drop functionality, implement these critical features**:
+   - Differentiation between dropping on tab bars vs. panel edges
+   - Context menu on right-click with the options we discussed (Change tab, Add pane, etc.)
+   - Visual indicators during drag showing where the tab will be placed
+
+The current implementation appears to have the drag part working but the drop part isn't functioning correctly. This suggests there might be an issue with:
+   - Event handlers for the drop event not updating state correctly
+   - Missing connection between the drag/drop events and the panel state management
+   - Possible issues with the event.preventDefault() or stopPropagation() in the handlers
+
+Please focus on getting the basic dropping functionality working first - a user should be able to drag a tab and successfully drop it into another panel's tab bar, with the tab actually moving to that new location.
+Thanks for fixing the TypeScript errors in the drag and drop functionality. I can now drag tabs without them disappearing, but there are two remaining critical issues to address:
+
+1. **Tab dragging refinement**:
+   - Currently there's no differentiation between dragging to an existing tab bar versus creating a new panel
+   - Need to implement edge detection to show panel split previews when dragging near panel edges
+   - Visual indicators should clearly show the difference between "add to tab bar" and "create new panel" actions
+
+2. **Context menu implementation**:
+   - The robust panel context menu similar to Replit's hasn't been implemented at all
+   - We need to add the following options to tab/panel context menus:
+     * Change tab
+     * Add pane
+     * Move tab
+     * Move group
+     * Maximize/Restore
+     * Float
+     * Close
+     * Split (vertical/horizontal)
+   - Add keyboard shortcuts for these operations
+   - Implement right-click functionality to open the context menu
+
+Please focus on these two features specifically:
+
+1. First, implement the context menu on right-click for tabs and panels with all the requested options
+2. Then, enhance the drag operation to properly differentiate between adding to existing tab bars and creating new panels with edge detection
+
+For the context menu, use Replit's implementation as a reference (as seen in my first screenshot). The menu should appear on right-click and include icons for each action.
+
+For the edge detection, add visual indicators that appear when dragging a tab near a panel edge (top, right, bottom, left) to show where the new panel will be created, distinct from the indicator shown when dragging to an existing tab bar.

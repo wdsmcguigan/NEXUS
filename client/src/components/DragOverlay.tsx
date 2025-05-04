@@ -84,8 +84,8 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
           rect
         };
         
-        // Set the drop target
-        onDrop(target);
+        // Update the drop target
+        setDropTarget(target);
         return;
       }
     });
@@ -124,8 +124,8 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
             rect
           };
           
-          // Set the drop target
-          onDrop(target);
+          // Update the drop target
+          setDropTarget(target);
           return;
         }
       });
@@ -158,8 +158,8 @@ export function DragOverlay({ active, onDrop }: DragOverlayProps) {
               rect
             };
             
-            // Set the drop target
-            onDrop(target);
+            // Update the drop target
+            setDropTarget(target);
             return;
           }
         });

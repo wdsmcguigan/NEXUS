@@ -1,29 +1,21 @@
 import React from 'react';
 import { Inbox as InboxIcon, User as UserIcon, Settings as SettingsIcon, Tag as TagIcon, Mail as MailIcon, MailOpen as MailOpenIcon, FileText as FileTextIcon, Sliders as SlidersIcon, PanelLeft as PanelLeftIcon, Folder as FolderIcon } from 'lucide-react';
 import componentRegistry, { defineComponent } from './componentRegistry';
+import { PlaceholderComponent } from '../components/PlaceholderComponent';
+import { TagManager } from '../components/TagManager';
+import { SettingsPanel } from '../components/SettingsPanel';
 
 // Helper types to patch missing imports
 // In a real implementation, you would import these from their respective files
-// These are placeholders until the actual components are created
 type ComponentProps = Record<string, any>;
-
-// Create placeholder components for components that don't exist yet
-const PlaceholderComponent: React.FC<{ name: string }> = ({ name }) => (
-  <div className="h-full flex items-center justify-center text-neutral-400">
-    <div className="text-center">
-      <p className="mb-2 text-sm">{name} component</p>
-      <p className="text-xs">This is a placeholder for the {name} component</p>
-    </div>
-  </div>
-);
 
 // Create placeholder components for any missing components
 const IntegrationsPanel: React.FC<ComponentProps> = (props) => (
-  <PlaceholderComponent name="Integrations" />
+  <PlaceholderComponent name="Integrations" {...props} />
 );
 
 const TemplatesPanel: React.FC<ComponentProps> = (props) => (
-  <PlaceholderComponent name="Templates" />
+  <PlaceholderComponent name="Email Templates" {...props} />
 );
 
 // Register all the components
@@ -72,7 +64,7 @@ export function registerComponents() {
     displayName: 'Tag Manager',
     category: 'tags',
     icon: TagIcon,
-    component: (props: ComponentProps) => <PlaceholderComponent name="Tag Manager" />,
+    component: TagManager,
     supportedPanelTypes: ['any'],
   });
 
@@ -82,7 +74,7 @@ export function registerComponents() {
     displayName: 'Settings',
     category: 'settings',
     icon: SettingsIcon,
-    component: (props: ComponentProps) => <PlaceholderComponent name="Settings" />,
+    component: SettingsPanel,
     supportedPanelTypes: ['main', 'bottom', 'any'],
   });
 

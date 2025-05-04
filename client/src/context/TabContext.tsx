@@ -120,7 +120,7 @@ function tabReducer(state: TabState, action: TabAction): TabState {
         id: tabId,
         componentId,
         title: title || component.displayName,
-        icon: icon || component.icon,
+        icon: icon || (component.icon ? React.createElement(component.icon, { size: 16 }) : undefined),
         props: props || component.defaultConfig || {},
         closeable,
         panelId,

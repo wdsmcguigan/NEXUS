@@ -430,7 +430,7 @@ function SplitPreview({
   
   return (
     <div
-      className="animate-pulse"
+      className="animate-pulse shadow-xl"
       style={previewStyle}
     >
       {/* Gradient overlay */}
@@ -438,7 +438,7 @@ function SplitPreview({
       
       {/* Split indicator */}
       <div className="absolute inset-0 flex items-center justify-center">
-        <div className="bg-blue-500 bg-opacity-80 text-white px-3 py-1 rounded text-sm font-semibold">
+        <div className="bg-blue-500 bg-opacity-80 text-white px-3 py-1 rounded text-sm font-semibold shadow-md">
           {splitLabel}
         </div>
       </div>
@@ -447,6 +447,15 @@ function SplitPreview({
       <div className="absolute inset-0 flex items-center justify-center text-blue-500 text-2xl font-bold">
         {isHorizontal ? '⇔' : '⇕'}
       </div>
+      
+      {/* Pulsing edges */}
+      <div className="absolute inset-0 border-2 border-blue-400 rounded-md animate-pulse opacity-70"></div>
+      
+      {/* Corner indicators */}
+      <div className="absolute top-0 left-0 w-3 h-3 bg-blue-500 rounded-full shadow-md"></div>
+      <div className="absolute top-0 right-0 w-3 h-3 bg-blue-500 rounded-full shadow-md"></div>
+      <div className="absolute bottom-0 left-0 w-3 h-3 bg-blue-500 rounded-full shadow-md"></div>
+      <div className="absolute bottom-0 right-0 w-3 h-3 bg-blue-500 rounded-full shadow-md"></div>
     </div>
   );
 }

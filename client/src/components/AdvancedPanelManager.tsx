@@ -144,7 +144,7 @@ export function AdvancedPanelManager() {
   const handlePanelDrop = useCallback((target: DropTarget) => {
     if (!dragData) return;
     
-    const { type, id: panelId, direction } = target;
+    const { type, id: panelId, direction, position } = target;
     
     if (type === 'panel' || type === 'tabbar') {
       // Move the tab to the target panel
@@ -156,13 +156,13 @@ export function AdvancedPanelManager() {
         const splitDirection = (direction === 'left' || direction === 'right') ? 'horizontal' : 'vertical';
         handleSplitPanel(panelId, splitDirection);
       }
-    } else if (type === 'position' && target.position) {
+    } else if (type === 'position' && position) {
       // For position drop, just move to the target panel
       // Since our moveTab doesn't support index positioning yet
       moveTab(
         dragData.tabId,
         dragData.sourcePanelId,
-        target.position.panelId
+        position.panelId
       );
     }
     

@@ -3,6 +3,7 @@ import { useDragContext } from '../context/DragContext';
 import { X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAppContext } from '../context/AppContext';
+import { TabContextMenu } from './TabContextMenu';
 
 interface TabProps {
   id: string;

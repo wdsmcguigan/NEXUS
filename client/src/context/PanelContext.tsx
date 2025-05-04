@@ -295,24 +295,42 @@ export function PanelProvider({ children }: { children: React.ReactNode }) {
   const splitPanel = useCallback((panelId: string, direction: PanelDirection, newPanel: PanelConfig) => {
     setLayout(prevLayout => {
       const panel = findPanel(prevLayout, panelId);
-      if (!panel) return prevLayout;
+      if (!panel) {
+        console.error(`Panel with ID ${panelId} not found for split operation`);
+        return prevLayout;
+      }
 
       // If the panel is already a split in the same direction, add the new panel as a child
       if (panel.type === 'split' && panel.direction === direction) {
-        return updatePanelInLayout(prevLayout, panelId, panel => ({
-          ...panel,
-          children: [...(panel.children || []), newPanel]
-        }));
+        return updatePanelInLayout(prevLayout, panelId, panel => {
+          // Ensure children is an array
+          const existingChildren = panel.children || [];
+          const childCount = existingChildren.length + 1;
+          
+          // Calculate new size for proportional distribution
+          const newSize = 100 / childCount;
+          
+          return {
+            ...panel,
+            children: [...existingChildren, { ...newPanel, size: newSize }]
+          };
+        });
       }
 
       // Otherwise, replace the panel with a new split panel containing both panels
       const splitId = `split-${nanoid(6)}`;
       
-      // Create a copy of the original panel (without overwriting its id)
+      // Create a proper deep copy of the original panel
       const originalPanelCopy = {
         ...panel,
+        id: `${panel.id}-child`, // Give it a new ID to avoid conflicts
         size: 50
       };
+      
+      // Don't copy over properties that shouldn't be inherited by child panels
+      if (panel.type === 'split') {
+        delete originalPanelCopy.children;
+      }
 
       // Create a new split panel
       const splitPanel: PanelConfig = {

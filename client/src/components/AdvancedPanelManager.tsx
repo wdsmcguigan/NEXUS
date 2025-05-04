@@ -3,6 +3,7 @@ import { PanelContainer } from './PanelContainer';
 import { DragOverlay } from './DragOverlay';
 import { usePanelContext, PanelConfig } from '../context/PanelContext';
 import { nanoid } from 'nanoid';
+import { DropTarget, DropTargetType, DropDirection } from '../context/DragContext';
 
 export function AdvancedPanelManager() {
   const { layout, updateLayout, moveTab } = usePanelContext();
@@ -140,16 +141,29 @@ export function AdvancedPanelManager() {
   }, [layout, dragData, findPanel, handleDragEnd, updateLayout, updatePanelInLayout]);
 
   // Handle dropping a tab onto a panel
-  const handlePanelDrop = useCallback((panelId: string, type: 'panel' | 'edge', direction?: 'top' | 'right' | 'bottom' | 'left') => {
+  const handlePanelDrop = useCallback((target: DropTarget) => {
     if (!dragData) return;
     
-    if (type === 'panel') {
+    const { type, id: panelId, direction } = target;
+    
+    if (type === 'panel' || type === 'tabbar') {
       // Move the tab to the target panel
       moveTab(dragData.tabId, dragData.sourcePanelId, panelId);
     } else if (type === 'edge' && direction) {
-      // Create a new panel by splitting in the direction
-      const splitDirection = (direction === 'left' || direction === 'right') ? 'horizontal' : 'vertical';
-      handleSplitPanel(panelId, splitDirection);
+      // Make sure direction is a valid split direction
+      if (direction === 'top' || direction === 'right' || direction === 'bottom' || direction === 'left') {
+        // Create a new panel by splitting in the direction
+        const splitDirection = (direction === 'left' || direction === 'right') ? 'horizontal' : 'vertical';
+        handleSplitPanel(panelId, splitDirection);
+      }
+    } else if (type === 'position' && target.position) {
+      // For position drop, just move to the target panel
+      // Since our moveTab doesn't support index positioning yet
+      moveTab(
+        dragData.tabId,
+        dragData.sourcePanelId,
+        target.position.panelId
+      );
     }
     
     handleDragEnd();

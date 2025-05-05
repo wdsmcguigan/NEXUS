@@ -10,6 +10,7 @@ import { FolderExplorer } from '../components/FolderExplorer';
 import { EmailWorkspaceWithSearch } from '../components/EmailWorkspaceWithSearch';
 import { AdvancedSearchComponent } from '../components/AdvancedSearchComponent';
 import { DependencyPanel } from '../components/dependency/DependencyPanel';
+import { DependencyDemo } from '../components/demo/DependencyDemo';
 
 // Helper types to patch missing imports
 // In a real implementation, you would import these from their respective files
@@ -117,7 +118,7 @@ export function registerComponents() {
   defineComponent({
     id: 'advanced-search',
     displayName: 'Advanced Search',
-    category: 'search',
+    category: 'utility',
     icon: SearchCheckIcon,
     component: AdvancedSearchComponent,
     supportedPanelTypes: ['main', 'sidebar', 'any'],
@@ -140,6 +141,16 @@ export function registerComponents() {
     icon: NetworkIcon,
     component: DependencyPanel,
     supportedPanelTypes: ['main', 'bottom', 'any'],
+  });
+  
+  // Demo Components
+  defineComponent({
+    id: 'dependency-demo',
+    displayName: 'Dependency Demo',
+    category: 'utility',
+    icon: Link2Icon,
+    component: DependencyDemo,
+    supportedPanelTypes: ['main', 'any'],
   });
 
   return componentRegistry;

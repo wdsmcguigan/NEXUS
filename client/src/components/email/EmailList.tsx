@@ -243,7 +243,22 @@ const EmailList: React.FC<EmailListProps> = ({
   
   // Handle email selection
   const handleEmailClick = (email: Email) => {
+    // Deselect if already selected
+    if (selectedEmail?.id === email.id) {
+      setSelectedEmail(null);
+      return;
+    }
+    
     setSelectedEmail(email);
+    
+    // Show visual feedback for dependencies
+    if (hasDependentViewer) {
+      toast({
+        title: "Data Sent",
+        description: `Email "${email.subject.substring(0, 25)}${email.subject.length > 25 ? '...' : ''}" sent to connected viewer(s)`,
+        variant: "default",
+      });
+    }
   };
   
   // Disconnect from all dependents

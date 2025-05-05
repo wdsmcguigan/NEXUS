@@ -16,6 +16,7 @@ import { useTabContext } from '../../context/TabContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useToast } from '@/hooks/use-toast';
 
 interface DependencyPickerProps {
   tabId: string;
@@ -25,6 +26,7 @@ interface DependencyPickerProps {
 export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
   const { registry, manager } = useDependencyContext();
   const { state } = useTabContext();
+  const { toast } = useToast();
   const [isActive, setIsActive] = useState(false);
   const [isPickingMode, setIsPickingMode] = useState(false);
   const [availableTabs, setAvailableTabs] = useState<string[]>([]);
@@ -128,6 +130,13 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
         // Send some initial data
         manager.updateData(tabId, selectedDataType, { message: "Initial data from provider" });
       }
+      
+      // Show toast to indicate successful connection
+      toast({
+        title: "Dependency Created",
+        description: `Connected ${getTabName(tabId)} (${tabId.substring(0, 6)}...) to ${getTabName(targetTabId)} (${targetTabId.substring(0, 6)}...)`,
+        variant: "default"
+      });
     }
     
     // Exit picking mode
@@ -169,12 +178,30 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
               </Button>
             </div>
             
-            <p className="text-sm text-muted-foreground mb-4">
-              {isProvider ? 
-                `Your tab "${getTabName(tabId)}" will provide ${selectedDataType} data to the selected tab.` :
-                `Your tab "${getTabName(tabId)}" will consume ${selectedDataType} data from the selected tab.`
-              }
-            </p>
+            <div className="bg-blue-900/20 rounded p-3 mb-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center">
+                  <Badge variant="outline" className="bg-blue-600/20 mr-2">Source</Badge>
+                  <span className="font-medium">{getTabName(tabId)}</span>
+                </div>
+                <Badge variant="outline" className="text-xs">
+                  ID: {tabId.substring(0, 8)}...
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {isProvider ? 
+                  `This tab will provide ${selectedDataType} data to the selected tab.` :
+                  `This tab will consume ${selectedDataType} data from the selected tab.`
+                }
+              </p>
+            </div>
+            
+            <div className="border-b pb-2 mb-2">
+              <h4 className="text-sm font-medium mb-1">Available tabs</h4>
+              <p className="text-xs text-muted-foreground">
+                Select a tab to {isProvider ? 'send data to' : 'receive data from'}
+              </p>
+            </div>
             
             <ScrollArea className="h-[300px] border rounded-md p-2">
               {availableTabs.length === 0 ? (
@@ -185,15 +212,22 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
                 availableTabs.map(otherTabId => (
                   <div 
                     key={otherTabId}
-                    className="p-2 border-b last:border-b-0 hover:bg-accent/50 rounded-sm cursor-pointer"
+                    className="p-2 mb-2 border border-blue-500/20 hover:bg-accent/50 rounded-sm cursor-pointer"
                     onClick={() => handleCreateDependency(otherTabId)}
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium">{getTabName(otherTabId)}</div>
+                        <div className="font-medium flex items-center">
+                          {getTabName(otherTabId)}
+                          <Badge variant="outline" className="ml-2 text-xs px-1.5 py-0 bg-blue-900/10">
+                            ID: {otherTabId.substring(0, 8)}...
+                          </Badge>
+                        </div>
                         <div className="text-xs text-muted-foreground">{getPanelName(otherTabId)}</div>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </Button>
                     </div>
                   </div>
                 ))

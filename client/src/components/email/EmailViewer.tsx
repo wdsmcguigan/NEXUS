@@ -86,9 +86,19 @@ const EmailViewer: React.FC<EmailViewerProps> = ({
   useEffect(() => {
     if (email) {
       console.log("EmailViewer received email data:", email);
+      
+      // Only show toast if we received a new email (not just initial render)
+      if (currentEmailId !== 0 && currentEmailId !== email.id) {
+        toast({
+          title: "New Email Received",
+          description: `Email "${email.subject.substring(0, 25)}${email.subject.length > 25 ? '...' : ''}" received from provider`,
+          variant: "default",
+        });
+      }
+      
       setCurrentEmailId(email.id);
     }
-  }, [email]);
+  }, [email, currentEmailId]);
   
   // Provider for contact information
   const {
@@ -102,6 +112,23 @@ const EmailViewer: React.FC<EmailViewerProps> = ({
   
   // Use prop email as fallback if dependency system doesn't provide one
   const displayEmail = email || propEmail;
+  
+  // Track if we just received new data (for animation)
+  const [showNewDataIndicator, setShowNewDataIndicator] = useState(false);
+  
+  // Show animation when new data arrives
+  useEffect(() => {
+    if (email && currentEmailId !== 0 && currentEmailId !== email.id) {
+      setShowNewDataIndicator(true);
+      
+      // Hide the indicator after 3 seconds
+      const timer = setTimeout(() => {
+        setShowNewDataIndicator(false);
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [email, currentEmailId]);
   
   // Update contact data when email changes
   useEffect(() => {
@@ -207,16 +234,25 @@ const EmailViewer: React.FC<EmailViewerProps> = ({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Badge 
-                      variant="default"
-                      className="flex items-center"
+                      variant={showNewDataIndicator ? "success" : "default"}
+                      className={`flex items-center ${showNewDataIndicator ? 'animate-pulse' : ''}`}
                     >
-                      <Link2 className="w-3 h-3 mr-1" /> Provider: {emailProviderId.split('-')[0]}
+                      <Link2 className={`w-3 h-3 mr-1 ${showNewDataIndicator ? 'animate-spin' : ''}`} /> 
+                      Provider: {emailProviderId.split('-')[0]}
+                      {showNewDataIndicator && (
+                        <span className="ml-1 text-xs">•</span>
+                      )}
                     </Badge>
                   </TooltipTrigger>
                   <TooltipContent>
                     Connected to: {emailProviderId}
                     <br />
                     Last updated: {emailLastUpdated ? new Date(emailLastUpdated).toLocaleTimeString() : 'Never'}
+                    {showNewDataIndicator && (
+                      <div className="mt-1 pt-1 border-t text-green-500 font-medium">
+                        New data received!
+                      </div>
+                    )}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>

@@ -1,253 +1,218 @@
-/**
- * Email Dependency Demo Component
- * 
- * This component demonstrates the Component Dependency System with a simple
- * email selection example. It shows how email list components can provide
- * selected email data to email viewer components through dependencies.
- */
-
-import React, { useEffect, useState } from 'react';
-import { useDependencyContext } from '../context/DependencyContext';
+import React, { useState } from 'react';
+import { DependencyProvider } from '../context/DependencyContext';
+import EmailList from './email/EmailList';
+import EmailViewer from './email/EmailViewer';
+import ContactDetails from './email/ContactDetails';
+import FolderList from './email/FolderList';
+import TagManager from './email/TagManager';
 import { 
-  DependencyStatus,
-  DependencySyncStrategy,
-  DependencyDataTypes
-} from '../lib/dependency/DependencyInterfaces';
-import { ComponentType } from '../lib/communication/ComponentCommunication';
-import { v4 as uuidv4 } from 'uuid';
+  ResizableHandle, 
+  ResizablePanel, 
+  ResizablePanelGroup 
+} from './ui/resizable';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+import { Button } from './ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { 
+  Mail, 
+  Info, 
+  ArrowDownUp, 
+  RefreshCcw, 
+  FolderOpen,
+  Tag,
+  User,
+  Mail as MailIcon
+} from 'lucide-react';
 
-// Simple email interface for the demo
-interface Email {
-  id: string;
-  subject: string;
-  from: string;
-  to: string;
-  body: string;
-  date: Date;
-  isRead: boolean;
-}
-
-// Demo data
-const SAMPLE_EMAILS: Email[] = [
-  {
-    id: '1',
-    subject: 'Welcome to the Dependency Demo',
-    from: 'system@nexus.email',
-    to: 'user@example.com',
-    body: 'This email demonstrates how the Component Dependency System works.',
-    date: new Date('2025-04-30T10:00:00'),
-    isRead: false
-  },
-  {
-    id: '2',
-    subject: 'Component Communication Made Easy',
-    from: 'developer@nexus.email',
-    to: 'user@example.com',
-    body: 'The Component Dependency System provides a structured approach to component communication.',
-    date: new Date('2025-05-01T09:15:00'),
-    isRead: true
-  },
-  {
-    id: '3',
-    subject: 'Advanced Features',
-    from: 'product@nexus.email',
-    to: 'user@example.com',
-    body: 'The system includes features like data transformation, validation, and flexible synchronization strategies.',
-    date: new Date('2025-05-02T14:30:00'),
-    isRead: false
-  }
-];
-
-// Email List Component (Provider)
-const EmailListComponent: React.FC<{
-  updateSelectedEmail: (email: Email) => void;
-  componentId: string;
-}> = ({ updateSelectedEmail, componentId }) => {
-  const [emails] = useState<Email[]>(SAMPLE_EMAILS);
-  const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
-  
-  const handleSelectEmail = (email: Email) => {
-    setSelectedEmailId(email.id);
-    updateSelectedEmail(email);
-  };
-  
-  return (
-    <div className="border rounded-md p-4 mb-4">
-      <h2 className="text-lg font-bold mb-2">Email List (Provider - ID: {componentId.substring(0, 6)}...)</h2>
-      <ul className="divide-y">
-        {emails.map(email => (
-          <li 
-            key={email.id}
-            className={`py-2 px-2 cursor-pointer hover:bg-gray-100 ${selectedEmailId === email.id ? 'bg-blue-100' : ''}`}
-            onClick={() => handleSelectEmail(email)}
-          >
-            <div className="flex items-center">
-              <span className={`w-2 h-2 rounded-full mr-2 ${email.isRead ? 'bg-gray-300' : 'bg-blue-500'}`}></span>
-              <div>
-                <p className="font-medium">{email.subject}</p>
-                <p className="text-sm text-gray-600">{email.from}</p>
-                <p className="text-xs text-gray-500">{email.date.toLocaleString()}</p>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-};
-
-// Email Viewer Component (Consumer)
-const EmailViewerComponent: React.FC<{
-  selectedEmail: Email | null;
-  componentId: string;
-}> = ({ selectedEmail, componentId }) => {
-  return (
-    <div className="border rounded-md p-4">
-      <h2 className="text-lg font-bold mb-2">Email Viewer (Consumer - ID: {componentId.substring(0, 6)}...)</h2>
-      
-      {selectedEmail ? (
-        <div>
-          <div className="mb-4">
-            <h3 className="text-xl font-bold">{selectedEmail.subject}</h3>
-            <p className="text-sm">
-              <span className="font-medium">From:</span> {selectedEmail.from}
-            </p>
-            <p className="text-sm">
-              <span className="font-medium">To:</span> {selectedEmail.to}
-            </p>
-            <p className="text-sm">
-              <span className="font-medium">Date:</span> {selectedEmail.date.toLocaleString()}
-            </p>
-          </div>
-          <div className="border-t pt-2">
-            <p>{selectedEmail.body}</p>
-          </div>
-        </div>
-      ) : (
-        <div className="text-center py-8 text-gray-500">
-          <p>Select an email to view its content</p>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Main Demo Component
 const EmailDependencyDemo: React.FC = () => {
-  const dependency = useDependencyContext();
-  const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
-  const [dependencyId, setDependencyId] = useState<string | null>(null);
-  const [providerId] = useState<string>(uuidv4());
-  const [consumerId] = useState<string>(uuidv4());
+  const [selectedFolderId, setSelectedFolderId] = useState<string>('inbox');
+  const [selectedTagId, setSelectedTagId] = useState<string>('');
   
-  // Register dependency definition if needed
-  useEffect(() => {
-    // Check if the dependency definition already exists
-    const existingDefinition = dependency.getDependencyDefinitionsByProvider(ComponentType.EMAIL_LIST)
-      .find(def => 
-        def.consumerType === ComponentType.EMAIL_VIEWER && 
-        def.dataType === DependencyDataTypes.EMAIL
-      );
-    
-    let definitionId: string;
-    
-    if (!existingDefinition) {
-      // Register a new dependency definition
-      definitionId = dependency.registerDependencyDefinition({
-        name: 'Email Selection',
-        description: 'Email list provides selected email to email viewer',
-        providerType: ComponentType.EMAIL_LIST,
-        consumerType: ComponentType.EMAIL_VIEWER,
-        dataType: DependencyDataTypes.EMAIL,
-        syncStrategy: DependencySyncStrategy.PUSH,
-        isRequired: false,
-        isOneToMany: true,
-        isManyToOne: false
-      });
-      console.log(`Registered new dependency definition: ${definitionId}`);
-    } else {
-      definitionId = existingDefinition.id;
-      console.log(`Using existing dependency definition: ${definitionId}`);
-    }
-    
-    // Create a new dependency instance
-    const newDependencyId = dependency.createDependency(
-      definitionId,
-      providerId,
-      consumerId
-    );
-    
-    setDependencyId(newDependencyId);
-    console.log(`Created dependency instance: ${newDependencyId}`);
-    
-    // Clean up
-    return () => {
-      if (dependencyId) {
-        dependency.removeDependency(dependencyId);
-        console.log(`Removed dependency instance: ${dependencyId}`);
-      }
-    };
-  }, [dependency, providerId, consumerId]);
+  // In a real app, you wouldn't need to generate IDs manually like this
+  // They would be derived from database IDs or other sources
+  const instanceIds = {
+    folderList: 'folder-list-1',
+    tagManager: 'tag-manager-1',
+    emailList: 'email-list-1',
+    emailViewer: 'email-viewer-1',
+    contactDetails: 'contact-details-1'
+  };
   
-  // Update the dependency with the selected email
-  const updateSelectedEmail = (email: Email) => {
-    setSelectedEmail(email);
-    
-    if (dependencyId) {
-      // Update the dependency data
-      const success = dependency.updateDependencyData(dependencyId, email);
-      
-      if (success) {
-        console.log(`Successfully updated dependency data for ${dependencyId}`);
-        
-        // Set the dependency as active and ready
-        dependency.setDependencyStatus(dependencyId, DependencyStatus.ACTIVE);
-      } else {
-        console.error(`Failed to update dependency data for ${dependencyId}`);
-      }
-    }
+  // Handle folder selection
+  const handleFolderSelect = (folderId: string) => {
+    setSelectedFolderId(folderId);
+  };
+  
+  // Handle tag selection
+  const handleTagSelect = (tagId: string) => {
+    setSelectedTagId(tagId);
+  };
+  
+  // Handle reset filters
+  const handleResetFilters = () => {
+    setSelectedFolderId('all');
+    setSelectedTagId('');
   };
   
   return (
-    <div className="container mx-auto p-4 max-w-5xl">
-      <h1 className="text-2xl font-bold mb-6">Component Dependency System Demo</h1>
-      
-      <div className="bg-gray-100 rounded-lg p-4 mb-6">
-        <h2 className="text-xl font-bold mb-2">About This Demo</h2>
-        <p className="mb-2">
-          This demo illustrates the Component Dependency System in action with a simple email application example:
-        </p>
-        <ul className="list-disc pl-5 mb-2">
-          <li>The <strong>Email List</strong> component is a <em>provider</em> that supplies selected email data</li>
-          <li>The <strong>Email Viewer</strong> component is a <em>consumer</em> that displays the selected email</li>
-          <li>The Dependency System manages the data flow between these components</li>
-        </ul>
-        <p>
-          When you select an email in the list, the dependency system automatically updates the email viewer with the selected data.
-        </p>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <EmailListComponent 
-          updateSelectedEmail={updateSelectedEmail}
-          componentId={providerId}
-        />
-        <EmailViewerComponent 
-          selectedEmail={selectedEmail}
-          componentId={consumerId}
-        />
-      </div>
-      
-      {dependencyId && (
-        <div className="mt-6 bg-blue-50 rounded-lg p-4">
-          <h2 className="text-lg font-bold mb-2">Dependency Information</h2>
-          <p><strong>Dependency ID:</strong> {dependencyId}</p>
-          <p><strong>Provider ID:</strong> {providerId}</p>
-          <p><strong>Consumer ID:</strong> {consumerId}</p>
-          <p><strong>Status:</strong> {dependency.getDependency(dependencyId)?.isActive ? 'Active' : 'Inactive'}</p>
-          <p><strong>Data Type:</strong> Email</p>
+    <div className="container mx-auto px-4 py-6">
+      <header className="flex justify-between items-center mb-6">
+        <div className="flex items-center">
+          <Mail className="h-8 w-8 mr-3 text-primary" />
+          <div>
+            <h1 className="text-2xl font-bold">NEXUS.email</h1>
+            <p className="text-muted-foreground">Component Dependency Demo</p>
+          </div>
         </div>
-      )}
+        
+        <div className="flex gap-2 items-center">
+          <div className="text-sm mr-4 bg-muted/50 py-1 px-3 rounded-md text-muted-foreground flex items-center">
+            <Info className="h-3.5 w-3.5 mr-1" />
+            Data flows automatically between connected components
+          </div>
+          
+          <Button variant="outline" onClick={handleResetFilters}>
+            <RefreshCcw className="h-4 w-4 mr-2" /> Reset Filters
+          </Button>
+        </div>
+      </header>
+      
+      <ResizablePanelGroup direction="horizontal" className="min-h-[800px] rounded-lg border">
+        {/* Left sidebar - email organization */}
+        <ResizablePanel defaultSize={20} minSize={15}>
+          <div className="h-full p-4 flex flex-col">
+            <Tabs defaultValue="folders" className="flex-grow">
+              <TabsList className="grid grid-cols-2 mb-4">
+                <TabsTrigger value="folders" className="flex gap-1 items-center">
+                  <FolderOpen className="h-4 w-4" /> Folders
+                </TabsTrigger>
+                <TabsTrigger value="tags" className="flex gap-1 items-center">
+                  <Tag className="h-4 w-4" /> Tags
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="folders" className="h-full mt-0">
+                <FolderList
+                  instanceId={instanceIds.folderList}
+                  onFolderSelect={handleFolderSelect}
+                  selectedFolderId={selectedFolderId}
+                />
+              </TabsContent>
+              
+              <TabsContent value="tags" className="h-full mt-0">
+                <TagManager
+                  instanceId={instanceIds.tagManager}
+                  onTagSelect={handleTagSelect}
+                  selectedTagId={selectedTagId}
+                />
+              </TabsContent>
+            </Tabs>
+          </div>
+        </ResizablePanel>
+        
+        <ResizableHandle />
+        
+        {/* Middle panel - email list */}
+        <ResizablePanel defaultSize={30}>
+          <div className="h-full p-4">
+            <EmailList
+              instanceId={instanceIds.emailList}
+              filterFolder={selectedFolderId}
+              filterTag={selectedTagId}
+            />
+          </div>
+        </ResizablePanel>
+        
+        <ResizableHandle />
+        
+        {/* Right panel - email viewer and contact details */}
+        <ResizablePanel defaultSize={50}>
+          <ResizablePanelGroup direction="vertical">
+            {/* Email viewer */}
+            <ResizablePanel defaultSize={70}>
+              <div className="h-full p-4">
+                <EmailViewer
+                  instanceId={instanceIds.emailViewer}
+                />
+              </div>
+            </ResizablePanel>
+            
+            <ResizableHandle />
+            
+            {/* Contact details */}
+            <ResizablePanel defaultSize={30}>
+              <div className="h-full p-4">
+                <ContactDetails
+                  instanceId={instanceIds.contactDetails}
+                />
+              </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+      
+      {/* Dependency explanation */}
+      <div className="mt-6 p-6 border rounded-lg bg-muted/30">
+        <h2 className="text-lg font-bold mb-4 flex items-center">
+          <ArrowDownUp className="mr-2 h-5 w-5" /> Data Flow Between Components
+        </h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-md flex items-center">
+                <MailIcon className="h-4 w-4 mr-1 text-purple-500" /> EmailList
+              </CardTitle>
+              <CardDescription>Data flow & dependencies</CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm">
+              <ul className="space-y-1 list-disc pl-4">
+                <li><span className="font-medium">Consumes:</span> folder/tag filters from FolderList and TagManager</li>
+                <li><span className="font-medium">Provides:</span> selected email data to EmailViewer</li>
+                <li>When you select an email, that data is sent to the EmailViewer automatically</li>
+              </ul>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-md flex items-center">
+                <Mail className="h-4 w-4 mr-1 text-orange-500" /> EmailViewer
+              </CardTitle>
+              <CardDescription>Data flow & dependencies</CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm">
+              <ul className="space-y-1 list-disc pl-4">
+                <li><span className="font-medium">Consumes:</span> email data from EmailList</li>
+                <li><span className="font-medium">Provides:</span> contact information to ContactDetails</li>
+                <li>Automatically extracts sender contact info from emails and passes it to the ContactDetails component</li>
+              </ul>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-md flex items-center">
+                <User className="h-4 w-4 mr-1 text-red-500" /> ContactDetails
+              </CardTitle>
+              <CardDescription>Data flow & dependencies</CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm">
+              <ul className="space-y-1 list-disc pl-4">
+                <li><span className="font-medium">Consumes:</span> contact data from EmailViewer</li>
+                <li><span className="font-medium">Provides:</span> none</li>
+                <li>Displays detailed contact information whenever a new email is selected</li>
+                <li>Acts as a terminal consumer in the dependency chain</li>
+              </ul>
+            </CardContent>
+          </Card>
+        </div>
+        
+        <div className="mt-6 text-sm text-center text-muted-foreground">
+          Try clicking on different emails to see how data automatically flows through the components.<br />
+          Each component shows connection status and lets you disconnect dependencies if needed.
+        </div>
+      </div>
     </div>
   );
 };

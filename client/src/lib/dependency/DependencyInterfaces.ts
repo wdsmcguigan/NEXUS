@@ -1,182 +1,150 @@
 /**
- * Data types that can be shared between components through the dependency system
+ * This file defines the interfaces and types used by the dependency system.
+ * The dependency system allows components to declare what data they provide
+ * and what data they consume, enabling automatic data flow between components.
  */
-export enum DependencyDataTypes {
-  EMAIL = 'email',
-  EMAIL_LIST = 'email-list',
-  EMAIL_ACCOUNT = 'email-account',
-  EMAIL_ACCOUNT_LIST = 'email-account-list',
-  CONTACT = 'contact',
-  CONTACT_LIST = 'contact-list',
-  TAG = 'tag',
-  TAG_LIST = 'tag-list',
-  SEARCH_QUERY = 'search-query',
-  SEARCH_RESULTS = 'search-results',
-  FILTERS = 'filters',
-  SORT_OPTIONS = 'sort-options',
-  SELECTION = 'selection',
-  SETTINGS = 'settings'
-}
-
-// Type for compatibility with existing code and generic types
-export type DependencyDataType = DependencyDataTypes | string;
 
 /**
- * Synchronization strategies for data dependencies
- */
-export enum DependencySyncStrategy {
-  // Provider pushes updates to consumers automatically
-  PUSH = 'push',
-  
-  // Consumer pulls data from provider when needed
-  PULL = 'pull',
-  
-  // Both push and pull mechanisms are allowed
-  HYBRID = 'hybrid'
-}
-
-/**
- * Dependency relationship status
+ * Status of a dependency relationship
  */
 export enum DependencyStatus {
-  // Not connected to any dependency
-  INACTIVE = 'inactive',
-  
-  // Currently fetching data from provider
-  LOADING = 'loading',
-  
-  // Successfully connected and synced with provider
-  ACTIVE = 'active',
-  
-  // Error in dependency connection or data retrieval
-  ERROR = 'error'
+  DISCONNECTED = 'disconnected', // No connection established
+  CONNECTING = 'connecting',     // Connection in progress
+  CONNECTED = 'connected',       // Connection established
+  ERROR = 'error',               // Connection error
+  READY = 'ready',               // Connected and data is available
 }
 
 /**
- * Definition of a dependency relationship type between components
+ * Types of data that can be shared between components
+ */
+export enum DependencyDataTypes {
+  // Core email data types
+  EMAIL = 'email',               // Single email data
+  EMAIL_LIST = 'email-list',     // List of emails
+  CONTACT = 'contact',           // Contact information
+  TAG = 'tag',                   // Tag information
+  TAG_LIST = 'tag-list',         // List of tags
+  
+  // Filter types
+  FILTERS = 'filters',           // Generic filter data
+  TAG_FILTER = 'tag-filter',     // Tag-specific filter
+  FOLDER_FILTER = 'folder-filter', // Folder filter
+  DATE_FILTER = 'date-filter',   // Date range filter
+  
+  // Additional data types
+  FOLDER = 'folder',             // Folder information
+  FOLDER_LIST = 'folder-list',   // List of folders
+  SEARCH_QUERY = 'search-query', // Search query information
+  SEARCH_RESULTS = 'search-results', // Search results
+  TEMPLATE = 'template',         // Email template
+  SETTINGS = 'settings',         // Application settings
+}
+
+/**
+ * Data synchronization strategy
+ */
+export enum DependencySyncStrategy {
+  PULL = 'pull',     // Consumer requests data from provider when needed
+  PUSH = 'push',     // Provider pushes data to consumer when it changes
+  BOTH = 'both',     // Both pull and push are enabled
+}
+
+/**
+ * Dependency definition
  */
 export interface DependencyDefinition {
-  // Unique identifier for this dependency relationship
-  id: string;
-  
-  // Display name for this dependency relationship
-  name: string;
-  
-  // Description of this dependency relationship
-  description?: string;
-  
-  // Component type that can act as a provider
-  providerType: string;
-  
-  // Component type that can act as a consumer
-  consumerType: string;
-  
-  // Type of data being shared
-  dataType: DependencyDataType;
-  
-  // How data is synchronized between provider and consumer
-  syncStrategy: DependencySyncStrategy;
-  
-  // Whether this dependency is required for the consumer to function
-  isRequired: boolean;
-  
-  // Whether one provider can serve multiple consumers
-  isOneToMany: boolean;
-  
-  // Whether multiple providers can serve one consumer
-  isManyToOne: boolean;
-  
-  // Optional function to transform data when passed between components
-  transformData?: (data: any) => any;
-  
-  // Optional function to validate data compatibility
-  validateData?: (data: any) => boolean;
-  
-  // When this dependency definition was created
-  createdAt: number;
+  id: string;                    // Unique identifier for this dependency definition
+  componentId: string;           // Component that owns this definition
+  dataType: DependencyDataTypes; // Type of data shared
+  role: 'provider' | 'consumer' | 'both'; // Role in the dependency relationship
+  description?: string;          // Human-readable description
+  required?: boolean;            // Whether this dependency is required for the component to function
+  syncStrategy?: DependencySyncStrategy; // How data is synchronized
+  acceptsMultiple?: boolean;     // Whether multiple providers/consumers are accepted
+  metadataSchema?: any;          // Schema for additional metadata
 }
 
 /**
- * Options for a specific dependency instance
+ * Dependency relationship between a provider and consumer
  */
-export interface DependencyOptions {
-  // Whether this dependency is currently active
-  isActive: boolean;
-  
-  // Whether data should be updated automatically when changed
-  autoUpdate: boolean;
-  
-  // Whether to notify when data changes
-  notifyOnChange: boolean;
-  
-  // Additional custom options specific to this dependency
-  options: Record<string, any>;
+export interface Dependency {
+  id: string;                    // Unique identifier for this dependency
+  providerId: string;            // Component ID of the provider
+  consumerId: string;            // Component ID of the consumer
+  providerDefinitionId: string;  // ID of the provider's dependency definition
+  consumerDefinitionId: string;  // ID of the consumer's dependency definition
+  dataType: DependencyDataTypes; // Type of data shared
+  status: DependencyStatus;      // Current status of the dependency
+  lastUpdated?: number;          // Timestamp of the last data update
+  metadata?: Record<string, any>; // Additional metadata
 }
 
 /**
- * Instance of a dependency relationship between specific component instances
+ * Dependency registry that tracks definitions and relationships
  */
-export interface DependencyInstance {
-  // Unique identifier for this dependency instance
-  id: string;
+export interface DependencyRegistry {
+  // Definition management
+  registerDefinition(definition: DependencyDefinition): void;
+  removeDefinition(definitionId: string): void;
+  getDefinition(definitionId: string): DependencyDefinition | undefined;
+  getDefinitionsByComponent(componentId: string): DependencyDefinition[];
+  getDefinitionsByType(dataType: DependencyDataTypes): DependencyDefinition[];
+  getProviderDefinitions(dataType: DependencyDataTypes): DependencyDefinition[];
+  getConsumerDefinitions(dataType: DependencyDataTypes): DependencyDefinition[];
   
-  // ID of the dependency definition this instance is based on
-  definitionId: string;
+  // Dependency management
+  createDependency(providerId: string, consumerId: string, dataType: DependencyDataTypes): Dependency | undefined;
+  removeDependency(dependencyId: string): void;
+  getDependency(dependencyId: string): Dependency | undefined;
+  getDependenciesByProvider(providerId: string): Dependency[];
+  getDependenciesByConsumer(consumerId: string): Dependency[];
+  getDependenciesByType(dataType: DependencyDataTypes): Dependency[];
   
-  // ID of the provider component instance
-  providerId: string;
+  // Status management
+  updateDependencyStatus(dependencyId: string, status: DependencyStatus): void;
   
-  // ID of the consumer component instance
-  consumerId: string;
-  
-  // Type of data being shared
-  dataType: DependencyDataType;
-  
-  // How data is synchronized between provider and consumer
-  syncStrategy: DependencySyncStrategy;
-  
-  // Current data shared through this dependency
-  currentData?: any;
-  
-  // Last time the data was updated
-  lastUpdated?: number;
-  
-  // Status of this dependency
-  status: DependencyStatus;
-  
-  // Configuration options for this dependency instance
-  options: DependencyOptions;
+  // Utility methods
+  findCompatibleProviders(consumerDefinitionId: string): DependencyDefinition[];
+  findCompatibleConsumers(providerDefinitionId: string): DependencyDefinition[];
 }
 
 /**
- * Response from the dependency manager when requesting data
+ * Dependency manager that handles runtime data exchange
  */
-export interface DataRequestResponse<T = any> {
-  success: boolean;
-  providerId: string | null;
-  data: T | null;
-  timestamp: number;
-  errorMessage?: string;
+export interface DependencyManager {
+  // Data management
+  updateData(providerId: string, dataType: DependencyDataTypes, data: any): void;
+  getData(dependencyId: string): any;
+  requestData(consumerId: string, providerId: string, dataType: DependencyDataTypes): void;
+  
+  // Notification callbacks
+  onDataUpdated(callback: (dependencyId: string, data: any) => void): () => void;
+  onStatusChanged(callback: (dependencyId: string, status: DependencyStatus) => void): () => void;
+  
+  // Utility methods
+  hasDependents(providerId: string, dataType: DependencyDataTypes): boolean;
+  getDependents(providerId: string, dataType: DependencyDataTypes): string[];
+  hasProviders(consumerId: string, dataType: DependencyDataTypes): boolean;
+  getProviders(consumerId: string, dataType: DependencyDataTypes): string[];
 }
 
 /**
- * State information for a dependency relationship
+ * Context for dependency management in React applications
  */
-export interface DependencyState {
-  isReady: boolean;
-  providerId: string | null;
-  currentData: any | null;
-  lastUpdated: number | null; 
-  status: DependencyStatus;
-}
-
-/**
- * Information about a data provider
- */
-export interface ProviderInfo {
-  instanceId: string;
-  componentId: string;
-  dataType: DependencyDataType;
-  hasData: boolean;
-  lastUpdated?: number;
+export interface DependencyContextType {
+  // Registry access
+  registry: DependencyRegistry;
+  
+  // Manager access
+  manager: DependencyManager;
+  
+  // Convenience methods for components
+  registerComponent(componentId: string, definitions: DependencyDefinition[]): void;
+  unregisterComponent(componentId: string): void;
+  updateComponentData(componentId: string, dataType: DependencyDataTypes, data: any): void;
+  getComponentData(componentId: string, dataType: DependencyDataTypes): any;
+  
+  // Status methods
+  getDependencyStatus(providerId: string, consumerId: string, dataType: DependencyDataTypes): DependencyStatus;
 }

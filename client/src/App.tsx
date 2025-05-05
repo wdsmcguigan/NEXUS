@@ -16,6 +16,7 @@ import { AdvancedPanelLayout } from "./components/AdvancedPanelLayout";
 import { FlexibleEmailClient } from "./components/FlexibleEmailClient";
 import EmailDependencyDemo from "./components/EmailDependencyDemo";
 import { DependencyProvider } from "./context/DependencyContext";
+import EmailPage from "./pages/EmailPage";
 // Module imports
 
 function Router() {
@@ -26,6 +27,7 @@ function Router() {
       <Route path="/tabbed" component={TabbedLayoutView} />
       <Route path="/advanced" component={NexusEmailClient} />
       <Route path="/dependency-demo" component={DependencyDemoView} />
+      <Route path="/dependency-system" component={EmailPageView} />
       <Route path="/" component={FlexibleEmailClientView} />
       <Route component={NotFound} />
     </Switch>
@@ -50,6 +52,10 @@ function FlexibleEmailClientView() {
 
 function DependencyDemoView() {
   return <EmailDependencyDemo />;
+}
+
+function EmailPageView() {
+  return <EmailPage />;
 }
 
 function AppContent() {

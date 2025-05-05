@@ -1,402 +1,292 @@
-import { v4 as uuidv4 } from 'uuid';
-import {
-  DependencyDefinition,
-  DependencyInstance,
-  DependencyOptions,
-  DependencyStatus,
-  DependencyDataType,
-  DependencySyncStrategy
+import { 
+  DependencyDefinition, 
+  DependencyRegistry as IDependencyRegistry,
+  Dependency,
+  DependencyDataTypes,
+  DependencyStatus
 } from './DependencyInterfaces';
+import { nanoid } from 'nanoid';
 
 /**
- * Registry for component dependency definitions and instances
- * Manages the relationships between component providers and consumers
+ * Implementation of the DependencyRegistry interface.
+ * Manages dependency definitions and relationships between components.
  */
-export class DependencyRegistry {
+export class DependencyRegistry implements IDependencyRegistry {
   private definitions: Map<string, DependencyDefinition> = new Map();
-  private dependencies: Map<string, DependencyInstance> = new Map();
-  private providerMap: Map<string, string[]> = new Map(); // dataType -> providerIds
-  private consumerMap: Map<string, string[]> = new Map(); // dataType -> consumerIds
-  private providerConsumers: Map<string, string[]> = new Map(); // providerId -> consumerIds
-  private consumerProviders: Map<string, string[]> = new Map(); // consumerId -> providerIds
-  private dataStore: Map<string, any> = new Map(); // providerId:dataType -> data
-
+  private dependencies: Map<string, Dependency> = new Map();
+  
+  // Store lookups for quick access
+  private definitionsByComponent: Map<string, Set<string>> = new Map();
+  private definitionsByType: Map<DependencyDataTypes, Set<string>> = new Map();
+  private dependenciesByProvider: Map<string, Set<string>> = new Map();
+  private dependenciesByConsumer: Map<string, Set<string>> = new Map();
+  private dependenciesByType: Map<DependencyDataTypes, Set<string>> = new Map();
+  
   constructor() {
     console.log('DependencyRegistry initialized');
   }
-
+  
   /**
-   * Register a new dependency definition
+   * Register a dependency definition for a component.
    */
-  defineComponentDependency(def: Omit<DependencyDefinition, 'id' | 'createdAt'> & { id?: string, createdAt?: number }): DependencyDefinition {
-    const id = def.id || `dep_${uuidv4()}`;
-    const createdAt = def.createdAt || Date.now();
+  registerDefinition(definition: DependencyDefinition): void {
+    // Ensure the definition has an ID
+    if (!definition.id) {
+      definition.id = `def-${nanoid(8)}`;
+    }
     
-    const definition: DependencyDefinition = {
-      ...def as any,
-      id,
-      createdAt
-    };
+    // Register the definition
+    this.definitions.set(definition.id, definition);
     
-    this.definitions.set(id, definition);
-    return definition;
+    // Update lookup indexes
+    this.addToSetMap(this.definitionsByComponent, definition.componentId, definition.id);
+    this.addToSetMap(this.definitionsByType, definition.dataType, definition.id);
   }
-
+  
   /**
-   * Get a dependency definition by ID
+   * Remove a dependency definition.
    */
-  getDependencyDefinition(id: string): DependencyDefinition | undefined {
-    return this.definitions.get(id);
+  removeDefinition(definitionId: string): void {
+    const definition = this.definitions.get(definitionId);
+    
+    if (definition) {
+      // Remove from indexes
+      this.removeFromSetMap(this.definitionsByComponent, definition.componentId, definitionId);
+      this.removeFromSetMap(this.definitionsByType, definition.dataType, definitionId);
+      
+      // Remove related dependencies
+      const dependenciesToRemove: string[] = [];
+      
+      for (const [id, dependency] of this.dependencies.entries()) {
+        if (
+          dependency.providerDefinitionId === definitionId || 
+          dependency.consumerDefinitionId === definitionId
+        ) {
+          dependenciesToRemove.push(id);
+        }
+      }
+      
+      dependenciesToRemove.forEach(id => this.removeDependency(id));
+      
+      // Remove the definition
+      this.definitions.delete(definitionId);
+    }
   }
-
+  
   /**
-   * Get all dependency definitions
+   * Get a dependency definition by ID.
    */
-  getAllDependencyDefinitions(): DependencyDefinition[] {
-    return Array.from(this.definitions.values());
+  getDefinition(definitionId: string): DependencyDefinition | undefined {
+    return this.definitions.get(definitionId);
   }
-
+  
   /**
-   * Get dependency definitions by provider type
+   * Get all dependency definitions for a component.
    */
-  getDependencyDefinitionsByProvider(providerType: string): DependencyDefinition[] {
-    return this.getAllDependencyDefinitions().filter(
-      def => def.providerType === providerType || def.providerType === '*'
+  getDefinitionsByComponent(componentId: string): DependencyDefinition[] {
+    const definitionIds = this.definitionsByComponent.get(componentId) || new Set();
+    return Array.from(definitionIds).map(id => this.definitions.get(id)!).filter(Boolean);
+  }
+  
+  /**
+   * Get all dependency definitions for a data type.
+   */
+  getDefinitionsByType(dataType: DependencyDataTypes): DependencyDefinition[] {
+    const definitionIds = this.definitionsByType.get(dataType) || new Set();
+    return Array.from(definitionIds).map(id => this.definitions.get(id)!).filter(Boolean);
+  }
+  
+  /**
+   * Get all provider definitions for a data type.
+   */
+  getProviderDefinitions(dataType: DependencyDataTypes): DependencyDefinition[] {
+    return this.getDefinitionsByType(dataType).filter(
+      def => def.role === 'provider' || def.role === 'both'
     );
   }
-
+  
   /**
-   * Get dependency definitions by consumer type
+   * Get all consumer definitions for a data type.
    */
-  getDependencyDefinitionsByConsumer(consumerType: string): DependencyDefinition[] {
-    return this.getAllDependencyDefinitions().filter(
-      def => def.consumerType === consumerType || def.consumerType === '*'
+  getConsumerDefinitions(dataType: DependencyDataTypes): DependencyDefinition[] {
+    return this.getDefinitionsByType(dataType).filter(
+      def => def.role === 'consumer' || def.role === 'both'
     );
   }
-
+  
   /**
-   * Get dependency definitions for a data type
-   */
-  getDependencyDefinitionsByDataType(dataType: DependencyDataType): DependencyDefinition[] {
-    return this.getAllDependencyDefinitions().filter(
-      def => def.dataType === dataType
-    );
-  }
-
-  /**
-   * Find matching dependency definitions between provider and consumer
-   */
-  findCompatibleDependencies(
-    providerType: string,
-    consumerType: string
-  ): DependencyDefinition[] {
-    return this.getAllDependencyDefinitions().filter(
-      def =>
-        (def.providerType === providerType || def.providerType === '*') &&
-        (def.consumerType === consumerType || def.consumerType === '*')
-    );
-  }
-
-  /**
-   * Create a new dependency instance between provider and consumer
+   * Create a dependency between a provider and consumer.
    */
   createDependency(
-    providerId: string,
-    consumerId: string,
-    dataType: DependencyDataType,
-    options?: Partial<DependencyOptions>
-  ): DependencyInstance | null {
-    // Find a compatible dependency definition
-    const compatibleDefinitions = this.getAllDependencyDefinitions().filter(
-      def => def.dataType === dataType
+    providerId: string, 
+    consumerId: string, 
+    dataType: DependencyDataTypes
+  ): Dependency | undefined {
+    // Find provider definition
+    const providerDefs = this.getDefinitionsByComponent(providerId).filter(
+      def => (def.role === 'provider' || def.role === 'both') && def.dataType === dataType
     );
-
-    if (compatibleDefinitions.length === 0) {
-      console.error(`No dependency definition found for data type: ${dataType}`);
-      return null;
+    
+    // Find consumer definition
+    const consumerDefs = this.getDefinitionsByComponent(consumerId).filter(
+      def => (def.role === 'consumer' || def.role === 'both') && def.dataType === dataType
+    );
+    
+    if (providerDefs.length === 0 || consumerDefs.length === 0) {
+      console.warn(`Cannot create dependency: no matching definitions for ${dataType}`);
+      return undefined;
     }
-
-    // Use the first compatible definition (in a more complete implementation,
-    // we might want to add priority or specificity to definitions)
-    const definition = compatibleDefinitions[0];
-
-    // Create a unique ID for this dependency instance
-    const id = `dep_inst_${uuidv4()}`;
-
-    // Default options
-    const defaultOptions: DependencyOptions = {
-      isActive: true,
-      autoUpdate: true,
-      notifyOnChange: true,
-      options: {}
-    };
-
-    // Create a new dependency instance
-    const dependency: DependencyInstance = {
-      id,
-      definitionId: definition.id,
+    
+    // Use the first matching definition for each
+    const providerDef = providerDefs[0];
+    const consumerDef = consumerDefs[0];
+    
+    // Check if a dependency already exists
+    for (const dependency of this.dependencies.values()) {
+      if (
+        dependency.providerId === providerId &&
+        dependency.consumerId === consumerId &&
+        dependency.dataType === dataType
+      ) {
+        return dependency;
+      }
+    }
+    
+    // Create the dependency
+    const dependency: Dependency = {
+      id: `dep-${nanoid(8)}`,
       providerId,
       consumerId,
+      providerDefinitionId: providerDef.id,
+      consumerDefinitionId: consumerDef.id,
       dataType,
-      syncStrategy: definition.syncStrategy,
-      status: DependencyStatus.INACTIVE,
-      options: {
-        ...defaultOptions,
-        ...options
-      }
+      status: DependencyStatus.DISCONNECTED
     };
-
-    // Register the dependency
-    this.dependencies.set(id, dependency);
-
-    // Update the provider and consumer maps
-    this.addProviderForDataType(dataType, providerId);
-    this.addConsumerForDataType(dataType, consumerId);
-
-    // Update the relationship maps
-    this.addConsumerForProvider(providerId, consumerId);
-    this.addProviderForConsumer(consumerId, providerId);
-
+    
+    // Store the dependency
+    this.dependencies.set(dependency.id, dependency);
+    
+    // Update lookups
+    this.addToSetMap(this.dependenciesByProvider, providerId, dependency.id);
+    this.addToSetMap(this.dependenciesByConsumer, consumerId, dependency.id);
+    this.addToSetMap(this.dependenciesByType, dataType, dependency.id);
+    
     return dependency;
   }
-
+  
   /**
-   * Get a dependency instance by ID
+   * Remove a dependency.
    */
-  getDependency(id: string): DependencyInstance | undefined {
-    return this.dependencies.get(id);
-  }
-
-  /**
-   * Get all dependency instances
-   */
-  getAllDependencies(): DependencyInstance[] {
-    return Array.from(this.dependencies.values());
-  }
-
-  /**
-   * Get dependencies involving a specific provider
-   */
-  getDependenciesByProvider(providerId: string): DependencyInstance[] {
-    return this.getAllDependencies().filter(
-      dep => dep.providerId === providerId
-    );
-  }
-
-  /**
-   * Get dependencies involving a specific consumer
-   */
-  getDependenciesByConsumer(consumerId: string): DependencyInstance[] {
-    return this.getAllDependencies().filter(
-      dep => dep.consumerId === consumerId
-    );
-  }
-
-  /**
-   * Get dependencies for a specific data type
-   */
-  getDependenciesByDataType(dataType: DependencyDataType): DependencyInstance[] {
-    return this.getAllDependencies().filter(
-      dep => dep.dataType === dataType
-    );
-  }
-
-  /**
-   * Find a dependency between a provider and consumer for a data type
-   */
-  findDependency(
-    providerId: string,
-    consumerId: string,
-    dataType: DependencyDataType
-  ): DependencyInstance | undefined {
-    return this.getAllDependencies().find(
-      dep =>
-        dep.providerId === providerId &&
-        dep.consumerId === consumerId &&
-        dep.dataType === dataType
-    );
-  }
-
-  /**
-   * Update dependency data
-   */
-  updateDependencyData<T>(
-    providerId: string,
-    dataType: DependencyDataType,
-    data: T
-  ): void {
-    const key = `${providerId}:${dataType}`;
-    this.dataStore.set(key, data);
-
-    // Update all related dependencies
-    const dependencies = this.getDependenciesByProvider(providerId).filter(
-      dep => dep.dataType === dataType
-    );
-
-    for (const dependency of dependencies) {
-      // Update dependency data
-      dependency.currentData = data;
-      dependency.lastUpdated = Date.now();
-      dependency.status = DependencyStatus.ACTIVE;
-
-      this.dependencies.set(dependency.id, dependency);
+  removeDependency(dependencyId: string): void {
+    const dependency = this.dependencies.get(dependencyId);
+    
+    if (dependency) {
+      // Remove from lookup indexes
+      this.removeFromSetMap(this.dependenciesByProvider, dependency.providerId, dependencyId);
+      this.removeFromSetMap(this.dependenciesByConsumer, dependency.consumerId, dependencyId);
+      this.removeFromSetMap(this.dependenciesByType, dependency.dataType, dependencyId);
+      
+      // Remove the dependency
+      this.dependencies.delete(dependencyId);
     }
   }
-
+  
   /**
-   * Get data for a specific provider and data type
+   * Get a dependency by ID.
    */
-  getProviderData<T>(
-    providerId: string,
-    dataType: DependencyDataType
-  ): T | null {
-    const key = `${providerId}:${dataType}`;
-    return this.dataStore.get(key) || null;
+  getDependency(dependencyId: string): Dependency | undefined {
+    return this.dependencies.get(dependencyId);
   }
-
+  
   /**
-   * Get all providers for a specific data type
+   * Get all dependencies for a provider.
    */
-  getProvidersForDataType(dataType: DependencyDataType): string[] {
-    return this.providerMap.get(dataType) || [];
+  getDependenciesByProvider(providerId: string): Dependency[] {
+    const dependencyIds = this.dependenciesByProvider.get(providerId) || new Set();
+    return Array.from(dependencyIds).map(id => this.dependencies.get(id)!).filter(Boolean);
   }
-
+  
   /**
-   * Get all consumers for a specific data type
+   * Get all dependencies for a consumer.
    */
-  getConsumersForDataType(dataType: DependencyDataType): string[] {
-    return this.consumerMap.get(dataType) || [];
+  getDependenciesByConsumer(consumerId: string): Dependency[] {
+    const dependencyIds = this.dependenciesByConsumer.get(consumerId) || new Set();
+    return Array.from(dependencyIds).map(id => this.dependencies.get(id)!).filter(Boolean);
   }
-
+  
   /**
-   * Get all consumers for a specific provider
+   * Get all dependencies for a data type.
    */
-  getConsumersForProvider(providerId: string): string[] {
-    return this.providerConsumers.get(providerId) || [];
+  getDependenciesByType(dataType: DependencyDataTypes): Dependency[] {
+    const dependencyIds = this.dependenciesByType.get(dataType) || new Set();
+    return Array.from(dependencyIds).map(id => this.dependencies.get(id)!).filter(Boolean);
   }
-
+  
   /**
-   * Get all providers for a specific consumer
+   * Update the status of a dependency.
    */
-  getProvidersForConsumer(consumerId: string): string[] {
-    return this.consumerProviders.get(consumerId) || [];
-  }
-
-  /**
-   * Add a provider for a data type
-   */
-  private addProviderForDataType(
-    dataType: DependencyDataType,
-    providerId: string
-  ): void {
-    const providers = this.providerMap.get(dataType) || [];
-    if (!providers.includes(providerId)) {
-      providers.push(providerId);
-      this.providerMap.set(dataType, providers);
-    }
-  }
-
-  /**
-   * Add a consumer for a data type
-   */
-  private addConsumerForDataType(
-    dataType: DependencyDataType,
-    consumerId: string
-  ): void {
-    const consumers = this.consumerMap.get(dataType) || [];
-    if (!consumers.includes(consumerId)) {
-      consumers.push(consumerId);
-      this.consumerMap.set(dataType, consumers);
-    }
-  }
-
-  /**
-   * Add a consumer for a provider
-   */
-  private addConsumerForProvider(
-    providerId: string,
-    consumerId: string
-  ): void {
-    const consumers = this.providerConsumers.get(providerId) || [];
-    if (!consumers.includes(consumerId)) {
-      consumers.push(consumerId);
-      this.providerConsumers.set(providerId, consumers);
-    }
-  }
-
-  /**
-   * Add a provider for a consumer
-   */
-  private addProviderForConsumer(
-    consumerId: string,
-    providerId: string
-  ): void {
-    const providers = this.consumerProviders.get(consumerId) || [];
-    if (!providers.includes(providerId)) {
-      providers.push(providerId);
-      this.consumerProviders.set(consumerId, providers);
-    }
-  }
-
-  /**
-   * Remove a dependency instance
-   */
-  removeDependency(id: string): boolean {
-    const dependency = this.dependencies.get(id);
-    if (!dependency) {
-      return false;
-    }
-
-    const { providerId, consumerId, dataType } = dependency;
-
-    // Remove from relationship maps
-    this.removeConsumerForProvider(providerId, consumerId);
-    this.removeProviderForConsumer(consumerId, providerId);
-
-    // Remove the dependency
-    this.dependencies.delete(id);
-
-    return true;
-  }
-
-  /**
-   * Remove a consumer for a provider
-   */
-  private removeConsumerForProvider(
-    providerId: string,
-    consumerId: string
-  ): void {
-    const consumers = this.providerConsumers.get(providerId) || [];
-    const index = consumers.indexOf(consumerId);
-    if (index !== -1) {
-      consumers.splice(index, 1);
-      if (consumers.length === 0) {
-        this.providerConsumers.delete(providerId);
-      } else {
-        this.providerConsumers.set(providerId, consumers);
+  updateDependencyStatus(dependencyId: string, status: DependencyStatus): void {
+    const dependency = this.dependencies.get(dependencyId);
+    
+    if (dependency) {
+      dependency.status = status;
+      
+      // Update timestamp for READY status
+      if (status === DependencyStatus.READY) {
+        dependency.lastUpdated = Date.now();
       }
     }
   }
-
+  
   /**
-   * Remove a provider for a consumer
+   * Find compatible providers for a consumer definition.
    */
-  private removeProviderForConsumer(
-    consumerId: string,
-    providerId: string
-  ): void {
-    const providers = this.consumerProviders.get(consumerId) || [];
-    const index = providers.indexOf(providerId);
-    if (index !== -1) {
-      providers.splice(index, 1);
-      if (providers.length === 0) {
-        this.consumerProviders.delete(consumerId);
-      } else {
-        this.consumerProviders.set(consumerId, providers);
+  findCompatibleProviders(consumerDefinitionId: string): DependencyDefinition[] {
+    const consumerDef = this.definitions.get(consumerDefinitionId);
+    
+    if (!consumerDef) {
+      return [];
+    }
+    
+    return this.getProviderDefinitions(consumerDef.dataType);
+  }
+  
+  /**
+   * Find compatible consumers for a provider definition.
+   */
+  findCompatibleConsumers(providerDefinitionId: string): DependencyDefinition[] {
+    const providerDef = this.definitions.get(providerDefinitionId);
+    
+    if (!providerDef) {
+      return [];
+    }
+    
+    return this.getConsumerDefinitions(providerDef.dataType);
+  }
+  
+  /**
+   * Helper method to add a value to a set in a map.
+   */
+  private addToSetMap<K, V>(map: Map<K, Set<V>>, key: K, value: V): void {
+    if (!map.has(key)) {
+      map.set(key, new Set());
+    }
+    
+    map.get(key)!.add(value);
+  }
+  
+  /**
+   * Helper method to remove a value from a set in a map.
+   */
+  private removeFromSetMap<K, V>(map: Map<K, Set<V>>, key: K, value: V): void {
+    const set = map.get(key);
+    
+    if (set) {
+      set.delete(value);
+      
+      if (set.size === 0) {
+        map.delete(key);
       }
     }
   }
 }
-
-// Create and export a singleton instance
-export const dependencyRegistry = new DependencyRegistry();

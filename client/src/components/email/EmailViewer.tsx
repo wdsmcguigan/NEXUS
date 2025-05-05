@@ -67,16 +67,28 @@ const EmailViewer: React.FC<EmailViewerProps> = ({
   const [emailSource, setEmailSource] = useState<string | null>(null);
   const [hasDependentConsumers, setHasDependentConsumers] = useState(false);
   
+  // For tracking updates to the current email
+  const [currentEmailId, setCurrentEmailId] = useState<number>(0);
+  
   // Consumer for email data
   const { 
     consumerData: email, 
     providerId: emailProviderId,
     isReady: emailIsReady,
     lastUpdated: emailLastUpdated,
-    status: emailStatus
+    status: emailStatus,
+    updateConsumerData
   } = useDependencyConsumer<Email>(
     instanceId,
-    DependencyDataTypes.EMAIL
+    DependencyDataTypes.EMAIL_DATA,
+    {
+      onDataReceived: (newEmail) => {
+        console.log("EmailViewer received email data:", newEmail);
+        if (newEmail?.id) {
+          setCurrentEmailId(newEmail.id);
+        }
+      }
+    }
   );
   
   // Provider for contact information

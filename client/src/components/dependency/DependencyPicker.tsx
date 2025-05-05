@@ -30,6 +30,10 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
   const [availableTabs, setAvailableTabs] = useState<string[]>([]);
   const [selectedDataType, setSelectedDataType] = useState<DependencyDataTypes | null>(null);
   const [isProvider, setIsProvider] = useState(true);
+  const [dependencies, setDependencies] = useState<{ 
+    providing: { id: string; dataType: DependencyDataTypes; consumerName: string }[];
+    consuming: { id: string; dataType: DependencyDataTypes; providerName: string }[];
+  }>({ providing: [], consuming: [] });
   
   // Get available data types for this component
   const dataTypes = Object.values(DependencyDataTypes);
@@ -46,6 +50,25 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
     // Check if component has any dependency definitions
     const defs = registry.getDefinitionsByComponent(tabId);
     setIsActive(defs.length > 0);
+    
+    // Get providing dependencies
+    const providingDeps = registry.getDependenciesByProvider(tabId).map(dep => ({
+      id: dep.id,
+      dataType: dep.dataType,
+      consumerName: state.tabs[dep.consumerId]?.title || dep.consumerId
+    }));
+    
+    // Get consuming dependencies
+    const consumingDeps = registry.getDependenciesByConsumer(tabId).map(dep => ({
+      id: dep.id,
+      dataType: dep.dataType,
+      providerName: state.tabs[dep.providerId]?.title || dep.providerId
+    }));
+    
+    setDependencies({
+      providing: providingDeps,
+      consuming: consumingDeps
+    });
   }, [tabId, registry, state.tabs]);
   
   // Start picking mode
@@ -188,17 +211,57 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
             className={`h-4 w-4 p-0 rounded-full opacity-70 hover:opacity-100 hover:bg-transparent ${className}`}
             title="Create tab dependencies"
           >
-            <Link2 className="h-3 w-3 text-blue-400" />
+            <Link2 
+              className={`h-3 w-3 ${
+                dependencies.providing.length > 0 || dependencies.consuming.length > 0
+                  ? 'text-blue-400'
+                  : 'text-gray-400'
+              }`} 
+            />
           </Button>
         </PopoverTrigger>
         
         <PopoverContent className="w-80 p-2" align="end">
           <div className="space-y-2">
-            <h4 className="font-medium text-sm">Create Tab Dependencies</h4>
+            <h4 className="font-medium text-sm">Tab Dependencies</h4>
             <p className="text-xs text-muted-foreground">
               Connect this tab to another tab to share data between them.
             </p>
             
+            {/* Show existing dependencies if any */}
+            {(dependencies.providing.length > 0 || dependencies.consuming.length > 0) && (
+              <div className="border rounded-md p-2 space-y-2 bg-blue-50/10">
+                <h5 className="text-xs font-medium">Active Dependencies</h5>
+                
+                {dependencies.providing.length > 0 && (
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">Providing data to:</div>
+                    {dependencies.providing.map(dep => (
+                      <div key={dep.id} className="flex items-center p-1 text-xs bg-blue-100/10 rounded">
+                        <ArrowRightLeft className="h-3 w-3 mr-1 text-blue-500" />
+                        <span className="font-medium mr-1">{dep.consumerName}</span>
+                        <span className="text-muted-foreground">({dep.dataType})</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {dependencies.consuming.length > 0 && (
+                  <div className="space-y-1 mt-2">
+                    <div className="text-xs text-muted-foreground">Consuming data from:</div>
+                    {dependencies.consuming.map(dep => (
+                      <div key={dep.id} className="flex items-center p-1 text-xs bg-blue-100/10 rounded">
+                        <ArrowRightLeft className="h-3 w-3 mr-1 text-green-500" />
+                        <span className="font-medium mr-1">{dep.providerName}</span>
+                        <span className="text-muted-foreground">({dep.dataType})</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Create new dependencies */}
             <div className="border rounded-md p-2 space-y-2">
               <h5 className="text-xs font-medium">Provide data to another tab</h5>
               <div className="grid grid-cols-2 gap-1">

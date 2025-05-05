@@ -1,0 +1,57 @@
+## Prompt 5: Component Registry Implementation 
+
+```
+For my NEXUS.email application, I need to implement the Component Registry system that will allow all my different features to be available as tabs in any panel. Please help me set up a registry for the following components:
+
+Components to register:
+- Accounts Manager
+- Inbox List
+- Email List (with filter variants: Inbox, Starred, Drafts, etc.)
+- Email Content Viewer
+- Contact Info Panel
+- Tag/Label Manager
+- Calendar (both generic and integration-ready)
+- Task Manager (both generic and integration-ready)
+- Contact Database
+- Text Editor
+- Notes (both generic and integration-ready)
+- Web Browser component
+- Mobile Browsing Emulator component
+- Email Template Editor
+- Application Settings
+- Calculator
+- Clock (with alarm system) with Integrated Productivity Time-Clock
+- File Browser (local)
+- File Browser (cloud integrations)
+
+For each component, I need:
+
+1. **Registry Structure**:
+   - Create a robust TypeScript interface for component registration
+   - Define required metadata and configuration options
+   - Set up categories and tagging system for organization
+
+2. **Component Wrapper Implementation**:
+   - Create HOC or wrapper components that handle:
+     * Consistent tab interface
+     * Component-specific toolbars
+     * State persistence
+     * Search capability integration
+
+3. **Configuration Options**:
+   - Define required and optional configuration for each component
+   - Create default configurations
+   - Support runtime configuration updates
+
+4. **Component Communication**:
+   - Enable components to communicate when in different tabs
+   - Set up event system for cross-component notifications
+   - Handle focus and context awareness
+
+5. **Integration Points**:
+   - Define how components integrate with the rest of the application
+   - Set up data flow between components
+   - Handle component lifecycle events
+
+Please provide a clean implementation of the registry system and examples of registering several key components (Email List, Email Content, Settings). Include TypeScript interfaces, factory methods, and the core registry service.
+```

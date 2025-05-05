@@ -6,13 +6,14 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '../../lib/utils';
 import { AlertCircle, CheckCircle, Link, Unlink } from 'lucide-react';
 
-type DependencyIndicatorProps = {
+export type DependencyIndicatorProps = {
   componentId: string;
   dataType?: DependencyDataTypes;
   variant?: 'dot' | 'badge' | 'icon';
   position?: 'top-right' | 'bottom-right' | 'inline';
   className?: string;
   showTooltip?: boolean;
+  showEmpty?: boolean;
 };
 
 export function DependencyIndicator({
@@ -21,7 +22,8 @@ export function DependencyIndicator({
   variant = 'dot',
   position = 'top-right',
   className,
-  showTooltip = true
+  showTooltip = true,
+  showEmpty = false
 }: DependencyIndicatorProps) {
   const { registry } = useDependencyContext();
   const [statuses, setStatuses] = useState<Record<string, DependencyStatus>>({});
@@ -160,7 +162,8 @@ export function DependencyIndicator({
   
   const statusColor = getStatusColor(getHighestPriorityStatus());
   
-  if (!isActive) return null;
+  // Only hide the indicator if we're not showing empty state and there are no dependencies
+  if (!isActive && !showEmpty) return null;
   
   const renderIndicator = () => {
     const highestStatus = getHighestPriorityStatus();

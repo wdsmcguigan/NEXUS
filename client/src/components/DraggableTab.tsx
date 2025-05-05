@@ -242,7 +242,7 @@ export function DraggableTab({
               <DependencyIndicator 
                 componentId={id} 
                 variant="dot" 
-                showEmpty={false}
+                showEmpty={true}
               />
             </div>
             

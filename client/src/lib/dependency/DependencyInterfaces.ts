@@ -24,9 +24,11 @@ export enum DependencyDataTypes {
   // Core email data types
   EMAIL = 'email',               // Single email data
   EMAIL_LIST = 'email-list',     // List of emails
+  EMAIL_DATA = 'email-data',     // General email data
   CONTACT = 'contact',           // Contact information
   TAG = 'tag',                   // Tag information
   TAG_LIST = 'tag-list',         // List of tags
+  TAG_DATA = 'tag-data',         // General tag data
   
   // Filter types
   FILTERS = 'filters',           // Generic filter data
@@ -34,11 +36,16 @@ export enum DependencyDataTypes {
   FOLDER_FILTER = 'folder-filter', // Folder filter
   DATE_FILTER = 'date-filter',   // Date range filter
   
+  // Content types
+  ATTACHMENT_DATA = 'attachment-data', // Email attachment data
+  COMPOSITION_DATA = 'composition-data', // Email composition data
+  
   // Additional data types
   FOLDER = 'folder',             // Folder information
   FOLDER_LIST = 'folder-list',   // List of folders
   SEARCH_QUERY = 'search-query', // Search query information
   SEARCH_RESULTS = 'search-results', // Search results
+  SEARCH_DATA = 'search-data',   // General search data
   TEMPLATE = 'template',         // Email template
   SETTINGS = 'settings',         // Application settings
 }

@@ -7,10 +7,14 @@ import {
 } from '../lib/dependency/DependencyInterfaces';
 import { DependencyRegistry } from '../lib/dependency/DependencyRegistry';
 import { DependencyManager } from '../lib/dependency/DependencyManager';
+import { registerSampleDependencies } from '../lib/dependency/sampleDependencies';
 
 // Create registry and manager instances
 const registry = new DependencyRegistry();
 const manager = new DependencyManager(registry);
+
+// Initialize with sample dependencies
+registerSampleDependencies(registry);
 
 // Create React context
 const DependencyContext = createContext<DependencyContextType>({

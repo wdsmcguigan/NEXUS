@@ -5,6 +5,7 @@ import { cn } from '../lib/utils';
 import { useAppContext } from '../context/AppContext';
 import { TabContextMenu } from './TabContextMenu';
 import { DependencyIndicator } from './dependency/DependencyIndicator';
+import { DependencyPicker } from './dependency/DependencyPicker';
 
 interface TabProps {
   id: string;
@@ -243,6 +244,13 @@ export function DraggableTab({
                 componentId={id} 
                 variant="dot" 
                 showEmpty={true}
+              />
+            </div>
+            
+            {/* Dependency Picker - lets users create dependencies interactively */}
+            <div className="mr-1">
+              <DependencyPicker 
+                tabId={id}
               />
             </div>
             

@@ -1,6 +1,11 @@
 import { nanoid } from 'nanoid';
 import { DependencyRegistry } from './DependencyRegistry';
-import { DependencyDataTypes, DependencyDefinition, DependencyStatus } from './DependencyInterfaces';
+import { 
+  DependencyDataTypes, 
+  DependencyDefinition, 
+  DependencyStatus,
+  DependencySyncStrategy 
+} from './DependencyInterfaces';
 
 /**
  * Register email component dependencies
@@ -15,7 +20,7 @@ export function registerEmailDependencies(registry: DependencyRegistry) {
     role: 'provider',
     description: 'Provides selected email data to viewers',
     required: false,
-    syncStrategy: 'both',
+    syncStrategy: DependencySyncStrategy.BOTH,
     priority: 1
   };
   
@@ -27,7 +32,7 @@ export function registerEmailDependencies(registry: DependencyRegistry) {
     role: 'consumer',
     description: 'Displays email content from selected email',
     required: true,
-    syncStrategy: 'both',
+    syncStrategy: DependencySyncStrategy.BOTH,
     priority: 1
   };
   

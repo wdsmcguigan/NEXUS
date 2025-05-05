@@ -237,26 +237,23 @@ export function DraggableTab({
             </span>
           </div>
           
-          <div className="flex items-center ml-auto">
+          <div className="flex items-center ml-auto gap-1">
             {/* Dependency Indicator - will only render if there are dependencies */}
-            <div className="mr-1">
-              <DependencyIndicator 
-                componentId={id} 
-                variant="dot" 
-                showEmpty={true}
-              />
-            </div>
+            <DependencyIndicator 
+              componentId={id} 
+              variant="dot" 
+              showEmpty={true}
+              className="mt-0.5"
+            />
             
             {/* Dependency Picker - lets users create dependencies interactively */}
-            <div className="mr-1">
-              <DependencyPicker 
-                tabId={id}
-              />
-            </div>
+            <DependencyPicker 
+              tabId={id}
+            />
             
             {closeable && onClose && (
               <div
-                className="ml-1 text-neutral-500 hover:text-white p-1 rounded-sm hover:bg-neutral-700"
+                className="text-neutral-500 hover:text-white p-1 rounded-sm hover:bg-neutral-700"
                 style={{ 
                   transform: `scale(${Math.max(0.7, Math.min(1.2, settings.tabHeight * 0.02))})` 
                 }}

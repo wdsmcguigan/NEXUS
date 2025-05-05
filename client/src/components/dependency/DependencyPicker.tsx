@@ -7,9 +7,10 @@ import {
   PopoverTrigger
 } from '@/components/ui/popover';
 import { 
-  Pipette, 
+  Link2, 
   Link, 
-  ChevronRight 
+  ChevronRight,
+  ArrowRightLeft
 } from 'lucide-react';
 import { useTabContext } from '../../context/TabContext';
 import { Button } from '@/components/ui/button';
@@ -184,10 +185,10 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
           <Button 
             variant="ghost" 
             size="icon" 
-            className={`h-5 w-5 p-0 rounded-full opacity-70 hover:opacity-100 hover:bg-transparent ${className}`}
+            className={`h-4 w-4 p-0 rounded-full opacity-70 hover:opacity-100 hover:bg-transparent ${className}`}
             title="Create tab dependencies"
           >
-            <Pipette className="h-3.5 w-3.5" />
+            <Link2 className="h-3 w-3 text-blue-400" />
           </Button>
         </PopoverTrigger>
         

@@ -322,11 +322,16 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
                   <Badge 
                     key={`provide-${type}`}
                     variant="outline"
-                    className="justify-start cursor-pointer hover:bg-accent/50"
+                    className="justify-start cursor-pointer hover:bg-accent/50 flex items-center"
                     onClick={() => handleStartPicking(type, true)}
                   >
-                    <Link className="h-3 w-3 mr-1" />
-                    {type}
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center">
+                        <Link className="h-3 w-3 mr-1" />
+                        {type}
+                      </div>
+                      <span className="text-xs text-muted-foreground">ID: {tabId.substring(0, 4)}</span>
+                    </div>
                   </Badge>
                 ))}
               </div>
@@ -339,11 +344,16 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
                   <Badge 
                     key={`consume-${type}`}
                     variant="outline"
-                    className="justify-start cursor-pointer hover:bg-accent/50"
+                    className="justify-start cursor-pointer hover:bg-accent/50 flex items-center"
                     onClick={() => handleStartPicking(type, false)}
                   >
-                    <Link className="h-3 w-3 mr-1" />
-                    {type}
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center">
+                        <Link className="h-3 w-3 mr-1" />
+                        {type}
+                      </div>
+                      <span className="text-xs text-muted-foreground">ID: {tabId.substring(0, 4)}</span>
+                    </div>
                   </Badge>
                 ))}
               </div>

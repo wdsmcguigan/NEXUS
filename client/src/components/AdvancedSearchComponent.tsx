@@ -342,33 +342,13 @@ function AdvancedSearchComponentInner({ id }: AdvancedSearchComponentProps) {
   );
 }
 
-// Safe search context consumer that works regardless of context existence
-function SearchContextConsumer({ children }: { children: (hasContext: boolean) => React.ReactNode }) {
-  try {
-    useSearch(); // This will throw if context is missing
-    return <>{children(true)}</>;
-  } catch (error) {
-    return <>{children(false)}</>;
-  }
-}
-
 // Wrapper component that provides SearchProvider if needed
 export function AdvancedSearchComponent({ id }: AdvancedSearchComponentProps) {
+  // Always render with our own SearchProvider to avoid context issues
+  // This ensures the component is self-contained and will work in any panel
   return (
-    <SearchContextConsumer>
-      {(hasContext) => {
-        if (hasContext) {
-          // We're already in a SearchProvider context
-          return <AdvancedSearchComponentInner id={id} />;
-        } else {
-          // We need to provide our own SearchProvider
-          return (
-            <SearchProvider>
-              <AdvancedSearchComponentInner id={id} />
-            </SearchProvider>
-          );
-        }
-      }}
-    </SearchContextConsumer>
+    <SearchProvider>
+      <AdvancedSearchComponentInner id={id} />
+    </SearchProvider>
   );
 }

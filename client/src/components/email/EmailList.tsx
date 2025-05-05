@@ -215,10 +215,12 @@ const EmailList: React.FC<EmailListProps> = ({
   
   // When the selected email changes, update the dependency data
   useEffect(() => {
+    console.log("EmailList selected email changed:", selectedEmail);
+    
+    // Always update provider data, even if null (to clear the viewer)
+    updateProviderData(selectedEmail);
+    
     if (selectedEmail) {
-      console.log("EmailList sending email data:", selectedEmail);
-      updateProviderData(selectedEmail);
-      
       // Show toast notification to make dependency connection clear to user
       toast({
         title: "Email Selected",
@@ -230,8 +232,23 @@ const EmailList: React.FC<EmailListProps> = ({
       if (onEmailSelect) {
         onEmailSelect(selectedEmail);
       }
+    } else {
+      // If email was deselected, show a notification
+      if (hasDependentViewer) {
+        toast({
+          title: "Email Deselected",
+          description: "Cleared email from connected viewers",
+          variant: "default"
+        });
+      }
     }
-  }, [selectedEmail, updateProviderData, onEmailSelect]);
+    
+    // Log current consumers for debugging
+    const consumers = getDependentConsumers();
+    if (consumers.length > 0) {
+      console.log("EmailList sending to consumers:", consumers);
+    }
+  }, [selectedEmail, updateProviderData, onEmailSelect, hasDependentViewer, getDependentConsumers]);
   
   // When selectedEmailId prop changes, update selected email
   useEffect(() => {

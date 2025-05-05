@@ -61,23 +61,84 @@ const EmailDependencyDemo: React.FC = () => {
   
   // Initialize dependencies and register components
   useEffect(() => {
-    // Register the EmailList component as a both provider and consumer
-    registry.registerProvider(COMPONENT_IDS.EMAIL_LIST, DependencyDataTypes.EMAIL, 'List of emails');
-    registry.registerConsumer(COMPONENT_IDS.EMAIL_LIST, DependencyDataTypes.FOLDER, 'Filters emails by folder');
-    registry.registerConsumer(COMPONENT_IDS.EMAIL_LIST, DependencyDataTypes.TAG, 'Filters emails by tag');
+    // Register the EmailList component as both provider and consumer
+    const emailListEmailProvider: DependencyDefinition = {
+      id: `def-email-list-provider-${nanoid(6)}`,
+      componentId: COMPONENT_IDS.EMAIL_LIST,
+      dataType: DependencyDataTypes.EMAIL,
+      role: 'provider',
+      description: 'List of emails'
+    };
+    
+    const emailListFolderConsumer: DependencyDefinition = {
+      id: `def-email-list-folder-consumer-${nanoid(6)}`,
+      componentId: COMPONENT_IDS.EMAIL_LIST,
+      dataType: DependencyDataTypes.FOLDER,
+      role: 'consumer',
+      description: 'Filters emails by folder'
+    };
+    
+    const emailListTagConsumer: DependencyDefinition = {
+      id: `def-email-list-tag-consumer-${nanoid(6)}`,
+      componentId: COMPONENT_IDS.EMAIL_LIST,
+      dataType: DependencyDataTypes.TAG,
+      role: 'consumer',
+      description: 'Filters emails by tag'
+    };
     
     // Register the EmailViewer component
-    registry.registerProvider(COMPONENT_IDS.EMAIL_VIEWER, DependencyDataTypes.CONTACT, 'Provides contact information from email');
-    registry.registerConsumer(COMPONENT_IDS.EMAIL_VIEWER, DependencyDataTypes.EMAIL, 'Displays email content');
+    const emailViewerContactProvider: DependencyDefinition = {
+      id: `def-email-viewer-contact-provider-${nanoid(6)}`,
+      componentId: COMPONENT_IDS.EMAIL_VIEWER,
+      dataType: DependencyDataTypes.CONTACT,
+      role: 'provider',
+      description: 'Provides contact information from email'
+    };
+    
+    const emailViewerEmailConsumer: DependencyDefinition = {
+      id: `def-email-viewer-email-consumer-${nanoid(6)}`,
+      componentId: COMPONENT_IDS.EMAIL_VIEWER,
+      dataType: DependencyDataTypes.EMAIL,
+      role: 'consumer',
+      description: 'Displays email content'
+    };
     
     // Register the ContactDetails component
-    registry.registerConsumer(COMPONENT_IDS.CONTACT_DETAILS, DependencyDataTypes.CONTACT, 'Displays contact information');
+    const contactDetailsConsumer: DependencyDefinition = {
+      id: `def-contact-details-consumer-${nanoid(6)}`,
+      componentId: COMPONENT_IDS.CONTACT_DETAILS,
+      dataType: DependencyDataTypes.CONTACT,
+      role: 'consumer',
+      description: 'Displays contact information'
+    };
     
     // Register the FolderList component
-    registry.registerProvider(COMPONENT_IDS.FOLDER_LIST, DependencyDataTypes.FOLDER, 'Provides folder selection');
+    const folderListProvider: DependencyDefinition = {
+      id: `def-folder-list-provider-${nanoid(6)}`,
+      componentId: COMPONENT_IDS.FOLDER_LIST,
+      dataType: DependencyDataTypes.FOLDER,
+      role: 'provider',
+      description: 'Provides folder selection'
+    };
     
     // Register the TagManager component
-    registry.registerProvider(COMPONENT_IDS.TAG_MANAGER, DependencyDataTypes.TAG, 'Provides tag selection');
+    const tagManagerProvider: DependencyDefinition = {
+      id: `def-tag-manager-provider-${nanoid(6)}`,
+      componentId: COMPONENT_IDS.TAG_MANAGER,
+      dataType: DependencyDataTypes.TAG,
+      role: 'provider',
+      description: 'Provides tag selection'
+    };
+    
+    // Register all definitions
+    registry.registerDefinition(emailListEmailProvider);
+    registry.registerDefinition(emailListFolderConsumer);
+    registry.registerDefinition(emailListTagConsumer);
+    registry.registerDefinition(emailViewerContactProvider);
+    registry.registerDefinition(emailViewerEmailConsumer);
+    registry.registerDefinition(contactDetailsConsumer);
+    registry.registerDefinition(folderListProvider);
+    registry.registerDefinition(tagManagerProvider);
     
     // Create dependencies
     registry.createDependency(COMPONENT_IDS.EMAIL_LIST, COMPONENT_IDS.EMAIL_VIEWER, DependencyDataTypes.EMAIL);
@@ -85,9 +146,9 @@ const EmailDependencyDemo: React.FC = () => {
     registry.createDependency(COMPONENT_IDS.FOLDER_LIST, COMPONENT_IDS.EMAIL_LIST, DependencyDataTypes.FOLDER);
     registry.createDependency(COMPONENT_IDS.TAG_MANAGER, COMPONENT_IDS.EMAIL_LIST, DependencyDataTypes.TAG);
     
-    // Set initial values
-    manager.setData(COMPONENT_IDS.FOLDER_LIST, DependencyDataTypes.FOLDER, 'inbox');
-    manager.setData(COMPONENT_IDS.TAG_MANAGER, DependencyDataTypes.TAG, null);
+    // Set initial values using manager.updateData which is the correct method instead of setData
+    manager.updateData(COMPONENT_IDS.FOLDER_LIST, DependencyDataTypes.FOLDER, 'inbox');
+    manager.updateData(COMPONENT_IDS.TAG_MANAGER, DependencyDataTypes.TAG, null);
     
     // Clean up on unmount
     return () => {
@@ -97,19 +158,22 @@ const EmailDependencyDemo: React.FC = () => {
       registry.getDependenciesByProvider(COMPONENT_IDS.FOLDER_LIST).forEach(dep => registry.removeDependency(dep.id));
       registry.getDependenciesByProvider(COMPONENT_IDS.TAG_MANAGER).forEach(dep => registry.removeDependency(dep.id));
       
-      // Unregister components
-      registry.unregisterComponent(COMPONENT_IDS.EMAIL_LIST);
-      registry.unregisterComponent(COMPONENT_IDS.EMAIL_VIEWER);
-      registry.unregisterComponent(COMPONENT_IDS.CONTACT_DETAILS);
-      registry.unregisterComponent(COMPONENT_IDS.FOLDER_LIST);
-      registry.unregisterComponent(COMPONENT_IDS.TAG_MANAGER);
+      // Unregister components using the unregisterComponent method from the context
+      registry.removeDefinition(emailListEmailProvider.id);
+      registry.removeDefinition(emailListFolderConsumer.id);
+      registry.removeDefinition(emailListTagConsumer.id);
+      registry.removeDefinition(emailViewerContactProvider.id);
+      registry.removeDefinition(emailViewerEmailConsumer.id);
+      registry.removeDefinition(contactDetailsConsumer.id);
+      registry.removeDefinition(folderListProvider.id);
+      registry.removeDefinition(tagManagerProvider.id);
     };
   }, [registry, manager]);
   
   // Handle email selection
   const handleEmailSelected = (email: Email) => {
     setSelectedEmail(email);
-    manager.setData(COMPONENT_IDS.EMAIL_LIST, DependencyDataTypes.EMAIL, email);
+    manager.updateData(COMPONENT_IDS.EMAIL_LIST, DependencyDataTypes.EMAIL, email);
   };
   
   // Listen for data changes (EmailViewer -> ContactDetails)
@@ -126,65 +190,63 @@ const EmailDependencyDemo: React.FC = () => {
       setSelectedTag(data);
     };
     
-    // Subscribe to contact data changes
-    const contactUnsubscribe = manager.subscribeToData(
-      COMPONENT_IDS.CONTACT_DETAILS,
-      DependencyDataTypes.CONTACT,
-      handleContactData
-    );
-    
-    // Subscribe to folder data changes
-    const folderUnsubscribe = manager.subscribeToData(
-      COMPONENT_IDS.EMAIL_LIST,
-      DependencyDataTypes.FOLDER,
-      handleFolderData
-    );
-    
-    // Subscribe to tag data changes
-    const tagUnsubscribe = manager.subscribeToData(
-      COMPONENT_IDS.EMAIL_LIST,
-      DependencyDataTypes.TAG,
-      handleTagData
-    );
+    // Create a single callback for data updates
+    const unsubscribe = manager.onDataUpdated((dependencyId, data) => {
+      const dependency = registry.getDependency(dependencyId);
+      if (!dependency) return;
+      
+      // Handle different types of data
+      if (dependency.consumerId === COMPONENT_IDS.CONTACT_DETAILS && 
+          dependency.dataType === DependencyDataTypes.CONTACT) {
+        handleContactData(data);
+      } else if (dependency.consumerId === COMPONENT_IDS.EMAIL_LIST && 
+                 dependency.dataType === DependencyDataTypes.FOLDER) {
+        handleFolderData(data);
+      } else if (dependency.consumerId === COMPONENT_IDS.EMAIL_LIST && 
+                 dependency.dataType === DependencyDataTypes.TAG) {
+        handleTagData(data);
+      }
+    });
     
     return () => {
-      contactUnsubscribe();
-      folderUnsubscribe();
-      tagUnsubscribe();
+      unsubscribe();
     };
-  }, [manager]);
+  }, [manager, registry]);
   
   // Listen for email data changes
   useEffect(() => {
     const handleEmailData = (data: any) => {
       setSelectedEmail(data);
       if (data && data.from) {
-        manager.setData(COMPONENT_IDS.EMAIL_VIEWER, DependencyDataTypes.CONTACT, data.from);
+        manager.updateData(COMPONENT_IDS.EMAIL_VIEWER, DependencyDataTypes.CONTACT, data.from);
       }
     };
     
-    // Subscribe to email data changes
-    const unsubscribe = manager.subscribeToData(
-      COMPONENT_IDS.EMAIL_VIEWER,
-      DependencyDataTypes.EMAIL,
-      handleEmailData
-    );
+    // Subscribe to data updates
+    const unsubscribe = manager.onDataUpdated((dependencyId, data) => {
+      const dependency = registry.getDependency(dependencyId);
+      if (dependency && 
+          dependency.consumerId === COMPONENT_IDS.EMAIL_VIEWER && 
+          dependency.dataType === DependencyDataTypes.EMAIL) {
+        handleEmailData(data);
+      }
+    });
     
     return () => {
       unsubscribe();
     };
-  }, [manager]);
+  }, [manager, registry]);
   
   // Handle folder selection
   const handleFolderSelected = (folder: string) => {
     setSelectedFolder(folder);
-    manager.setData(COMPONENT_IDS.FOLDER_LIST, DependencyDataTypes.FOLDER, folder);
+    manager.updateData(COMPONENT_IDS.FOLDER_LIST, DependencyDataTypes.FOLDER, folder);
   };
   
   // Handle tag selection
   const handleTagSelected = (tag: string | null) => {
     setSelectedTag(tag);
-    manager.setData(COMPONENT_IDS.TAG_MANAGER, DependencyDataTypes.TAG, tag);
+    manager.updateData(COMPONENT_IDS.TAG_MANAGER, DependencyDataTypes.TAG, tag);
   };
   
   // Mock email data

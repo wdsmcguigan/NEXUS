@@ -1,394 +1,301 @@
 /**
- * Event Bus System for NEXUS.email
+ * EventBus System for NEXUS.email
  * 
- * A centralized event system for application-wide communication between components.
- * Supports typed events, prioritization, cancellation, and scoped subscriptions.
+ * The EventBus provides a central hub for publishing and subscribing to events
+ * across the application, enabling loose coupling between components.
  */
 
-import { nanoid } from 'nanoid';
-import { debugLog } from '../utils/debug';
+import { v4 as uuidv4 } from 'uuid';
+import { ComponentEvent, EventPriority, EventSubscriptionOptions } from './ComponentCommunication';
 
-/**
- * Base event interface
- */
-export interface BaseEvent {
-  type: string;
-  timestamp: number;
-  id: string;
-  source?: string;
-  cancelable?: boolean;
-  canceled?: boolean;
-  propagationStopped?: boolean;
-  scope?: string | string[];
-  priority?: number;
-  metadata?: Record<string, any>;
-}
-
-/**
- * Event listener/handler function
- */
-export type EventListener<T extends BaseEvent = BaseEvent> = (event: T) => void | boolean | Promise<void | boolean>;
-
-/**
- * Subscription information
- */
+// Event subscription
 interface Subscription {
   id: string;
   eventType: string;
-  listener: EventListener;
-  scope?: string | string[];
-  priority: number;
-  once: boolean;
+  callback: (event: any) => void;
+  options: EventSubscriptionOptions;
+}
+
+// Base event interface
+export interface BaseEvent {
+  id: string;
+  type: string;
+  source: string;
+  timestamp: number;
+  priority: EventPriority;
 }
 
 /**
- * Options for subscribing to events
- */
-export interface SubscriptionOptions {
-  scope?: string | string[];
-  priority?: number;
-  once?: boolean;
-}
-
-/**
- * Options for publishing events
- */
-export interface PublishOptions {
-  scope?: string | string[];
-  source?: string;
-  cancelable?: boolean;
-  metadata?: Record<string, any>;
-  async?: boolean;
-  priority?: number;
-}
-
-/**
- * Event Bus for centralized application events
+ * EventBus class for managing application events
  */
 export class EventBus {
-  private static instance: EventBus;
   private subscriptions: Map<string, Subscription[]> = new Map();
-  private paused: boolean = false;
-  private eventQueue: Array<{ event: BaseEvent, options: PublishOptions }> = [];
-
+  private eventHistory: Map<string, ComponentEvent[]> = new Map();
+  private historyLimit: number = 100;
+  private debugMode: boolean = false;
+  
   /**
-   * Get the singleton instance
+   * Create a new EventBus instance
+   * 
+   * @param options Configuration options
    */
-  static getInstance(): EventBus {
-    if (!EventBus.instance) {
-      EventBus.instance = new EventBus();
-    }
-    return EventBus.instance;
-  }
-
-  /**
-   * Private constructor for singleton pattern
-   */
-  private constructor() {
-    debugLog('EventBus', 'EventBus initialized');
-  }
-
-  /**
-   * Subscribe to an event type
-   */
-  subscribe<T extends BaseEvent>(
-    eventType: string, 
-    listener: EventListener<T>, 
-    options: SubscriptionOptions = {}
-  ): string {
-    const { scope, priority = 0, once = false } = options;
+  constructor(options: { 
+    historyLimit?: number; 
+    debugMode?: boolean;
+  } = {}) {
+    const { historyLimit = 100, debugMode = false } = options;
     
-    const subscriptionId = nanoid();
+    this.historyLimit = historyLimit;
+    this.debugMode = debugMode;
+  }
+  
+  /**
+   * Subscribe to an event
+   * 
+   * @param eventType The type of event to subscribe to
+   * @param callback The callback to execute when the event occurs
+   * @param options Subscription options
+   * @returns Subscription ID
+   */
+  subscribe(
+    eventType: string,
+    callback: (event: any) => void,
+    options: EventSubscriptionOptions = {}
+  ): string {
+    const subscriptionId = uuidv4();
+    
+    // Get existing subscriptions for this event type
+    const eventSubscriptions = this.subscriptions.get(eventType) || [];
+    
+    // Create the subscription
     const subscription: Subscription = {
       id: subscriptionId,
       eventType,
-      listener: listener as EventListener,
-      scope,
-      priority,
-      once
+      callback,
+      options
     };
     
-    if (!this.subscriptions.has(eventType)) {
-      this.subscriptions.set(eventType, []);
+    // Add the subscription
+    this.subscriptions.set(eventType, [...eventSubscriptions, subscription]);
+    
+    if (this.debugMode) {
+      console.log(`[EventBus] Subscribed to ${eventType} with ID ${subscriptionId}`);
     }
     
-    const subscriptions = this.subscriptions.get(eventType)!;
-    
-    // Insert the subscription in priority order (higher priority first)
-    let insertIndex = subscriptions.findIndex(sub => sub.priority < priority);
-    if (insertIndex === -1) {
-      insertIndex = subscriptions.length;
-    }
-    
-    subscriptions.splice(insertIndex, 0, subscription);
-    
-    debugLog('EventBus', `Subscribed to ${eventType} with ID ${subscriptionId}`);
-    
-    // Return an unsubscribe function
     return subscriptionId;
   }
-
+  
   /**
-   * Subscribe to an event type for a single occurrence
-   */
-  once<T extends BaseEvent>(
-    eventType: string, 
-    listener: EventListener<T>, 
-    options: Omit<SubscriptionOptions, 'once'> = {}
-  ): string {
-    return this.subscribe(eventType, listener, { ...options, once: true });
-  }
-
-  /**
-   * Unsubscribe from an event using the subscription ID
+   * Unsubscribe from an event
+   * 
+   * @param subscriptionId The ID of the subscription to remove
+   * @returns Whether the subscription was removed
    */
   unsubscribe(subscriptionId: string): boolean {
+    let removed = false;
+    
+    // Iterate through all event types
     for (const [eventType, subscriptions] of this.subscriptions.entries()) {
-      const index = subscriptions.findIndex(sub => sub.id === subscriptionId);
+      // Find the subscription by ID
+      const updatedSubscriptions = subscriptions.filter(sub => {
+        if (sub.id === subscriptionId) {
+          removed = true;
+          return false;
+        }
+        return true;
+      });
       
-      if (index !== -1) {
-        subscriptions.splice(index, 1);
-        debugLog('EventBus', `Unsubscribed from ${eventType} with ID ${subscriptionId}`);
+      // Update the subscriptions
+      if (updatedSubscriptions.length !== subscriptions.length) {
+        this.subscriptions.set(eventType, updatedSubscriptions);
         
-        // Remove the event type if there are no more subscriptions
-        if (subscriptions.length === 0) {
-          this.subscriptions.delete(eventType);
+        if (this.debugMode) {
+          console.log(`[EventBus] Unsubscribed from ${eventType} with ID ${subscriptionId}`);
         }
         
-        return true;
+        break;
       }
     }
     
-    return false;
+    return removed;
   }
-
+  
   /**
-   * Publish an event to all subscribers
+   * Publish an event
+   * 
+   * @param eventType The type of event to publish
+   * @param data The event data
+   * @param source The source of the event
+   * @param priority The priority of the event
+   * @returns The published event
    */
-  async publish<T extends BaseEvent>(
-    eventType: string, 
-    eventData: Partial<T>, 
-    options: PublishOptions = {}
-  ): Promise<T> {
-    const { 
-      scope, 
-      source, 
-      cancelable = false, 
-      metadata = {}, 
-      async = false,
-      priority = 0 
-    } = options;
-    
-    // Create the event object
-    const event: BaseEvent = {
+  publish<T = any>(
+    eventType: string,
+    data?: T,
+    source: string = 'system',
+    priority: EventPriority = EventPriority.NORMAL
+  ): ComponentEvent {
+    // Create the event
+    const event: ComponentEvent = {
+      id: uuidv4(),
       type: eventType,
-      timestamp: Date.now(),
-      id: nanoid(),
       source,
-      cancelable,
-      canceled: false,
-      propagationStopped: false,
-      scope,
+      timestamp: Date.now(),
       priority,
-      metadata,
-      ...eventData
+      data
     };
     
-    debugLog('EventBus', `Published event ${eventType} (ID: ${event.id})`);
+    // Add to history
+    this.addToHistory(eventType, event);
     
-    // If the event bus is paused, queue the event for later
-    if (this.paused) {
-      this.eventQueue.push({ event, options });
-      return event as T;
+    // Get subscriptions for this event type
+    const eventSubscriptions = this.subscriptions.get(eventType) || [];
+    
+    if (this.debugMode) {
+      console.log(`[EventBus] Publishing ${eventType} to ${eventSubscriptions.length} subscribers`, { event });
     }
     
-    // Get subscribers for this event type
-    const subscribers = this.subscriptions.get(eventType) || [];
-    
-    // Filter subscribers by scope if needed
-    const filteredSubscribers = this.filterSubscribersByScope(subscribers, scope);
-    
-    // Process the event
-    if (async) {
-      this.processEventAsync(event, filteredSubscribers);
-    } else {
-      await this.processEvent(event, filteredSubscribers);
-    }
-    
-    return event as T;
-  }
-
-  /**
-   * Process an event and notify subscribers
-   */
-  private async processEvent(event: BaseEvent, subscribers: Subscription[]): Promise<void> {
-    for (const subscription of subscribers) {
-      if (event.canceled || event.propagationStopped) {
-        break;
-      }
-      
-      try {
-        // Call the listener
-        const result = await subscription.listener(event);
-        
-        // If the listener returns false explicitly, cancel the event
-        if (result === false && event.cancelable) {
-          event.canceled = true;
-        }
-        
-        // Remove one-time listeners after they're called
-        if (subscription.once) {
-          this.unsubscribe(subscription.id);
-        }
-      } catch (error) {
-        console.error(`Error in event listener for ${event.type}:`, error);
-      }
-    }
-  }
-
-  /**
-   * Process an event asynchronously without awaiting results
-   */
-  private processEventAsync(event: BaseEvent, subscribers: Subscription[]): void {
-    for (const subscription of subscribers) {
-      if (event.canceled || event.propagationStopped) {
-        break;
-      }
-      
-      // Call each listener without waiting for completion
-      Promise.resolve().then(() => {
+    // Notify subscribers
+    for (const subscription of eventSubscriptions) {
+      // Check if the subscriber should receive this event
+      if (this.shouldReceiveEvent(subscription, event)) {
         try {
-          const result = subscription.listener(event);
+          // Execute the callback
+          subscription.callback(event);
           
-          if (result === false && event.cancelable) {
-            event.canceled = true;
-          }
-          
-          if (subscription.once) {
+          // Remove if once option is set
+          if (subscription.options.once) {
             this.unsubscribe(subscription.id);
           }
         } catch (error) {
-          console.error(`Error in async event listener for ${event.type}:`, error);
+          console.error(`[EventBus] Error in subscriber callback for ${eventType}:`, error);
         }
-      });
-    }
-  }
-
-  /**
-   * Filter subscribers by scope
-   */
-  private filterSubscribersByScope(subscribers: Subscription[], scope?: string | string[]): Subscription[] {
-    if (!scope) {
-      return subscribers;
-    }
-    
-    const scopes = Array.isArray(scope) ? scope : [scope];
-    
-    return subscribers.filter(sub => {
-      // If the subscriber has no scope, it receives all events
-      if (!sub.scope) {
-        return true;
       }
-      
-      const subScopes = Array.isArray(sub.scope) ? sub.scope : [sub.scope];
-      
-      // Check if any of the event scopes match any of the subscription scopes
-      return scopes.some(s => subScopes.includes(s));
-    });
+    }
+    
+    return event;
   }
-
+  
   /**
-   * Cancel an event
+   * Check if a subscriber should receive an event
+   * 
+   * @param subscription The subscription
+   * @param event The event
+   * @returns Whether the subscriber should receive the event
    */
-  cancelEvent(event: BaseEvent): boolean {
-    if (!event.cancelable) {
+  private shouldReceiveEvent(subscription: Subscription, event: ComponentEvent): boolean {
+    const { options } = subscription;
+    
+    // Check source whitelist
+    if (options.sourcesWhitelist && options.sourcesWhitelist.length > 0) {
+      if (!options.sourcesWhitelist.includes(event.source)) {
+        return false;
+      }
+    }
+    
+    // Check source blacklist
+    if (options.sourcesBlacklist && options.sourcesBlacklist.includes(event.source)) {
       return false;
     }
     
-    event.canceled = true;
+    // Check priority
+    if (options.minPriority !== undefined && event.priority < options.minPriority) {
+      return false;
+    }
+    
+    // Check custom filter
+    if (options.filter && !options.filter(event)) {
+      return false;
+    }
+    
     return true;
   }
-
+  
   /**
-   * Stop event propagation to lower-priority listeners
+   * Add an event to the history
+   * 
+   * @param eventType The type of event
+   * @param event The event
    */
-  stopPropagation(event: BaseEvent): void {
-    event.propagationStopped = true;
-  }
-
-  /**
-   * Pause the event bus (events will be queued)
-   */
-  pause(): void {
-    this.paused = true;
-    debugLog('EventBus', 'EventBus paused');
-  }
-
-  /**
-   * Resume the event bus and process queued events
-   */
-  resume(): void {
-    this.paused = false;
-    debugLog('EventBus', 'EventBus resumed');
+  private addToHistory(eventType: string, event: ComponentEvent): void {
+    // Get existing history for this event type
+    const eventHistory = this.eventHistory.get(eventType) || [];
     
-    // Process queued events
-    const queuedEvents = [...this.eventQueue];
-    this.eventQueue = [];
+    // Add the event
+    eventHistory.push(event);
     
-    for (const { event, options } of queuedEvents) {
-      this.publish(event.type, event, options);
+    // Limit the history
+    if (eventHistory.length > this.historyLimit) {
+      eventHistory.shift();
+    }
+    
+    // Update the history
+    this.eventHistory.set(eventType, eventHistory);
+  }
+  
+  /**
+   * Get the history for an event type
+   * 
+   * @param eventType The type of event
+   * @param limit Maximum number of events to return
+   * @returns Event history
+   */
+  getHistory(eventType: string, limit?: number): ComponentEvent[] {
+    const eventHistory = this.eventHistory.get(eventType) || [];
+    
+    // Apply limit if specified
+    if (limit !== undefined && limit > 0) {
+      return eventHistory.slice(-limit);
+    }
+    
+    return [...eventHistory];
+  }
+  
+  /**
+   * Clear the history for an event type
+   * 
+   * @param eventType The type of event to clear
+   */
+  clearHistory(eventType?: string): void {
+    if (eventType) {
+      this.eventHistory.delete(eventType);
+    } else {
+      this.eventHistory.clear();
     }
   }
-
+  
   /**
-   * Remove all subscriptions for cleanup
+   * Set the debug mode
+   * 
+   * @param enabled Whether debug mode is enabled
    */
-  clear(): void {
+  setDebugMode(enabled: boolean): void {
+    this.debugMode = enabled;
+  }
+  
+  /**
+   * Get the number of subscribers for an event type
+   * 
+   * @param eventType The type of event
+   * @returns Number of subscribers
+   */
+  getSubscriberCount(eventType: string): number {
+    return this.subscriptions.get(eventType)?.length || 0;
+  }
+  
+  /**
+   * Clear all subscriptions
+   */
+  clearSubscriptions(): void {
     this.subscriptions.clear();
-    this.eventQueue = [];
-    debugLog('EventBus', 'EventBus cleared');
-  }
-
-  /**
-   * Get subscription count (useful for debugging)
-   */
-  getSubscriptionCount(): number {
-    let count = 0;
-    for (const subscriptions of this.subscriptions.values()) {
-      count += subscriptions.length;
+    
+    if (this.debugMode) {
+      console.log('[EventBus] All subscriptions cleared');
     }
-    return count;
-  }
-
-  /**
-   * Get the number of queued events (useful for debugging)
-   */
-  getQueueSize(): number {
-    return this.eventQueue.length;
   }
 }
 
-// Export singleton instance
-export const eventBus = EventBus.getInstance();
-
-// Export a utility for creating typed event classes
-export function createEvent<T extends Partial<BaseEvent>>(
-  type: string, 
-  data: Omit<T, 'type' | 'timestamp' | 'id'>
-): T & BaseEvent {
-  return {
-    type,
-    timestamp: Date.now(),
-    id: nanoid(),
-    ...data
-  } as T & BaseEvent;
-}
-
-// Export a utility for creating typed subscribe functions
-export function createTypedSubscribe<T extends BaseEvent>(eventType: string) {
-  return (listener: EventListener<T>, options?: SubscriptionOptions): string => {
-    return eventBus.subscribe<T>(eventType, listener, options);
-  };
-}
-
-export default eventBus;
+// Create a singleton instance
+export const eventBus = new EventBus({
+  debugMode: process.env.NODE_ENV === 'development'
+});

@@ -23,23 +23,23 @@ export type {
 
 // Export registry
 export {
-  dependencyRegistry,
+  DependencyRegistry,
   DependencyRegistryEvent
 } from './DependencyRegistry';
 
-export type {
-  DependencyRegistry
-} from './DependencyRegistry';
+// Export the registry instance
+import { dependencyRegistry } from './DependencyRegistry';
+export { dependencyRegistry };
 
 // Export manager
 export {
-  dependencyManager,
+  DependencyManager,
   DependencyManagerEvent
 } from './DependencyManager';
 
-export type {
-  DependencyManager
-} from './DependencyManager';
+// Export the manager instance
+import { dependencyManager } from './DependencyManager';
+export { dependencyManager };
 
 // Default export with all main components
 export default {

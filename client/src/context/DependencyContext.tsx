@@ -13,7 +13,8 @@ import {
   DependencyInstance,
   DependencyConfig,
   DependencyDataType,
-  DependencyStatus
+  DependencyStatus,
+  DependencySyncStrategy
 } from '../lib/dependency/DependencyInterfaces';
 import { ComponentType } from '../lib/communication/ComponentCommunication';
 
@@ -150,7 +151,7 @@ export const DependencyProvider: React.FC<DependencyProviderProps> = ({ children
         providerType: ComponentType.EMAIL_LIST,
         consumerType: ComponentType.EMAIL_VIEWER,
         dataType: DependencyDataType.EMAIL,
-        syncStrategy: 'both',
+        syncStrategy: DependencySyncStrategy.BOTH,
         isRequired: false,
         isOneToMany: true,
         isManyToOne: false
@@ -171,7 +172,7 @@ export const DependencyProvider: React.FC<DependencyProviderProps> = ({ children
         providerType: ComponentType.FOLDER_TREE,
         consumerType: ComponentType.EMAIL_LIST,
         dataType: DependencyDataType.FOLDER,
-        syncStrategy: 'push',
+        syncStrategy: DependencySyncStrategy.PUSH,
         isRequired: false,
         isOneToMany: true,
         isManyToOne: false

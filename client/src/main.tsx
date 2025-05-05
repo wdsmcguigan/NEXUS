@@ -4,6 +4,7 @@ import "./index.css";
 import { ShortcutProvider } from "./context/ShortcutContext";
 import { ComponentProvider } from "./context/ComponentContext";
 import { SearchProvider } from "./context/SearchContext";
+import { DependencyProvider } from "./context/DependencyContext";
 import { useEffect } from "react";
 import registerAdvancedSearchComponents from "./lib/advancedSearchComponentRegistry";
 
@@ -13,7 +14,9 @@ function ProviderWrapper() {
     <ShortcutProvider>
       <ComponentProvider>
         <SearchProvider>
-          <App />
+          <DependencyProvider>
+            <App />
+          </DependencyProvider>
         </SearchProvider>
       </ComponentProvider>
     </ShortcutProvider>

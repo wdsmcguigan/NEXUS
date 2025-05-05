@@ -1,8 +1,8 @@
 /**
- * Core interfaces for the Component Dependency System
+ * Interfaces for the Component Dependency System
  * 
- * This system allows components to define dependencies on other components,
- * enabling data flow and coordination between different parts of the application.
+ * This file contains the interfaces and types for the Component Dependency System.
+ * It defines the structure of dependency definitions, instances, and related types.
  */
 
 import { ComponentType } from '../communication/ComponentCommunication';
@@ -11,288 +11,51 @@ import { ComponentType } from '../communication/ComponentCommunication';
  * Types of data that can be shared between components
  */
 export enum DependencyDataType {
+  // Basic data types
+  STRING = 'string',
+  NUMBER = 'number',
+  BOOLEAN = 'boolean',
+  OBJECT = 'object',
+  ARRAY = 'array',
+  
+  // Application-specific data types
   EMAIL = 'email',
   EMAIL_LIST = 'email-list',
-  CONTACT = 'contact',
-  CONTACT_LIST = 'contact-list',
   FOLDER = 'folder',
-  FOLDER_LIST = 'folder-list',
   TAG = 'tag',
-  TAG_LIST = 'tag-list',
-  CALENDAR_EVENT = 'calendar-event',
-  CALENDAR_EVENTS = 'calendar-events',
-  SEARCH_QUERY = 'search-query',
-  SEARCH_RESULTS = 'search-results',
-  CUSTOM = 'custom'
+  CONTACT = 'contact',
+  SEARCH_RESULT = 'search-result',
+  ATTACHMENT = 'attachment',
+  SELECTION = 'selection',
+  FILTER = 'filter',
+  
+  // Complex data types
+  ACTION = 'action',
+  EVENT = 'event',
+  COMMAND = 'command',
+  STATE = 'state',
+  CONFIG = 'config'
 }
 
 /**
- * Synchronization strategy for dependencies
+ * Synchronization strategies for dependency data
  */
 export enum DependencySyncStrategy {
-  /**
-   * Consumer actively pulls data from provider when needed
-   */
-  PULL = 'pull',
-  
-  /**
-   * Provider actively pushes data to consumer when it changes
-   */
+  // One-way sync from provider to consumer
   PUSH = 'push',
   
-  /**
-   * Both push and pull are supported
-   */
-  BOTH = 'both'
+  // One-way sync but consumer requests data
+  PULL = 'pull',
+  
+  // Two-way sync between components
+  BOTH = 'both',
+  
+  // Sync based on events rather than direct data access
+  EVENT = 'event'
 }
 
 /**
- * Defines a possible dependency between component types
- */
-export interface DependencyDefinition {
-  /**
-   * Unique identifier for this dependency definition
-   */
-  id: string;
-  
-  /**
-   * Name for display in the UI
-   */
-  name: string;
-  
-  /**
-   * Optional description
-   */
-  description?: string;
-  
-  /**
-   * Component type that provides data
-   */
-  providerType: ComponentType;
-  
-  /**
-   * Component type that consumes data
-   */
-  consumerType: ComponentType;
-  
-  /**
-   * Type of data shared in this dependency
-   */
-  dataType: DependencyDataType;
-  
-  /**
-   * Synchronization strategy
-   */
-  syncStrategy: DependencySyncStrategy;
-  
-  /**
-   * Whether this dependency is required for the consumer
-   */
-  isRequired: boolean;
-  
-  /**
-   * Whether the provider can have multiple consumers
-   */
-  isOneToMany: boolean;
-  
-  /**
-   * Whether the consumer can have multiple providers
-   */
-  isManyToOne: boolean;
-  
-  /**
-   * Additional configuration options specific to this dependency type
-   */
-  configOptions?: DependencyConfigOption[];
-  
-  /**
-   * Function to validate dependency data
-   */
-  validateData?: (data: any) => boolean;
-  
-  /**
-   * Default data transformation function
-   */
-  transformData?: (data: any) => any;
-}
-
-/**
- * Configuration option for a dependency
- */
-export interface DependencyConfigOption {
-  /**
-   * Option key
-   */
-  key: string;
-  
-  /**
-   * Human-readable name
-   */
-  name: string;
-  
-  /**
-   * Option description
-   */
-  description?: string;
-  
-  /**
-   * Option type
-   */
-  type: 'boolean' | 'string' | 'number' | 'select' | 'custom';
-  
-  /**
-   * Default value
-   */
-  defaultValue?: any;
-  
-  /**
-   * Available options for 'select' type
-   */
-  options?: Array<{ value: string; label: string }>;
-  
-  /**
-   * Whether this option is required
-   */
-  required?: boolean;
-  
-  /**
-   * Function to validate option value
-   */
-  validate?: (value: any) => boolean;
-}
-
-/**
- * Configuration for a dependency instance
- */
-export interface DependencyConfig {
-  /**
-   * Reference to the dependency definition
-   */
-  definitionId: string;
-  
-  /**
-   * Additional configuration values
-   */
-  options: Record<string, any>;
-  
-  /**
-   * Custom data transformation function
-   */
-  customTransform?: (data: any) => any;
-  
-  /**
-   * Whether dependency updates trigger automatic UI updates
-   */
-  autoUpdate?: boolean;
-  
-  /**
-   * Custom filter function to determine if data should be processed
-   */
-  filter?: (data: any) => boolean;
-}
-
-/**
- * Represents an active dependency between component instances
- */
-export interface DependencyInstance {
-  /**
-   * Unique identifier for this dependency instance
-   */
-  id: string;
-  
-  /**
-   * Reference to the dependency definition
-   */
-  definitionId: string;
-  
-  /**
-   * ID of the provider component instance
-   */
-  providerId: string;
-  
-  /**
-   * ID of the consumer component instance
-   */
-  consumerId: string;
-  
-  /**
-   * Component type of the provider
-   */
-  providerType: ComponentType;
-  
-  /**
-   * Component type of the consumer
-   */
-  consumerType: ComponentType;
-  
-  /**
-   * Configuration for this dependency instance
-   */
-  config: DependencyConfig;
-  
-  /**
-   * Last update timestamp
-   */
-  lastUpdated?: number;
-  
-  /**
-   * Current data state
-   */
-  currentData?: any;
-  
-  /**
-   * Whether this dependency is active
-   */
-  isActive: boolean;
-  
-  /**
-   * Whether this dependency is ready (provider and consumer are available)
-   */
-  isReady: boolean;
-  
-  /**
-   * Error message if dependency is in error state
-   */
-  error?: string;
-}
-
-/**
- * Event emitted when dependency data is updated
- */
-export interface DependencyDataUpdateEvent {
-  /**
-   * Dependency instance ID
-   */
-  dependencyId: string;
-  
-  /**
-   * Provider component ID
-   */
-  providerId: string;
-  
-  /**
-   * Consumer component ID
-   */
-  consumerId: string;
-  
-  /**
-   * Type of data being shared
-   */
-  dataType: DependencyDataType;
-  
-  /**
-   * The data being shared
-   */
-  data: any;
-  
-  /**
-   * Timestamp of the update
-   */
-  timestamp: number;
-}
-
-/**
- * Status of a dependency instance
+ * Status values for dependencies
  */
 export enum DependencyStatus {
   ACTIVE = 'active',
@@ -302,36 +65,121 @@ export enum DependencyStatus {
 }
 
 /**
- * Data request from a consumer to a provider
+ * A dependency definition describes the relationship between component types
  */
-export interface DependencyDataRequest {
-  /**
-   * Dependency instance ID
-   */
-  dependencyId: string;
+export interface DependencyDefinition {
+  // Unique identifier
+  id: string;
   
-  /**
-   * Consumer component ID
-   */
-  consumerId: string;
+  // Basic information
+  name: string;
+  description: string;
   
-  /**
-   * Provider component ID
-   */
+  // Component types involved
+  providerType: ComponentType;
+  consumerType: ComponentType;
+  
+  // Data characteristics
+  dataType: DependencyDataType;
+  syncStrategy: DependencySyncStrategy;
+  
+  // Relationship characteristics
+  isRequired: boolean;
+  isOneToMany: boolean;
+  isManyToOne: boolean;
+  
+  // Data handling
+  validateData?: (data: any) => boolean;
+  transformData?: (data: any) => any;
+  
+  // Metadata
+  createdAt: number;
+  tags?: string[];
+}
+
+/**
+ * Configuration for a dependency instance
+ */
+export interface DependencyConfig {
+  // Activation state
+  isActive: boolean;
+  
+  // Data synchronization
+  autoUpdate: boolean;
+  notifyOnChange: boolean;
+  
+  // Data customization
+  customTransform?: (data: any) => any;
+  filter?: (data: any) => boolean;
+  
+  // Custom options
+  options: Record<string, any>;
+}
+
+/**
+ * Configuration option for a dependency
+ */
+export interface DependencyConfigOption {
+  id: string;
+  name: string;
+  type: 'boolean' | 'string' | 'number' | 'select' | 'object';
+  defaultValue: any;
+  options?: any[];
+  description?: string;
+}
+
+/**
+ * A runtime dependency instance between components
+ */
+export interface DependencyInstance {
+  // Identifiers
+  id: string;
+  definitionId: string;
+  
+  // Components involved
   providerId: string;
+  providerType: ComponentType;
+  consumerId: string;
+  consumerType: ComponentType;
   
-  /**
-   * Type of data being requested
-   */
+  // Data type
   dataType: DependencyDataType;
   
-  /**
-   * Timestamp of the request
-   */
-  timestamp: number;
+  // Status
+  isActive: boolean;
+  isReady: boolean;
+  error?: string;
   
-  /**
-   * Additional parameters for the request
-   */
+  // Data
+  currentData?: any;
+  lastUpdated?: number;
+  
+  // Configuration
+  config: DependencyConfig;
+  
+  // Metadata
+  createdAt: number;
+}
+
+/**
+ * Data update event for dependencies
+ */
+export interface DependencyDataUpdateEvent {
+  dependencyId: string;
+  providerId: string;
+  consumerId: string;
+  data: any;
+  timestamp: number;
+}
+
+/**
+ * Data request event for dependencies
+ */
+export interface DependencyDataRequest {
+  requestId: string;
+  dependencyId: string;
+  providerId: string;
+  consumerId: string;
   params?: any;
+  timestamp: number;
 }

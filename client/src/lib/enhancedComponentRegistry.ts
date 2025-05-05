@@ -1,6 +1,9 @@
 import React from 'react';
 import { LucideIcon } from 'lucide-react';
 import { nanoid } from 'nanoid';
+import { dependencyRegistry } from './dependency/DependencyRegistry';
+import { DependencySyncStrategy } from './dependency/DependencyInterfaces';
+import { ComponentType } from './communication/ComponentCommunication';
 
 /**
  * Component priority levels for sorting in menus and component selection interfaces
@@ -89,6 +92,35 @@ export interface IntegrationPoints {
 }
 
 /**
+ * Component dependency capabilities
+ */
+export interface DependencyCapabilities {
+  // Component can act as a provider in the dependency system
+  canBeSource: boolean;
+  
+  // Component can act as a consumer in the dependency system
+  canBeDependent: boolean;
+  
+  // Types of data this component can provide to others
+  providesData?: string[];
+  
+  // Types of data this component can consume from others
+  consumesData?: string[];
+  
+  // Data transformers for different data types
+  dataTransformers?: Record<string, (data: any) => any>;
+  
+  // Data validators for different data types
+  dataValidators?: Record<string, (data: any) => boolean>;
+  
+  // Enable automatic dependency discovery for this component
+  autoDiscoverDependencies?: boolean;
+  
+  // Enable automatic dependency resolution when compatible dependencies are found
+  autoResolveDependencies?: boolean;
+}
+
+/**
  * Component update and notification settings
  */
 export interface ComponentUpdateSettings {
@@ -159,6 +191,9 @@ export interface EnhancedComponentDefinition {
   // Integration capabilities
   integrations?: IntegrationPoints;        // Integration points
   
+  // Dependency system capabilities
+  dependencyCapabilities?: DependencyCapabilities; // Dependency system capabilities
+  
   // Update and notification settings
   updateSettings?: ComponentUpdateSettings; // Update settings
   
@@ -217,6 +252,64 @@ class EnhancedComponentRegistry {
     };
     
     this.components.set(componentDef.id, componentWithDefaults);
+    
+    // Register component dependency capabilities if provided
+    if (componentDef.dependencyCapabilities) {
+      this.registerComponentDependencyCapabilities(componentDef);
+    }
+  }
+  
+  /**
+   * Register component dependency capabilities with the dependency system
+   */
+  private registerComponentDependencyCapabilities(componentDef: EnhancedComponentDefinition): void {
+    const capabilities = componentDef.dependencyCapabilities;
+    
+    if (!capabilities) return;
+    
+    // Register as a provider (source) if applicable
+    if (capabilities.canBeSource && capabilities.providesData?.length) {
+      capabilities.providesData.forEach(dataType => {
+        // For each data type this component provides, register a dependency definition
+        dependencyRegistry.defineComponentDependency({
+          id: `${componentDef.id}-provider-${dataType}`,
+          name: `${componentDef.displayName} ${dataType} Provider`,
+          description: `${componentDef.displayName} can provide ${dataType} data to other components`,
+          providerType: componentDef.id as ComponentType,
+          consumerType: '*' as ComponentType, // Can provide to any compatible component
+          dataType: dataType,
+          syncStrategy: DependencySyncStrategy.PUSH, // Default to push strategy
+          isRequired: false,
+          isOneToMany: true, // One provider can serve many consumers
+          isManyToOne: false,
+          transformData: capabilities.dataTransformers?.[dataType],
+          validateData: capabilities.dataValidators?.[dataType],
+          createdAt: Date.now()
+        });
+      });
+    }
+    
+    // Register as a consumer (dependent) if applicable
+    if (capabilities.canBeDependent && capabilities.consumesData?.length) {
+      capabilities.consumesData.forEach(dataType => {
+        // For each data type this component consumes, register a dependency definition
+        dependencyRegistry.defineComponentDependency({
+          id: `${componentDef.id}-consumer-${dataType}`,
+          name: `${componentDef.displayName} ${dataType} Consumer`,
+          description: `${componentDef.displayName} can consume ${dataType} data from other components`,
+          providerType: '*' as ComponentType, // Can consume from any compatible component
+          consumerType: componentDef.id as ComponentType,
+          dataType: dataType,
+          syncStrategy: DependencySyncStrategy.PULL, // Default to pull strategy
+          isRequired: false,
+          isOneToMany: false,
+          isManyToOne: true, // Many providers can serve one consumer
+          transformData: capabilities.dataTransformers?.[dataType],
+          validateData: capabilities.dataValidators?.[dataType],
+          createdAt: Date.now()
+        });
+      });
+    }
   }
 
   /**
@@ -284,7 +377,43 @@ class EnhancedComponentRegistry {
   getComponentsBySearchCapability(capability: SearchCapability): EnhancedComponentDefinition[] {
     return this.getAllComponents().filter(comp => comp.searchCapability === capability);
   }
-
+  
+  /**
+   * Get components that can act as dependency sources
+   */
+  getSourceComponents(): EnhancedComponentDefinition[] {
+    return this.getAllComponents().filter(comp => 
+      comp.dependencyCapabilities?.canBeSource === true
+    );
+  }
+  
+  /**
+   * Get components that can act as dependency consumers
+   */
+  getDependentComponents(): EnhancedComponentDefinition[] {
+    return this.getAllComponents().filter(comp => 
+      comp.dependencyCapabilities?.canBeDependent === true
+    );
+  }
+  
+  /**
+   * Get components that can provide a specific data type
+   */
+  getComponentsByProvidedDataType(dataType: string): EnhancedComponentDefinition[] {
+    return this.getAllComponents().filter(comp => 
+      comp.dependencyCapabilities?.providesData?.includes(dataType)
+    );
+  }
+  
+  /**
+   * Get components that can consume a specific data type
+   */
+  getComponentsByConsumedDataType(dataType: string): EnhancedComponentDefinition[] {
+    return this.getAllComponents().filter(comp => 
+      comp.dependencyCapabilities?.consumesData?.includes(dataType)
+    );
+  }
+  
   /**
    * Check if a component exists
    */
@@ -343,7 +472,78 @@ class EnhancedComponentRegistry {
       component.onMount(instance.instanceId, instanceConfig);
     }
 
+    // Auto-discover dependencies if supported by the component
+    if (component.dependencyCapabilities?.autoDiscoverDependencies) {
+      this.setupAutomaticDependencies(instance);
+    }
+
     return instance;
+  }
+  
+  /**
+   * Setup automatic dependencies for a new component instance
+   */
+  private setupAutomaticDependencies(instance: ComponentInstance): void {
+    const component = this.getComponent(instance.componentId);
+    
+    if (!component || !component.dependencyCapabilities) {
+      return;
+    }
+    
+    // If component is a dependency consumer, try to find matching providers
+    if (component.dependencyCapabilities.canBeDependent && 
+        component.dependencyCapabilities.consumesData) {
+      
+      for (const dataType of component.dependencyCapabilities.consumesData) {
+        // Find potential provider instances for this data type
+        this.findAndConnectProvider(instance, dataType);
+      }
+    }
+  }
+  
+  /**
+   * Find a suitable provider for a consumer instance for a specific data type
+   */
+  private findAndConnectProvider(consumerInstance: ComponentInstance, dataType: string): void {
+    // Get all potential provider component types
+    const providerComponents = this.getComponentsByProvidedDataType(dataType);
+    
+    if (!providerComponents.length) {
+      return; // No provider components available
+    }
+    
+    // Find active instances of potential providers (currently in tabs)
+    const potentialProviderInstances: ComponentInstance[] = [];
+    
+    for (const providerComponent of providerComponents) {
+      const instances = this.getInstancesByComponentId(providerComponent.id);
+      potentialProviderInstances.push(...instances);
+    }
+    
+    if (!potentialProviderInstances.length) {
+      return; // No provider instances available
+    }
+    
+    // Select the most appropriate provider
+    // For now, just take the first available provider
+    // In a more sophisticated implementation, we could:
+    // - Prefer providers in the same panel
+    // - Prefer recently active providers
+    // - Use component-specific rules for selection
+    const providerInstance = potentialProviderInstances[0];
+    
+    // Create a dependency relationship in the registry
+    dependencyRegistry.createDependency(
+      providerInstance.instanceId,
+      consumerInstance.instanceId,
+      dataType,
+      {
+        isActive: true,
+        autoUpdate: true,
+        notifyOnChange: true,
+        options: {}
+      }
+    );
   }
 
   /**

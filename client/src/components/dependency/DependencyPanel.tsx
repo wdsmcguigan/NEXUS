@@ -45,7 +45,18 @@ export function DependencyPanel({ componentId = 'dependency-panel', tabId }: Dep
   // Get all active dependencies
   useEffect(() => {
     const refreshDependencies = () => {
-      const allDependencies = registry.getAllDependencies();
+      // Get all dependencies from the registry
+      const allDependencies = Array.from(registry.getDependenciesByType(
+        // Get dependencies of all types 
+        Object.values(DependencyDataTypes)[0]
+      ));
+      
+      // Also get other types
+      Object.values(DependencyDataTypes).slice(1).forEach(type => {
+        const typeDependencies = registry.getDependenciesByType(type);
+        allDependencies.push(...typeDependencies);
+      });
+      
       setActiveDependencies(allDependencies);
     };
     
@@ -364,11 +375,18 @@ export function DependencyPanel({ componentId = 'dependency-panel', tabId }: Dep
                       <div className="p-3 space-y-3">
                         {Object.entries(
                           // Group definitions by component ID
-                          registry.getAllDefinitions().reduce((acc, def) => {
-                            acc[def.componentId] = acc[def.componentId] || [];
-                            acc[def.componentId].push(def);
+                          Object.values(DependencyDataTypes).reduce((acc: Record<string, DependencyDefinition[]>, dataType) => {
+                            // Get all definitions for this type
+                            const defs = registry.getDefinitionsByType(dataType);
+                            
+                            // Group by component ID
+                            defs.forEach(def => {
+                              acc[def.componentId] = acc[def.componentId] || [];
+                              acc[def.componentId].push(def);
+                            });
+                            
                             return acc;
-                          }, {} as Record<string, DependencyDefinition[]>)
+                          }, {})
                         ).map(([componentId, definitions]) => (
                           <Card key={componentId} className="border-muted/40">
                             <CardHeader className="py-2 px-3">
@@ -546,23 +564,12 @@ export function DependencyPanel({ componentId = 'dependency-panel', tabId }: Dep
                     </CardHeader>
                     <CardContent>
                       <div className="h-64 p-3 bg-black/80 rounded-md text-xs font-mono text-green-400 overflow-auto">
-                        {registry.getLogs().length > 0 ? (
-                          registry.getLogs().map((log, index) => (
-                            <div key={index} className="mb-1">
-                              <span className="text-blue-400">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
-                              <span className={cn("ml-2", 
-                                log.level === 'info' ? 'text-green-400' :
-                                log.level === 'warning' ? 'text-yellow-400' :
-                                log.level === 'error' ? 'text-red-400' :
-                                'text-white'
-                              )}>
-                                {log.message}
-                              </span>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-gray-500 italic">No events logged yet</div>
-                        )}
+                        {/* Placeholder for logs - since the registry doesn't directly expose logs */}
+                        <div className="text-gray-500 italic">
+                          <p>Dependency system initialized</p>
+                          <p className="mt-1">Ready to monitor dependency events</p>
+                          <p className="mt-1">Add dependencies between components to see events here</p>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

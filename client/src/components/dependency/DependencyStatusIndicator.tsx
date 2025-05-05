@@ -1,117 +1,47 @@
 import React from 'react';
 import { DependencyStatus } from '../../lib/dependency/DependencyInterfaces';
-import { 
-  Link, 
-  AlertTriangle, 
-  Clock, 
-  CheckCircle2, 
-  XCircle 
-} from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { CircleSlash, AlertCircle, CheckCircle, AlertTriangle, HelpCircle, Clock, Repeat } from 'lucide-react';
 
-interface DependencyStatusIndicatorProps {
+type DependencyStatusIndicatorProps = {
   status: DependencyStatus;
   size?: 'sm' | 'md' | 'lg';
-  showLabel?: boolean;
   className?: string;
-}
+};
 
-export const DependencyStatusIndicator: React.FC<DependencyStatusIndicatorProps> = ({
+export function DependencyStatusIndicator({ 
   status,
   size = 'sm',
-  showLabel = false,
   className
-}) => {
-  // Define styles based on status
-  const getStatusConfig = () => {
+}: DependencyStatusIndicatorProps) {
+  const iconSize = {
+    sm: 'h-3 w-3',
+    md: 'h-4 w-4',
+    lg: 'h-5 w-5'
+  }[size];
+  
+  const getIconForStatus = () => {
     switch (status) {
-      case DependencyStatus.DISCONNECTED:
-        return {
-          icon: <XCircle className={sizeClasses.icon} />,
-          label: 'Disconnected',
-          color: 'text-muted-foreground'
-        };
-      case DependencyStatus.CONNECTING:
-        return {
-          icon: <Clock className={sizeClasses.icon} />,
-          label: 'Connecting',
-          color: 'text-yellow-500 animate-pulse'
-        };
       case DependencyStatus.CONNECTED:
-        return {
-          icon: <Link className={sizeClasses.icon} />,
-          label: 'Connected',
-          color: 'text-blue-500'
-        };
+        return <CheckCircle className={cn(iconSize, "text-green-500", className)} />;
+      case DependencyStatus.DISCONNECTED:
+        return <CircleSlash className={cn(iconSize, "text-gray-400", className)} />;
       case DependencyStatus.ERROR:
-        return {
-          icon: <AlertTriangle className={sizeClasses.icon} />,
-          label: 'Error',
-          color: 'text-red-500'
-        };
+        return <AlertCircle className={cn(iconSize, "text-red-500", className)} />;
+      case DependencyStatus.CONNECTING:
+        return <Clock className={cn(iconSize, "text-amber-400", className)} />;
       case DependencyStatus.READY:
-        return {
-          icon: <CheckCircle2 className={sizeClasses.icon} />,
-          label: 'Ready',
-          color: 'text-green-500'
-        };
+        return <CheckCircle className={cn(iconSize, "text-blue-500", className)} />;
+      case DependencyStatus.CYCLE_DETECTED:
+        return <Repeat className={cn(iconSize, "text-purple-500", className)} />;
+      case DependencyStatus.OPTIMIZING:
+        return <AlertTriangle className={cn(iconSize, "text-yellow-500", className)} />;
       default:
-        return {
-          icon: <XCircle className={sizeClasses.icon} />,
-          label: 'Unknown',
-          color: 'text-muted-foreground'
-        };
+        return <HelpCircle className={cn(iconSize, "text-blue-400", className)} />;
     }
   };
 
-  // Size classes
-  const getSizeClasses = () => {
-    switch (size) {
-      case 'sm':
-        return {
-          container: 'h-4 gap-1',
-          icon: 'h-3.5 w-3.5',
-          text: 'text-xs'
-        };
-      case 'md':
-        return {
-          container: 'h-5 gap-1.5',
-          icon: 'h-4 w-4',
-          text: 'text-sm'
-        };
-      case 'lg':
-        return {
-          container: 'h-6 gap-2',
-          icon: 'h-5 w-5',
-          text: 'text-sm font-medium'
-        };
-      default:
-        return {
-          container: 'h-4 gap-1',
-          icon: 'h-3.5 w-3.5',
-          text: 'text-xs'
-        };
-    }
-  };
-
-  const sizeClasses = getSizeClasses();
-  const statusConfig = getStatusConfig();
-
-  return (
-    <div 
-      className={cn(
-        'flex items-center', 
-        sizeClasses.container, 
-        statusConfig.color,
-        className
-      )}
-    >
-      {statusConfig.icon}
-      {showLabel && (
-        <span className={sizeClasses.text}>{statusConfig.label}</span>
-      )}
-    </div>
-  );
-};
+  return getIconForStatus();
+}
 
 export default DependencyStatusIndicator;

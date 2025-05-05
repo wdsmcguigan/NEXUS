@@ -8,6 +8,7 @@ import {
 import { DependencyRegistry } from '../lib/dependency/DependencyRegistry';
 import { DependencyManager } from '../lib/dependency/DependencyManager';
 import { registerSampleDependencies } from '../lib/dependency/sampleDependencies';
+import { registerEmailDependencies } from '../lib/dependency/registerEmailDependencies';
 
 // Create registry and manager instances
 const registry = new DependencyRegistry();
@@ -15,6 +16,9 @@ const manager = new DependencyManager(registry);
 
 // Initialize with sample dependencies
 registerSampleDependencies(registry);
+
+// Initialize with email component dependencies
+registerEmailDependencies(registry);
 
 // Create React context
 const DependencyContext = createContext<DependencyContextType>({

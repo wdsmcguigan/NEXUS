@@ -99,7 +99,6 @@ interface AdvancedSearchComponentProps {
   id: string;
 }
 
-// A component that safely uses the SearchContext
 function AdvancedSearchComponentInner({ id }: AdvancedSearchComponentProps) {
   const { performSearch, updateSearchOptions } = useSearch();
   const [savedSearches, setSavedSearches] = useState<SavedSearch[]>(EXAMPLE_SAVED_SEARCHES);
@@ -180,161 +179,160 @@ function AdvancedSearchComponentInner({ id }: AdvancedSearchComponentProps) {
   
   return (
     <div className="h-full flex flex-col bg-neutral-950 overflow-hidden">
-      <div className="flex items-center justify-between p-4 border-b border-neutral-800">
+      <div className="flex items-center p-4 border-b border-neutral-800">
         <h1 className="text-lg font-medium flex items-center">
           <Search className="mr-2 h-5 w-5 text-blue-500" />
           Advanced Search
         </h1>
-        
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-[400px]">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="search">Search</TabsTrigger>
-            <TabsTrigger value="manage">Manage Searches</TabsTrigger>
-          </TabsList>
-        </Tabs>
       </div>
       
-      <div className="flex-1 overflow-auto p-4">
-        <TabsContent value="search" className="h-full">
-          <div className="max-w-4xl mx-auto">
-            <AdvancedSearchPanel 
-              componentId={`advanced-search-${id}`}
-              tabId={`tab-${id}`}
-              searchAdapter={searchAdapter}
-              onSaveSearch={handleSaveSearch}
-              savedSearches={savedSearches}
-              onLoadSavedSearch={handleLoadSavedSearch}
-            />
-          </div>
-        </TabsContent>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+        <div className="border-b border-neutral-800 px-4">
+          <TabsList className="w-[400px]">
+            <TabsTrigger value="search" className="flex-1">Search</TabsTrigger>
+            <TabsTrigger value="manage" className="flex-1">Manage Searches</TabsTrigger>
+          </TabsList>
+        </div>
         
-        <TabsContent value="manage" className="h-full">
-          <div className="max-w-4xl mx-auto space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-medium">Manage Saved Searches</h2>
-              
-              <div className="flex space-x-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleExportSearches}
-                  className="flex items-center"
-                >
-                  <FileDown className="mr-1 h-4 w-4" />
-                  Export
-                </Button>
+        <div className="flex-1 overflow-auto p-4">
+          <TabsContent value="search" className="h-full mt-0 data-[state=active]:block">
+            <div className="max-w-4xl mx-auto">
+              <AdvancedSearchPanel 
+                componentId={`advanced-search-${id}`}
+                tabId={`tab-${id}`}
+                searchAdapter={searchAdapter}
+                onSaveSearch={handleSaveSearch}
+                savedSearches={savedSearches}
+                onLoadSavedSearch={handleLoadSavedSearch}
+              />
+            </div>
+          </TabsContent>
+          
+          <TabsContent value="manage" className="h-full mt-0 data-[state=active]:block">
+            <div className="max-w-4xl mx-auto space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-medium">Manage Saved Searches</h2>
                 
-                <div className="relative">
-                  <Input
-                    type="file"
-                    id="search-import"
-                    accept=".json"
-                    onChange={handleImportSearches}
-                    className="absolute inset-0 opacity-0 w-full cursor-pointer"
-                    tabIndex={-1}
-                  />
+                <div className="flex space-x-2">
                   <Button 
                     variant="outline" 
-                    size="sm"
+                    size="sm" 
+                    onClick={handleExportSearches}
                     className="flex items-center"
                   >
-                    <FileUp className="mr-1 h-4 w-4" />
-                    Import
+                    <FileDown className="mr-1 h-4 w-4" />
+                    Export
                   </Button>
+                  
+                  <div className="relative">
+                    <Input
+                      type="file"
+                      id="search-import"
+                      accept=".json"
+                      onChange={handleImportSearches}
+                      className="absolute inset-0 opacity-0 w-full cursor-pointer"
+                      tabIndex={-1}
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="flex items-center"
+                    >
+                      <FileUp className="mr-1 h-4 w-4" />
+                      Import
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            <Separator />
-            
-            <div className="space-y-4">
-              {savedSearches.length > 0 ? (
-                savedSearches.map((search) => (
-                  <div 
-                    key={search.id}
-                    className="p-4 border border-neutral-800 rounded-md hover:border-neutral-700 transition-colors"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="flex items-center">
-                          <h3 className="text-base font-medium">{search.name}</h3>
-                          {search.isDefault && (
-                            <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-blue-900/30 text-blue-400 border border-blue-800">
-                              Default
-                            </span>
+              
+              <Separator />
+              
+              <div className="space-y-4">
+                {savedSearches.length > 0 ? (
+                  savedSearches.map((currentSearch) => (
+                    <div 
+                      key={currentSearch.id}
+                      className="p-4 border border-neutral-800 rounded-md hover:border-neutral-700 transition-colors"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <div className="flex items-center">
+                            <h3 className="text-base font-medium">{currentSearch.name}</h3>
+                            {currentSearch.isDefault && (
+                              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-blue-900/30 text-blue-400 border border-blue-800">
+                                Default
+                              </span>
+                            )}
+                          </div>
+                          {currentSearch.description && (
+                            <p className="text-sm text-neutral-400 mt-1">{currentSearch.description}</p>
                           )}
                         </div>
-                        {search.description && (
-                          <p className="text-sm text-neutral-400 mt-1">{search.description}</p>
-                        )}
-                      </div>
-                      
-                      <div className="flex space-x-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => {
-                            const search = savedSearches.find(s => s.id === search.id);
-                            if (search) {
+                        
+                        <div className="flex space-x-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
                               // Make this the default search
                               setSavedSearches(prev => 
                                 prev.map(s => ({
                                   ...s, 
-                                  isDefault: s.id === search.id
+                                  isDefault: s.id === currentSearch.id
                                 }))
                               );
-                            }
-                          }}
-                          className={`${search.isDefault ? 'text-blue-500' : 'text-neutral-400'}`}
-                        >
-                          <BookmarkIcon className="h-4 w-4" />
-                        </Button>
-                        
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => {
-                            // Delete the search
-                            setSavedSearches(prev => 
-                              prev.filter(s => s.id !== search.id)
-                            );
-                          }}
-                          className="text-red-500"
-                        >
-                          <Search className="h-4 w-4" />
-                        </Button>
+                            }}
+                            className={`${currentSearch.isDefault ? 'text-blue-500' : 'text-neutral-400'}`}
+                          >
+                            <BookmarkIcon className="h-4 w-4" />
+                          </Button>
+                          
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => {
+                              // Delete the search
+                              setSavedSearches(prev => 
+                                prev.filter(s => s.id !== currentSearch.id)
+                              );
+                            }}
+                            className="text-red-500"
+                          >
+                            <Search className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-2 text-xs text-neutral-500 flex flex-wrap gap-4">
+                        <div>Created: {new Date(currentSearch.createdAt).toLocaleDateString()}</div>
+                        {currentSearch.lastUsed && (
+                          <div>Last used: {new Date(currentSearch.lastUsed).toLocaleDateString()}</div>
+                        )}
+                        {currentSearch.timesUsed !== undefined && (
+                          <div>Used {currentSearch.timesUsed} times</div>
+                        )}
+                      </div>
+                      
+                      <div className="mt-3 pt-3 border-t border-neutral-800">
+                        <div className="text-xs text-neutral-500">Search query:</div>
+                        <div className="font-mono text-xs mt-1 p-2 bg-neutral-900 rounded overflow-x-auto">
+                          {currentSearch.searchFields.query || '(No query terms)'}
+                        </div>
                       </div>
                     </div>
-                    
-                    <div className="mt-2 text-xs text-neutral-500 flex flex-wrap gap-4">
-                      <div>Created: {new Date(search.createdAt).toLocaleDateString()}</div>
-                      {search.lastUsed && (
-                        <div>Last used: {new Date(search.lastUsed).toLocaleDateString()}</div>
-                      )}
-                      {search.timesUsed !== undefined && (
-                        <div>Used {search.timesUsed} times</div>
-                      )}
-                    </div>
-                    
-                    <div className="mt-3 pt-3 border-t border-neutral-800">
-                      <div className="text-xs text-neutral-500">Search query:</div>
-                      <div className="font-mono text-xs mt-1 p-2 bg-neutral-900 rounded overflow-x-auto">
-                        {search.searchFields.query || '(No query terms)'}
-                      </div>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-neutral-500">
+                    <BookmarkIcon className="mx-auto h-8 w-8 mb-2 opacity-50" />
+                    <p>No saved searches yet</p>
+                    <p className="text-sm mt-1">Create searches to save them for later</p>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-neutral-500">
-                  <BookmarkIcon className="mx-auto h-8 w-8 mb-2 opacity-50" />
-                  <p>No saved searches yet</p>
-                  <p className="text-sm mt-1">Create searches to save them for later</p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-        </TabsContent>
-      </div>
+          </TabsContent>
+        </div>
+      </Tabs>
       
       {/* Hidden div for search adapter to use */}
       <div ref={contentRef} className="hidden"></div>

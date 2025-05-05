@@ -17,6 +17,7 @@ import { AdvancedPanelLayout } from "./components/AdvancedPanelLayout";
 import { FlexibleEmailClient } from "./components/FlexibleEmailClient";
 import EmailDependencyDemo from "./components/EmailDependencyDemo";
 import { DependencyProvider } from "./context/DependencyContext";
+import { ShortcutProvider } from "./context/ShortcutContext";
 import EmailPage from "./pages/EmailPage";
 import NavBar from "./components/NavBar";
 // Module imports
@@ -123,9 +124,11 @@ function App() {
           <DragProvider>
             <TagProvider>
               <ComponentProvider>
-                <DependencyProvider>
-                  <AppContent />
-                </DependencyProvider>
+                <ShortcutProvider>
+                  <DependencyProvider>
+                    <AppContent />
+                  </DependencyProvider>
+                </ShortcutProvider>
               </ComponentProvider>
             </TagProvider>
           </DragProvider>

@@ -1,48 +1,42 @@
 /**
- * Main export file for the Component Dependency System
+ * Dependency System Index
  * 
- * This file exports all the components, classes, and interfaces related to
- * the Component Dependency System for easy importing.
+ * This file exports the complete dependency system to make
+ * imports cleaner for consumers.
  */
 
-// Export interfaces
+// Export interfaces and types
 export {
   DependencyDataType,
+  DependencyDataTypes,
   DependencySyncStrategy,
-  DependencyStatus
+  DependencyStatus,
+  type DependencyDefinition,
+  type DependencyConfig,
+  type DependencyInstance,
+  type DependencyDataRequest,
+  type DependencyDataResponse
 } from './DependencyInterfaces';
 
-export type {
-  DependencyDefinition,
-  DependencyConfig,
-  DependencyConfigOption,
-  DependencyInstance,
-  DependencyDataUpdateEvent,
-  DependencyDataRequest
-} from './DependencyInterfaces';
+// Export registry and manager
+export { dependencyRegistry } from './DependencyRegistry';
+export { dependencyManager } from './DependencyManager';
 
-// Export registry
+// Re-export the context as part of the dependency system
 export {
-  DependencyRegistry,
-  DependencyRegistryEvent
-} from './DependencyRegistry';
+  DependencyContext,
+  DependencyProvider,
+  useDependencyContext
+} from '../../context/DependencyContext';
 
-// Export the registry instance
-import { dependencyRegistry } from './DependencyRegistry';
-export { dependencyRegistry };
-
-// Export manager
+// Re-export the hooks as part of the dependency system
 export {
-  DependencyManager,
-  DependencyManagerEvent
-} from './DependencyManager';
-
-// Export the manager instance
-import { dependencyManager } from './DependencyManager';
-export { dependencyManager };
-
-// Default export with all main components
-export default {
-  registry: dependencyRegistry,
-  manager: dependencyManager
-};
+  useProvideDependency,
+  useConsumeDependency,
+  useFindProviders,
+  useFindConsumers,
+  useComponentDependencies,
+  useCanProvideFor,
+  usePossibleDependencies,
+  useEmailSelectionDependency
+} from '../../hooks/useDependencyHooks';

@@ -9,9 +9,9 @@
 import React, { useEffect, useState } from 'react';
 import { useDependencyContext } from '../context/DependencyContext';
 import { 
-  DependencyDataType, 
   DependencyStatus,
-  DependencySyncStrategy
+  DependencySyncStrategy,
+  DependencyDataTypes
 } from '../lib/dependency/DependencyInterfaces';
 import { ComponentType } from '../lib/communication/ComponentCommunication';
 import { v4 as uuidv4 } from 'uuid';
@@ -146,7 +146,7 @@ const EmailDependencyDemo: React.FC = () => {
     const existingDefinition = dependency.getDependencyDefinitionsByProvider(ComponentType.EMAIL_LIST)
       .find(def => 
         def.consumerType === ComponentType.EMAIL_VIEWER && 
-        def.dataType === DependencyDataType.EMAIL
+        def.dataType === DependencyDataTypes.EMAIL
       );
     
     let definitionId: string;
@@ -158,7 +158,7 @@ const EmailDependencyDemo: React.FC = () => {
         description: 'Email list provides selected email to email viewer',
         providerType: ComponentType.EMAIL_LIST,
         consumerType: ComponentType.EMAIL_VIEWER,
-        dataType: DependencyDataType.EMAIL,
+        dataType: DependencyDataTypes.EMAIL,
         syncStrategy: DependencySyncStrategy.PUSH,
         isRequired: false,
         isOneToMany: true,

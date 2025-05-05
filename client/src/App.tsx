@@ -15,6 +15,7 @@ import { TabbedPanelLayout } from "./components/TabbedPanelLayout";
 import { AdvancedPanelLayout } from "./components/AdvancedPanelLayout";
 import { FlexibleEmailClient } from "./components/FlexibleEmailClient";
 import EmailDependencyDemo from "./components/EmailDependencyDemo";
+import { DependencyProvider } from "./context/DependencyContext";
 // Module imports
 
 function Router() {
@@ -76,7 +77,9 @@ function App() {
           <DragProvider>
             <TagProvider>
               <ComponentProvider>
-                <AppContent />
+                <DependencyProvider>
+                  <AppContent />
+                </DependencyProvider>
               </ComponentProvider>
             </TagProvider>
           </DragProvider>

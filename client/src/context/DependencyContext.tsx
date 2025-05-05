@@ -1,265 +1,137 @@
 /**
- * DependencyContext for the Component Dependency System
+ * Dependency Context
  * 
- * This context provides access to the dependency system for React components.
- * It initializes the registry and manager and provides methods for
- * interacting with the dependency system.
+ * This file provides a React context for the Component Dependency System.
+ * It wraps the underlying dependency registry and manager to provide a
+ * unified interface for React components.
  */
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { dependencyRegistry, dependencyManager } from '../lib/dependency';
-import { 
-  DependencyDefinition, 
+import React, { createContext, useContext, useEffect, ReactNode } from 'react';
+import { dependencyRegistry } from '../lib/dependency/DependencyRegistry';
+import { dependencyManager } from '../lib/dependency/DependencyManager';
+import {
+  DependencyDefinition,
   DependencyInstance,
-  DependencyConfig,
-  DependencyDataType,
   DependencyStatus,
   DependencySyncStrategy
 } from '../lib/dependency/DependencyInterfaces';
 import { ComponentType } from '../lib/communication/ComponentCommunication';
 
-// Context interface
-interface DependencyContextValue {
-  // Initialization status
-  isInitialized: boolean;
-  
+// Interface for the dependency context
+interface DependencyContextInterface {
   // Registry methods
-  registerDependencyDefinition: (definition: Omit<DependencyDefinition, 'id'>) => string;
+  registerDependencyDefinition: (definition: Omit<DependencyDefinition, 'id' | 'createdAt'>) => string;
   getDependencyDefinition: (id: string) => DependencyDefinition | undefined;
   getDependencyDefinitionsByProvider: (providerType: ComponentType) => DependencyDefinition[];
   getDependencyDefinitionsByConsumer: (consumerType: ComponentType) => DependencyDefinition[];
-  getDependencyDefinitionsByDataType: (dataType: DependencyDataType) => DependencyDefinition[];
-  
+  canProvideFor: (providerType: ComponentType, consumerType: ComponentType) => boolean;
+  findPossibleDependencies: (providerType: ComponentType, consumerType: ComponentType) => DependencyDefinition[];
+
   // Manager methods
-  createDependency: (
-    definitionId: string,
-    providerId: string,
-    consumerId: string,
-    config?: Partial<DependencyConfig>
-  ) => string;
+  createDependency: (definitionId: string, providerId: string, consumerId: string) => string;
   removeDependency: (id: string) => boolean;
+  findDependency: (providerId: string, consumerId: string, definitionId?: string) => DependencyInstance | undefined;
   getDependency: (id: string) => DependencyInstance | undefined;
   getDependenciesForProvider: (providerId: string) => DependencyInstance[];
   getDependenciesForConsumer: (consumerId: string) => DependencyInstance[];
-  findDependency: (
-    providerId: string, 
-    consumerId: string,
-    definitionId?: string
-  ) => DependencyInstance | undefined;
-  
-  // Data flow methods
   updateDependencyData: <T>(id: string, data: T) => boolean;
   requestDependencyData: <T>(id: string, params?: any) => Promise<T>;
-  
-  // Status management
-  setDependencyStatus: (
-    id: string, 
-    status: DependencyStatus,
-    error?: string
-  ) => boolean;
-  
-  // Validation methods
-  canProvideFor: (providerType: ComponentType, consumerType: ComponentType) => boolean;
-  canConsumeFrom: (consumerType: ComponentType, providerType: ComponentType) => boolean;
-  findPossibleDependencies: (
-    providerType: ComponentType, 
-    consumerType: ComponentType
-  ) => DependencyDefinition[];
+  setDependencyStatus: (id: string, status: DependencyStatus, error?: string) => boolean;
 }
 
-// Create the context with default values
-export const DependencyContext = createContext<DependencyContextValue>({
-  isInitialized: false,
-  
-  // Default registry methods (no-ops)
-  registerDependencyDefinition: () => '',
-  getDependencyDefinition: () => undefined,
-  getDependencyDefinitionsByProvider: () => [],
-  getDependencyDefinitionsByConsumer: () => [],
-  getDependencyDefinitionsByDataType: () => [],
-  
-  // Default manager methods (no-ops)
-  createDependency: () => '',
-  removeDependency: () => false,
-  getDependency: () => undefined,
-  getDependenciesForProvider: () => [],
-  getDependenciesForConsumer: () => [],
-  findDependency: () => undefined,
-  
-  // Default data flow methods (no-ops)
-  updateDependencyData: () => false,
-  requestDependencyData: async () => Promise.reject('Dependency context not initialized'),
-  
-  // Default status management
-  setDependencyStatus: () => false,
-  
-  // Default validation methods
-  canProvideFor: () => false,
-  canConsumeFrom: () => false,
-  findPossibleDependencies: () => []
-});
+// Create the dependency context
+const DependencyContext = createContext<DependencyContextInterface | null>(null);
 
-// Provider props
+// Props for the dependency provider
 interface DependencyProviderProps {
   children: ReactNode;
 }
 
-/**
- * Provider component for the Dependency Context
- */
-export const DependencyProvider: React.FC<DependencyProviderProps> = ({ children }) => {
-  const [isInitialized, setIsInitialized] = useState(false);
-  
-  // Initialize the registry and manager
+// Dependency provider component
+const DependencyProvider: React.FC<DependencyProviderProps> = ({ children }) => {
+  // Initialize the dependency system
   useEffect(() => {
-    const initDependencySystem = async () => {
-      try {
-        // Initialize dependency manager
-        // @ts-ignore - Accessing private method for initialization
-        dependencyManager.initialize();
-        
-        // Set up built-in dependencies if needed
-        registerBuiltInDependencies();
-        
-        // Mark as initialized
-        setIsInitialized(true);
-      } catch (error) {
-        console.error('Failed to initialize dependency system:', error);
-      }
+    dependencyManager.initialize();
+
+    // Register standard dependencies
+    registerStandardDependencies();
+
+    return () => {
+      // Cleanup if needed
     };
-    
-    initDependencySystem();
   }, []);
-  
-  /**
-   * Register built-in dependencies
-   */
-  const registerBuiltInDependencies = () => {
-    // Register common dependencies if they don't already exist
-    
-    // Email List to Email Viewer dependency
-    const emailSelectionDep = dependencyRegistry.getAllDependencies().find(dep => 
-      dep.providerType === ComponentType.EMAIL_LIST && 
-      dep.consumerType === ComponentType.EMAIL_VIEWER &&
-      dep.dataType === DependencyDataType.EMAIL
-    );
-    
-    if (!emailSelectionDep) {
-      dependencyRegistry.registerDependency({
-        name: 'Email Selection',
-        description: 'Email list provides selected email to email viewer',
-        providerType: ComponentType.EMAIL_LIST,
-        consumerType: ComponentType.EMAIL_VIEWER,
-        dataType: DependencyDataType.EMAIL,
-        syncStrategy: DependencySyncStrategy.BOTH,
-        isRequired: false,
-        isOneToMany: true,
-        isManyToOne: false
-      });
-    }
-    
-    // Folder Tree to Email List dependency
-    const folderSelectionDep = dependencyRegistry.getAllDependencies().find(dep => 
-      dep.providerType === ComponentType.FOLDER_TREE && 
-      dep.consumerType === ComponentType.EMAIL_LIST &&
-      dep.dataType === DependencyDataType.FOLDER
-    );
-    
-    if (!folderSelectionDep) {
-      dependencyRegistry.registerDependency({
-        name: 'Folder Selection',
-        description: 'Folder tree provides selected folder to email list',
-        providerType: ComponentType.FOLDER_TREE,
-        consumerType: ComponentType.EMAIL_LIST,
-        dataType: DependencyDataType.FOLDER,
-        syncStrategy: DependencySyncStrategy.PUSH,
-        isRequired: false,
-        isOneToMany: true,
-        isManyToOne: false
-      });
-    }
-    
-    // Other built-in dependencies can be added here
+
+  // Register standard dependencies used throughout the application
+  const registerStandardDependencies = () => {
+    // Email selection dependency
+    dependencyRegistry.registerDependency({
+      name: 'Email Selection',
+      description: 'Email list provides selected email to email viewer',
+      providerType: ComponentType.EMAIL_LIST,
+      consumerType: ComponentType.EMAIL_VIEWER,
+      dataType: 'email',
+      syncStrategy: 'both' as DependencySyncStrategy,
+      isRequired: false,
+      isOneToMany: true,
+      isManyToOne: false,
+      createdAt: Date.now()
+    });
+
+    // Folder selection dependency
+    dependencyRegistry.registerDependency({
+      name: 'Folder Selection',
+      description: 'Folder tree provides selected folder to email list',
+      providerType: ComponentType.FOLDER_TREE,
+      consumerType: ComponentType.EMAIL_LIST,
+      dataType: 'folder',
+      syncStrategy: 'push' as DependencySyncStrategy,
+      isRequired: false,
+      isOneToMany: true,
+      isManyToOne: false,
+      createdAt: Date.now()
+    });
+
+    // Add more standard dependencies as needed
   };
-  
+
   // Create the context value
-  const contextValue: DependencyContextValue = {
-    isInitialized,
-    
+  const contextValue: DependencyContextInterface = {
     // Registry methods
     registerDependencyDefinition: (definition) => {
-      return dependencyRegistry.registerDependency(definition);
+      return dependencyRegistry.registerDependency({
+        ...definition,
+        createdAt: Date.now()
+      });
     },
-    
-    getDependencyDefinition: (id) => {
-      return dependencyRegistry.getDependency(id);
-    },
-    
-    getDependencyDefinitionsByProvider: (providerType) => {
-      return dependencyRegistry.getDependenciesForProvider(providerType);
-    },
-    
-    getDependencyDefinitionsByConsumer: (consumerType) => {
-      return dependencyRegistry.getDependenciesForConsumer(consumerType);
-    },
-    
-    getDependencyDefinitionsByDataType: (dataType) => {
-      return dependencyRegistry.getDependenciesByDataType(dataType);
-    },
-    
+    getDependencyDefinition: (id) => dependencyRegistry.getDependency(id),
+    getDependencyDefinitionsByProvider: (providerType) => 
+      dependencyRegistry.getDependenciesForProvider(providerType),
+    getDependencyDefinitionsByConsumer: (consumerType) => 
+      dependencyRegistry.getDependenciesForConsumer(consumerType),
+    canProvideFor: (providerType, consumerType) => 
+      dependencyRegistry.canProvideFor(providerType, consumerType),
+    findPossibleDependencies: (providerType, consumerType) => 
+      dependencyRegistry.findPossibleDependencies(providerType, consumerType),
+
     // Manager methods
-    createDependency: (definitionId, providerId, consumerId, config) => {
-      return dependencyManager.createDependency(definitionId, providerId, consumerId, config);
-    },
-    
-    removeDependency: (id) => {
-      return dependencyManager.removeDependency(id);
-    },
-    
-    getDependency: (id) => {
-      return dependencyManager.getDependency(id);
-    },
-    
-    getDependenciesForProvider: (providerId) => {
-      return dependencyManager.getDependenciesForProvider(providerId);
-    },
-    
-    getDependenciesForConsumer: (consumerId) => {
-      return dependencyManager.getDependenciesForConsumer(consumerId);
-    },
-    
-    findDependency: (providerId, consumerId, definitionId) => {
-      return dependencyManager.findDependency(providerId, consumerId, definitionId);
-    },
-    
-    // Data flow methods
-    updateDependencyData: (id, data) => {
-      return dependencyManager.updateDependencyData(id, data);
-    },
-    
-    requestDependencyData: async (id, params) => {
-      return dependencyManager.requestData(id, params);
-    },
-    
-    // Status management
-    setDependencyStatus: (id, status, error) => {
-      return dependencyManager.setDependencyStatus(id, status, error);
-    },
-    
-    // Validation methods
-    canProvideFor: (providerType, consumerType) => {
-      return dependencyRegistry.canProvideFor(providerType, consumerType);
-    },
-    
-    canConsumeFrom: (consumerType, providerType) => {
-      return dependencyRegistry.canConsumeFrom(consumerType, providerType);
-    },
-    
-    findPossibleDependencies: (providerType, consumerType) => {
-      return dependencyRegistry.findPossibleDependencies(providerType, consumerType);
-    }
+    createDependency: (definitionId, providerId, consumerId) => 
+      dependencyManager.createDependency(definitionId, providerId, consumerId),
+    removeDependency: (id) => dependencyManager.removeDependency(id),
+    findDependency: (providerId, consumerId, definitionId) => 
+      dependencyManager.findDependency(providerId, consumerId, definitionId),
+    getDependency: (id) => dependencyManager.getDependency(id),
+    getDependenciesForProvider: (providerId) => 
+      dependencyManager.getDependenciesForProvider(providerId),
+    getDependenciesForConsumer: (consumerId) => 
+      dependencyManager.getDependenciesForConsumer(consumerId),
+    updateDependencyData: <T,>(id: string, data: T) => 
+      dependencyManager.updateDependencyData<T>(id, data),
+    requestDependencyData: <T,>(id: string, params?: any) => 
+      dependencyManager.requestData<T>(id, params),
+    setDependencyStatus: (id, status, error) => 
+      dependencyManager.setDependencyStatus(id, status, error)
   };
-  
+
   return (
     <DependencyContext.Provider value={contextValue}>
       {children}
@@ -267,11 +139,8 @@ export const DependencyProvider: React.FC<DependencyProviderProps> = ({ children
   );
 };
 
-/**
- * Hook to access the dependency context
- * @returns The dependency context value
- */
-export const useDependencyContext = () => {
+// Hook for using the dependency context
+function useDependencyContext(): DependencyContextInterface {
   const context = useContext(DependencyContext);
   
   if (!context) {
@@ -279,4 +148,6 @@ export const useDependencyContext = () => {
   }
   
   return context;
-};
+}
+
+export { DependencyContext, DependencyProvider, useDependencyContext };

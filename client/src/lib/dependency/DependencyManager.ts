@@ -1,102 +1,75 @@
 /**
- * Dependency Manager for Component Dependency System
+ * Dependency Manager
  * 
- * The DependencyManager is responsible for creating and managing dependencies between
- * component instances at runtime. It handles data flow and status management for
- * dependencies.
+ * This file implements the runtime management of dependencies.
+ * It creates, tracks, and updates dependency instances
+ * and manages data flow between components.
  */
 
 import { v4 as uuidv4 } from 'uuid';
 import { 
-  DependencyInstance,
-  DependencyDefinition,
+  DependencyInstance, 
   DependencyConfig,
   DependencyStatus,
-  DependencyDataUpdateEvent,
-  DependencyDataRequest
+  DependencyDataRequest,
+  DependencyDataResponse
 } from './DependencyInterfaces';
 import { dependencyRegistry } from './DependencyRegistry';
 import { ComponentType } from '../communication/ComponentCommunication';
-import { eventBus, BaseEvent } from '../communication/EventBus';
-
-// Dependency manager events
-export enum DependencyManagerEvent {
-  DEPENDENCY_CREATED = 'dependency-manager:dependency-created',
-  DEPENDENCY_REMOVED = 'dependency-manager:dependency-removed',
-  DEPENDENCY_DATA_UPDATED = 'dependency-manager:dependency-data-updated',
-  DEPENDENCY_DATA_REQUESTED = 'dependency-manager:dependency-data-requested',
-  DEPENDENCY_STATUS_CHANGED = 'dependency-manager:dependency-status-changed'
-}
-
-// Default dependency configuration
-const DEFAULT_DEPENDENCY_CONFIG: DependencyConfig = {
-  isActive: true,
-  autoUpdate: true,
-  notifyOnChange: true,
-  options: {}
-};
 
 /**
- * DependencyManager class for managing runtime dependencies
+ * The DependencyManager handles runtime aspects of the dependency system
+ * including dependency instances and data flow.
  */
-export class DependencyManager {
+class DependencyManager {
   private dependencies: Map<string, DependencyInstance> = new Map();
-  private isInitialized: boolean = false;
-  
+  private providerDependencies: Map<string, Set<string>> = new Map();
+  private consumerDependencies: Map<string, Set<string>> = new Map();
+  private pendingRequests: Map<string, (data?: any, error?: string) => void> = new Map();
+  private initialized: boolean = false;
+
   /**
    * Initialize the dependency manager
    */
-  constructor() {
-    console.log('DependencyManager initialized');
-  }
-  
-  /**
-   * Initialize dependencies
-   */
-  initialize(): void {
-    if (this.isInitialized) {
-      return;
+  initialize() {
+    if (!this.initialized) {
+      this.dependencies.clear();
+      this.providerDependencies.clear();
+      this.consumerDependencies.clear();
+      this.pendingRequests.clear();
+      this.initialized = true;
+      console.log("DependencyManager initialized");
     }
-    
-    this.isInitialized = true;
   }
-  
+
   /**
-   * Create a dependency instance
-   * 
-   * @param definitionId Dependency definition ID
-   * @param providerId Provider component ID
-   * @param consumerId Consumer component ID
-   * @param config Optional configuration
-   * @returns ID of the created dependency
+   * Create a new dependency instance
+   * @param definitionId The ID of the dependency definition
+   * @param providerId The ID of the provider component
+   * @param consumerId The ID of the consumer component
+   * @returns The ID of the created dependency instance
    */
   createDependency(
     definitionId: string,
     providerId: string,
-    consumerId: string,
-    config?: Partial<DependencyConfig>
+    consumerId: string
   ): string {
-    // Get dependency definition
+    // Get the dependency definition
     const definition = dependencyRegistry.getDependency(definitionId);
     
     if (!definition) {
       throw new Error(`Dependency definition not found: ${definitionId}`);
     }
     
-    // Create the dependency instance
+    // Check if a dependency already exists
+    const existingDependency = this.findDependency(providerId, consumerId, definitionId);
+    
+    if (existingDependency) {
+      return existingDependency.id;
+    }
+    
+    // Create a new dependency instance
     const id = uuidv4();
-    const timestamp = Date.now();
-    
-    // Merge with default config
-    const mergedConfig: DependencyConfig = {
-      ...DEFAULT_DEPENDENCY_CONFIG,
-      ...config,
-      options: {
-        ...DEFAULT_DEPENDENCY_CONFIG.options,
-        ...(config?.options || {})
-      }
-    };
-    
     const dependency: DependencyInstance = {
       id,
       definitionId,
@@ -105,30 +78,263 @@ export class DependencyManager {
       consumerId,
       consumerType: definition.consumerType,
       dataType: definition.dataType,
-      isActive: mergedConfig.isActive,
-      isReady: false, // Not ready until explicitly set
-      config: mergedConfig,
-      createdAt: timestamp
+      isActive: true,
+      isReady: false,
+      createdAt: Date.now(),
+      config: {
+        isActive: true,
+        autoUpdate: true,
+        notifyOnChange: true,
+        options: {}
+      }
     };
     
     // Store the dependency
     this.dependencies.set(id, dependency);
     
-    // Publish event
-    eventBus.publish(
-      DependencyManagerEvent.DEPENDENCY_CREATED,
-      { instance: dependency },
-      'dependency-manager'
-    );
+    // Update provider and consumer maps
+    this.addToComponentDependencies(this.providerDependencies, providerId, id);
+    this.addToComponentDependencies(this.consumerDependencies, consumerId, id);
     
     return id;
   }
-  
+
   /**
-   * Remove a dependency
-   * 
-   * @param id Dependency ID
-   * @returns Whether the removal was successful
+   * Add a dependency ID to a component dependencies map
+   * @param map The map to update
+   * @param componentId The component ID
+   * @param dependencyId The dependency ID
+   */
+  private addToComponentDependencies(
+    map: Map<string, Set<string>>,
+    componentId: string,
+    dependencyId: string
+  ): void {
+    if (!map.has(componentId)) {
+      map.set(componentId, new Set());
+    }
+    
+    map.get(componentId)?.add(dependencyId);
+  }
+
+  /**
+   * Get a dependency instance by ID
+   * @param id The dependency ID
+   * @returns The dependency instance or undefined if not found
+   */
+  getDependency(id: string): DependencyInstance | undefined {
+    return this.dependencies.get(id);
+  }
+
+  /**
+   * Find a dependency instance by provider and consumer IDs
+   * @param providerId The provider component ID
+   * @param consumerId The consumer component ID
+   * @param definitionId Optional dependency definition ID
+   * @returns The dependency instance or undefined if not found
+   */
+  findDependency(
+    providerId: string,
+    consumerId: string,
+    definitionId?: string
+  ): DependencyInstance | undefined {
+    // Get all dependencies for the provider
+    const providerDeps = this.getDependenciesForProvider(providerId);
+    
+    // Filter by consumer ID
+    const matchingDeps = providerDeps.filter(dep => dep.consumerId === consumerId);
+    
+    // Filter by definition ID if provided
+    if (definitionId) {
+      return matchingDeps.find(dep => dep.definitionId === definitionId);
+    }
+    
+    // Return first matching dependency
+    return matchingDeps[0];
+  }
+
+  /**
+   * Get all dependencies for a provider component
+   * @param providerId The provider component ID
+   * @returns Array of dependency instances
+   */
+  getDependenciesForProvider(providerId: string): DependencyInstance[] {
+    const dependencyIds = this.providerDependencies.get(providerId) || new Set();
+    return Array.from(dependencyIds)
+      .map(id => this.dependencies.get(id))
+      .filter(Boolean) as DependencyInstance[];
+  }
+
+  /**
+   * Get all dependencies for a consumer component
+   * @param consumerId The consumer component ID
+   * @returns Array of dependency instances
+   */
+  getDependenciesForConsumer(consumerId: string): DependencyInstance[] {
+    const dependencyIds = this.consumerDependencies.get(consumerId) || new Set();
+    return Array.from(dependencyIds)
+      .map(id => this.dependencies.get(id))
+      .filter(Boolean) as DependencyInstance[];
+  }
+
+  /**
+   * Update dependency data from provider to consumer
+   * @param id The dependency ID
+   * @param data The data to update
+   * @returns True if the update succeeded
+   */
+  updateDependencyData<T>(id: string, data: T): boolean {
+    const dependency = this.dependencies.get(id);
+    
+    if (!dependency) {
+      return false;
+    }
+    
+    // Get the dependency definition
+    const definition = dependencyRegistry.getDependency(dependency.definitionId);
+    
+    if (!definition) {
+      return false;
+    }
+    
+    // Validate data if a validator is defined
+    if (definition.validateData && !definition.validateData(data)) {
+      console.warn(`Invalid data provided for dependency ${id}`);
+      return false;
+    }
+    
+    // Transform data if a transformer is defined
+    let transformedData = data;
+    
+    if (definition.transformData) {
+      transformedData = definition.transformData(data);
+    } else if (dependency.config.customTransform) {
+      transformedData = dependency.config.customTransform(data);
+    }
+    
+    // Update the dependency instance
+    dependency.currentData = transformedData;
+    dependency.lastUpdated = Date.now();
+    dependency.isReady = true;
+    
+    // Handle any pending requests
+    this.resolvePendingRequests(dependency);
+    
+    return true;
+  }
+
+  /**
+   * Resolve any pending data requests for a dependency
+   * @param dependency The dependency instance
+   */
+  private resolvePendingRequests(dependency: DependencyInstance): void {
+    // Check for pending requests
+    const requestIds = Array.from(this.pendingRequests.keys())
+      .filter(requestId => requestId.startsWith(`${dependency.id}:`));
+    
+    // Resolve each pending request
+    requestIds.forEach(requestId => {
+      const resolver = this.pendingRequests.get(requestId);
+      
+      if (resolver) {
+        resolver(dependency.currentData);
+        this.pendingRequests.delete(requestId);
+      }
+    });
+  }
+
+  /**
+   * Request data from a dependency
+   * @param id The dependency ID
+   * @param params Optional parameters for the request
+   * @returns Promise that resolves with the requested data
+   */
+  async requestData<T>(id: string, params?: any): Promise<T> {
+    const dependency = this.dependencies.get(id);
+    
+    if (!dependency) {
+      throw new Error(`Dependency not found: ${id}`);
+    }
+    
+    // If data is already available and ready, return it immediately
+    if (dependency.isReady && dependency.currentData !== undefined) {
+      return dependency.currentData as T;
+    }
+    
+    // Otherwise, create a new data request
+    const requestId = `${id}:${uuidv4()}`;
+    
+    // Create a promise to resolve when data becomes available
+    return new Promise<T>((resolve, reject) => {
+      // Set a timeout to reject the promise if data is not received
+      const timeoutId = setTimeout(() => {
+        this.pendingRequests.delete(requestId);
+        reject(new Error(`Timeout waiting for data from dependency ${id}`));
+      }, 5000);
+      
+      // Store the resolver
+      this.pendingRequests.set(requestId, (data, error) => {
+        clearTimeout(timeoutId);
+        
+        if (error) {
+          reject(new Error(error));
+        } else {
+          resolve(data as T);
+        }
+      });
+    });
+  }
+
+  /**
+   * Set the status of a dependency
+   * @param id The dependency ID
+   * @param status The new status
+   * @param error Optional error message
+   * @returns True if the status was updated
+   */
+  setDependencyStatus(id: string, status: DependencyStatus, error?: string): boolean {
+    const dependency = this.dependencies.get(id);
+    
+    if (!dependency) {
+      return false;
+    }
+    
+    dependency.isActive = status === DependencyStatus.ACTIVE;
+    
+    if (status === DependencyStatus.ERROR) {
+      dependency.error = error || 'Unknown error';
+    } else {
+      dependency.error = undefined;
+    }
+    
+    return true;
+  }
+
+  /**
+   * Update a dependency's configuration
+   * @param id The dependency ID
+   * @param config The new configuration
+   * @returns True if the configuration was updated
+   */
+  updateDependencyConfig(id: string, config: Partial<DependencyConfig>): boolean {
+    const dependency = this.dependencies.get(id);
+    
+    if (!dependency) {
+      return false;
+    }
+    
+    dependency.config = {
+      ...dependency.config,
+      ...config
+    };
+    
+    return true;
+  }
+
+  /**
+   * Remove a dependency instance
+   * @param id The dependency ID
+   * @returns True if the dependency was removed
    */
   removeDependency(id: string): boolean {
     const dependency = this.dependencies.get(id);
@@ -137,306 +343,49 @@ export class DependencyManager {
       return false;
     }
     
-    // Remove the dependency
-    this.dependencies.delete(id);
+    // Remove from provider and consumer maps
+    this.removeFromComponentDependencies(this.providerDependencies, dependency.providerId, id);
+    this.removeFromComponentDependencies(this.consumerDependencies, dependency.consumerId, id);
     
-    // Publish event
-    eventBus.publish(
-      DependencyManagerEvent.DEPENDENCY_REMOVED,
-      { instance: dependency },
-      'dependency-manager'
-    );
+    // Remove any pending requests
+    const requestIds = Array.from(this.pendingRequests.keys())
+      .filter(requestId => requestId.startsWith(`${id}:`));
     
-    return true;
-  }
-  
-  /**
-   * Get a dependency by ID
-   * 
-   * @param id Dependency ID
-   * @returns The dependency instance
-   */
-  getDependency(id: string): DependencyInstance | undefined {
-    return this.dependencies.get(id);
-  }
-  
-  /**
-   * Get all dependencies
-   * 
-   * @returns Array of all dependency instances
-   */
-  getAllDependencies(): DependencyInstance[] {
-    return Array.from(this.dependencies.values());
-  }
-  
-  /**
-   * Update dependency configuration
-   * 
-   * @param id Dependency ID
-   * @param config Configuration updates
-   * @returns Whether the update was successful
-   */
-  updateDependencyConfig(
-    id: string,
-    config: Partial<DependencyConfig>
-  ): boolean {
-    const dependency = this.dependencies.get(id);
-    
-    if (!dependency) {
-      return false;
-    }
-    
-    // Update the configuration
-    dependency.config = {
-      ...dependency.config,
-      ...config,
-      options: {
-        ...dependency.config.options,
-        ...(config.options || {})
-      }
-    };
-    
-    return true;
-  }
-  
-  /**
-   * Get dependencies for a provider
-   * 
-   * @param providerId Provider component ID
-   * @returns Array of dependencies
-   */
-  getDependenciesForProvider(providerId: string): DependencyInstance[] {
-    return this.getAllDependencies().filter(
-      dep => dep.providerId === providerId
-    );
-  }
-  
-  /**
-   * Get dependencies for a consumer
-   * 
-   * @param consumerId Consumer component ID
-   * @returns Array of dependencies
-   */
-  getDependenciesForConsumer(consumerId: string): DependencyInstance[] {
-    return this.getAllDependencies().filter(
-      dep => dep.consumerId === consumerId
-    );
-  }
-  
-  /**
-   * Find a dependency between a provider and consumer
-   * 
-   * @param providerId Provider component ID
-   * @param consumerId Consumer component ID
-   * @param definitionId Optional definition ID to filter by
-   * @returns The first matching dependency
-   */
-  findDependency(
-    providerId: string,
-    consumerId: string,
-    definitionId?: string
-  ): DependencyInstance | undefined {
-    return this.getAllDependencies().find(dep => 
-      dep.providerId === providerId && 
-      dep.consumerId === consumerId &&
-      (definitionId ? dep.definitionId === definitionId : true)
-    );
-  }
-  
-  /**
-   * Update dependency data
-   * 
-   * @param id Dependency ID
-   * @param data New data
-   * @returns Whether the update was successful
-   */
-  updateDependencyData<T>(id: string, data: T): boolean {
-    const dependency = this.dependencies.get(id);
-    
-    if (!dependency || !dependency.isActive) {
-      return false;
-    }
-    
-    // Get the definition
-    const definition = dependencyRegistry.getDependency(dependency.definitionId);
-    
-    if (!definition) {
-      return false;
-    }
-    
-    // Validate data if validation function exists
-    if (definition.validateData && !definition.validateData(data)) {
-      return false;
-    }
-    
-    // Apply filter if it exists
-    if (dependency.config.filter && !dependency.config.filter(data)) {
-      return false;
-    }
-    
-    // Apply transformations
-    let transformedData: any = data;
-    
-    // Apply definition-level transformation
-    if (definition.transformData) {
-      transformedData = definition.transformData(transformedData);
-    }
-    
-    // Apply instance-level transformation
-    if (dependency.config.customTransform) {
-      transformedData = dependency.config.customTransform(transformedData);
-    }
-    
-    // Update the dependency data
-    dependency.currentData = transformedData;
-    dependency.lastUpdated = Date.now();
-    
-    // Set as ready if not already
-    if (!dependency.isReady) {
-      dependency.isReady = true;
-    }
-    
-    // Publish update event if configured to notify
-    if (dependency.config.notifyOnChange) {
-      const updateEvent: DependencyDataUpdateEvent = {
-        dependencyId: id,
-        data: transformedData,
-        timestamp: dependency.lastUpdated!,
-        providerId: dependency.providerId,
-        consumerId: dependency.consumerId
-      };
+    requestIds.forEach(requestId => {
+      const resolver = this.pendingRequests.get(requestId);
       
-      eventBus.publish(
-        DependencyManagerEvent.DEPENDENCY_DATA_UPDATED,
-        updateEvent,
-        'dependency-manager'
-      );
-    }
-    
-    return true;
-  }
-  
-  /**
-   * Request data from a dependency
-   * 
-   * @param id Dependency ID
-   * @param params Optional request parameters
-   * @returns Promise resolving to the requested data
-   */
-  async requestData<T>(id: string, params?: any): Promise<T> {
-    const dependency = this.dependencies.get(id);
-    
-    if (!dependency || !dependency.isActive) {
-      throw new Error(`Dependency not found or inactive: ${id}`);
-    }
-    
-    // If data is already available and no params are provided, return immediately
-    if (dependency.currentData !== undefined && !params) {
-      return dependency.currentData as T;
-    }
-    
-    // Create request ID
-    const requestId = uuidv4();
-    
-    // Create request event
-    const request: DependencyDataRequest = {
-      requestId,
-      dependencyId: id,
-      consumerId: dependency.consumerId,
-      providerId: dependency.providerId,
-      params,
-      timestamp: Date.now()
-    };
-    
-    // Publish request event
-    eventBus.publish(
-      DependencyManagerEvent.DEPENDENCY_DATA_REQUESTED,
-      request,
-      'dependency-manager'
-    );
-    
-    // Wait for response (simple implementation)
-    // In a real system, this would be more sophisticated with timeout handling
-    return new Promise<T>((resolve, reject) => {
-      // Wait a short time for data to be updated
-      setTimeout(() => {
-        const updatedDependency = this.dependencies.get(id);
-        
-        if (!updatedDependency || !updatedDependency.isActive) {
-          reject(new Error(`Dependency not found or inactive: ${id}`));
-          return;
-        }
-        
-        if (updatedDependency.currentData === undefined) {
-          reject(new Error(`No data available for dependency: ${id}`));
-          return;
-        }
-        
-        resolve(updatedDependency.currentData as T);
-      }, 100);
+      if (resolver) {
+        resolver(undefined, 'Dependency removed');
+        this.pendingRequests.delete(requestId);
+      }
     });
+    
+    // Remove from dependencies map
+    return this.dependencies.delete(id);
   }
-  
+
   /**
-   * Set the status of a dependency
-   * 
-   * @param id Dependency ID
-   * @param status New status
-   * @param error Optional error message
-   * @returns Whether the update was successful
+   * Remove a dependency ID from a component dependencies map
+   * @param map The map to update
+   * @param componentId The component ID
+   * @param dependencyId The dependency ID
    */
-  setDependencyStatus(
-    id: string,
-    status: DependencyStatus,
-    error?: string
-  ): boolean {
-    const dependency = this.dependencies.get(id);
+  private removeFromComponentDependencies(
+    map: Map<string, Set<string>>,
+    componentId: string,
+    dependencyId: string
+  ): void {
+    const dependencyIds = map.get(componentId);
     
-    if (!dependency) {
-      return false;
+    if (dependencyIds) {
+      dependencyIds.delete(dependencyId);
+      
+      if (dependencyIds.size === 0) {
+        map.delete(componentId);
+      }
     }
-    
-    // Update status fields
-    switch (status) {
-      case DependencyStatus.ACTIVE:
-        dependency.isActive = true;
-        dependency.error = undefined;
-        break;
-        
-      case DependencyStatus.INACTIVE:
-        dependency.isActive = false;
-        dependency.error = undefined;
-        break;
-        
-      case DependencyStatus.ERROR:
-        dependency.isActive = false;
-        dependency.error = error || 'Unknown error';
-        break;
-        
-      case DependencyStatus.PENDING:
-        dependency.isActive = true;
-        dependency.isReady = false;
-        dependency.error = undefined;
-        break;
-    }
-    
-    // Publish event
-    eventBus.publish(
-      DependencyManagerEvent.DEPENDENCY_STATUS_CHANGED,
-      { instance: dependency },
-      'dependency-manager'
-    );
-    
-    return true;
-  }
-  
-  /**
-   * Clear all dependencies
-   */
-  clear(): void {
-    this.dependencies.clear();
   }
 }
 
-// Create a singleton instance
+// Create singleton instance
 export const dependencyManager = new DependencyManager();

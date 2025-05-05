@@ -1,185 +1,104 @@
 /**
- * Interfaces for the Component Dependency System
+ * Dependency System Interfaces
  * 
  * This file contains the interfaces and types for the Component Dependency System.
- * It defines the structure of dependency definitions, instances, and related types.
+ * It defines the core data structures used throughout the system.
  */
 
 import { ComponentType } from '../communication/ComponentCommunication';
 
-/**
- * Types of data that can be shared between components
- */
-export enum DependencyDataType {
-  // Basic data types
-  STRING = 'string',
-  NUMBER = 'number',
-  BOOLEAN = 'boolean',
-  OBJECT = 'object',
-  ARRAY = 'array',
-  
-  // Application-specific data types
-  EMAIL = 'email',
-  EMAIL_LIST = 'email-list',
-  FOLDER = 'folder',
-  TAG = 'tag',
-  CONTACT = 'contact',
-  SEARCH_RESULT = 'search-result',
-  ATTACHMENT = 'attachment',
-  SELECTION = 'selection',
-  FILTER = 'filter',
-  
-  // Complex data types
-  ACTION = 'action',
-  EVENT = 'event',
-  COMMAND = 'command',
-  STATE = 'state',
-  CONFIG = 'config'
-}
+// Enum for dependency data types
+export type DependencyDataType = string;
 
-/**
- * Synchronization strategies for dependency data
- */
+// Common dependency data types
+export const DependencyDataTypes = {
+  EMAIL: 'email',
+  FOLDER: 'folder',
+  CONTACT: 'contact',
+  TAG: 'tag',
+  SELECTION: 'selection',
+  SEARCH: 'search',
+  FILTER: 'filter',
+  SORT: 'sort'
+} as const;
+
+// Enum for dependency synchronization strategies
 export enum DependencySyncStrategy {
-  // One-way sync from provider to consumer
-  PUSH = 'push',
-  
-  // One-way sync but consumer requests data
-  PULL = 'pull',
-  
-  // Two-way sync between components
-  BOTH = 'both',
-  
-  // Sync based on events rather than direct data access
-  EVENT = 'event'
+  PUSH = 'push',    // Provider pushes data to consumer
+  PULL = 'pull',    // Consumer pulls data from provider
+  BOTH = 'both'     // Bidirectional synchronization
 }
 
-/**
- * Status values for dependencies
- */
+// Enum for dependency status
 export enum DependencyStatus {
-  ACTIVE = 'active',
-  INACTIVE = 'inactive',
-  ERROR = 'error',
-  PENDING = 'pending'
+  INACTIVE = 'inactive',    // Dependency exists but is not active
+  ACTIVE = 'active',        // Dependency is active and ready
+  ERROR = 'error',          // Dependency has an error
+  LOADING = 'loading'       // Dependency is loading data
 }
 
-/**
- * A dependency definition describes the relationship between component types
- */
+// Interface for dependency definition
 export interface DependencyDefinition {
-  // Unique identifier
   id: string;
-  
-  // Basic information
   name: string;
   description: string;
-  
-  // Component types involved
   providerType: ComponentType;
   consumerType: ComponentType;
-  
-  // Data characteristics
   dataType: DependencyDataType;
   syncStrategy: DependencySyncStrategy;
-  
-  // Relationship characteristics
   isRequired: boolean;
-  isOneToMany: boolean;
-  isManyToOne: boolean;
-  
-  // Data handling
+  isOneToMany: boolean;     // One provider can provide for many consumers
+  isManyToOne: boolean;     // Many providers can provide for one consumer
   validateData?: (data: any) => boolean;
   transformData?: (data: any) => any;
-  
-  // Metadata
   createdAt: number;
-  tags?: string[];
 }
 
-/**
- * Configuration for a dependency instance
- */
+// Interface for dependency configuration
 export interface DependencyConfig {
-  // Activation state
   isActive: boolean;
-  
-  // Data synchronization
   autoUpdate: boolean;
   notifyOnChange: boolean;
-  
-  // Data customization
   customTransform?: (data: any) => any;
-  filter?: (data: any) => boolean;
-  
-  // Custom options
   options: Record<string, any>;
 }
 
-/**
- * Configuration option for a dependency
- */
-export interface DependencyConfigOption {
-  id: string;
-  name: string;
-  type: 'boolean' | 'string' | 'number' | 'select' | 'object';
-  defaultValue: any;
-  options?: any[];
-  description?: string;
-}
-
-/**
- * A runtime dependency instance between components
- */
+// Interface for dependency instance
 export interface DependencyInstance {
-  // Identifiers
   id: string;
   definitionId: string;
-  
-  // Components involved
   providerId: string;
   providerType: ComponentType;
   consumerId: string;
   consumerType: ComponentType;
-  
-  // Data type
   dataType: DependencyDataType;
-  
-  // Status
   isActive: boolean;
   isReady: boolean;
-  error?: string;
-  
-  // Data
   currentData?: any;
   lastUpdated?: number;
-  
-  // Configuration
+  error?: string;
   config: DependencyConfig;
-  
-  // Metadata
   createdAt: number;
 }
 
-/**
- * Data update event for dependencies
- */
-export interface DependencyDataUpdateEvent {
-  dependencyId: string;
-  providerId: string;
-  consumerId: string;
-  data: any;
-  timestamp: number;
-}
-
-/**
- * Data request event for dependencies
- */
+// Interface for dependency data request
 export interface DependencyDataRequest {
   requestId: string;
   dependencyId: string;
   providerId: string;
   consumerId: string;
   params?: any;
+  timestamp: number;
+}
+
+// Interface for dependency data response
+export interface DependencyDataResponse {
+  requestId: string;
+  dependencyId: string;
+  providerId: string;
+  consumerId: string;
+  data: any;
+  success: boolean;
+  error?: string;
   timestamp: number;
 }

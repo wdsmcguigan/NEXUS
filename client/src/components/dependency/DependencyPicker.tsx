@@ -258,9 +258,14 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
         <PopoverContent className="w-80 p-2" align="end">
           <div className="space-y-2">
             <h4 className="font-medium text-sm">Tab Dependencies</h4>
-            <p className="text-xs text-muted-foreground">
-              Connect this tab to another tab to share data between them.
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                Connect this tab to another tab to share data.
+              </p>
+              <Badge variant="outline" className="text-xs">
+                ID: {tabId.substring(0, 8)}...
+              </Badge>
+            </div>
             
             {/* Show existing dependencies if any */}
             {(dependencies.providing.length > 0 || dependencies.consuming.length > 0) && (
@@ -273,8 +278,15 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
                     {dependencies.providing.map(dep => (
                       <div key={dep.id} className="flex items-center p-1 text-xs bg-blue-100/10 rounded">
                         <ArrowRightLeft className="h-3 w-3 mr-1 text-blue-500" />
-                        <span className="font-medium mr-1">{dep.consumerName}</span>
-                        <span className="text-muted-foreground">({dep.dataType})</span>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">{dep.consumerName}</span>
+                            <span className="text-muted-foreground text-xs">{dep.dataType}</span>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            ID: {dep.id.split('-')[1]?.substring(0, 8) || dep.id.substring(0, 8)}...
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -286,8 +298,15 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
                     {dependencies.consuming.map(dep => (
                       <div key={dep.id} className="flex items-center p-1 text-xs bg-blue-100/10 rounded">
                         <ArrowRightLeft className="h-3 w-3 mr-1 text-green-500" />
-                        <span className="font-medium mr-1">{dep.providerName}</span>
-                        <span className="text-muted-foreground">({dep.dataType})</span>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">{dep.providerName}</span>
+                            <span className="text-muted-foreground text-xs">{dep.dataType}</span>
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            ID: {dep.id.split('-')[1]?.substring(0, 8) || dep.id.substring(0, 8)}...
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>

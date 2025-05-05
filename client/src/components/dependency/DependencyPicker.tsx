@@ -286,7 +286,7 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
                             <span className="text-muted-foreground text-xs">{dep.dataType}</span>
                           </div>
                           <div className="text-xs text-muted-foreground mt-0.5">
-                            ID: {dep.id.split('-')[1]?.substring(0, 8) || dep.id.substring(0, 8)}...
+                            ID: {dep.consumerId.substring(0, 8)}...
                           </div>
                         </div>
                       </div>
@@ -306,7 +306,7 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
                             <span className="text-muted-foreground text-xs">{dep.dataType}</span>
                           </div>
                           <div className="text-xs text-muted-foreground mt-0.5">
-                            ID: {dep.id.split('-')[1]?.substring(0, 8) || dep.id.substring(0, 8)}...
+                            ID: {dep.providerId.substring(0, 8)}...
                           </div>
                         </div>
                       </div>

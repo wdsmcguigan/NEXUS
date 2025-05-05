@@ -147,7 +147,16 @@ const EmailList: React.FC<EmailListProps> = ({
     isRegistered
   } = useDependencyProvider<Email>(
     instanceId,
-    DependencyDataTypes.EMAIL
+    DependencyDataTypes.EMAIL_DATA,
+    {
+      onConsumerConnected: (consumerId) => {
+        console.log(`EmailList: Consumer ${consumerId} connected`);
+        // If we have a selected email, send it to the new consumer immediately
+        if (selectedEmail) {
+          updateProviderData(selectedEmail);
+        }
+      }
+    }
   );
   
   // Register as dependency provider for email list data
@@ -207,7 +216,15 @@ const EmailList: React.FC<EmailListProps> = ({
   // When the selected email changes, update the dependency data
   useEffect(() => {
     if (selectedEmail) {
+      console.log("EmailList sending email data:", selectedEmail);
       updateProviderData(selectedEmail);
+      
+      // Show toast notification to make dependency connection clear to user
+      toast({
+        title: "Email Selected",
+        description: `Email "${selectedEmail.subject}" sent to connected viewers`,
+        variant: "default"
+      });
       
       // If there's an external handler, call it
       if (onEmailSelect) {

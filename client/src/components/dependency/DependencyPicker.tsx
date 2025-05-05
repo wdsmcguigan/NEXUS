@@ -33,8 +33,8 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
   const [selectedDataType, setSelectedDataType] = useState<DependencyDataTypes | null>(null);
   const [isProvider, setIsProvider] = useState(true);
   const [dependencies, setDependencies] = useState<{ 
-    providing: { id: string; dataType: DependencyDataTypes; consumerName: string }[];
-    consuming: { id: string; dataType: DependencyDataTypes; providerName: string }[];
+    providing: { id: string; dataType: DependencyDataTypes; consumerName: string; consumerId: string }[];
+    consuming: { id: string; dataType: DependencyDataTypes; providerName: string; providerId: string }[];
   }>({ providing: [], consuming: [] });
   
   // Get available data types for this component
@@ -57,14 +57,16 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
     const providingDeps = registry.getDependenciesByProvider(tabId).map(dep => ({
       id: dep.id,
       dataType: dep.dataType,
-      consumerName: state.tabs[dep.consumerId]?.title || dep.consumerId
+      consumerName: state.tabs[dep.consumerId]?.title || dep.consumerId,
+      consumerId: dep.consumerId
     }));
     
     // Get consuming dependencies
     const consumingDeps = registry.getDependenciesByConsumer(tabId).map(dep => ({
       id: dep.id,
       dataType: dep.dataType,
-      providerName: state.tabs[dep.providerId]?.title || dep.providerId
+      providerName: state.tabs[dep.providerId]?.title || dep.providerId,
+      providerId: dep.providerId
     }));
     
     setDependencies({
@@ -325,13 +327,8 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
                     className="justify-start cursor-pointer hover:bg-accent/50 flex items-center"
                     onClick={() => handleStartPicking(type, true)}
                   >
-                    <div className="flex items-center justify-between w-full">
-                      <div className="flex items-center">
-                        <Link className="h-3 w-3 mr-1" />
-                        {type}
-                      </div>
-                      <span className="text-xs text-muted-foreground">ID: {tabId.substring(0, 4)}</span>
-                    </div>
+                    <Link className="h-3 w-3 mr-1" />
+                    {type}
                   </Badge>
                 ))}
               </div>
@@ -347,13 +344,8 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
                     className="justify-start cursor-pointer hover:bg-accent/50 flex items-center"
                     onClick={() => handleStartPicking(type, false)}
                   >
-                    <div className="flex items-center justify-between w-full">
-                      <div className="flex items-center">
-                        <Link className="h-3 w-3 mr-1" />
-                        {type}
-                      </div>
-                      <span className="text-xs text-muted-foreground">ID: {tabId.substring(0, 4)}</span>
-                    </div>
+                    <Link className="h-3 w-3 mr-1" />
+                    {type}
                   </Badge>
                 ))}
               </div>

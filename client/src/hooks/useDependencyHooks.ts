@@ -1,372 +1,231 @@
-/**
- * Dependency Hooks for React Integration
- * 
- * This file contains React hooks for interacting with the Component Dependency System.
- * These hooks simplify the usage of the dependency system in React components.
- */
-
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useDependencyContext } from '../context/DependencyContext';
-import {
-  DependencyInstance,
-  DependencyStatus,
-  DependencyDataType
-} from '../lib/dependency/DependencyInterfaces';
-import { ComponentType } from '../lib/communication/ComponentCommunication';
+import { DependencyDataType, DependencyStatus } from '../lib/dependency/DependencyInterfaces';
 
 /**
- * Hook for providing dependency data from a component
- * @param providerId ID of the provider component
- * @param consumerId ID of the consumer component
- * @param definitionId ID of the dependency definition
- * @returns Functions for managing dependency data
+ * Hook for component instances to register and act as dependency providers
+ * 
+ * @param instanceId Unique identifier for the component instance
+ * @param dataType The type of data this provider provides
+ * @returns Object with methods to update provider data and manage dependencies
  */
-export function useProvideDependency<T>(
-  providerId: string,
-  consumerId: string,
-  definitionId: string
-) {
-  const dependency = useDependencyContext();
-  const [dependencyId, setDependencyId] = useState<string | null>(null);
-  const [isActive, setIsActive] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Create the dependency
+export function useDependencyProvider<T>(instanceId: string, dataType: DependencyDataType) {
+  const { dependencyManager } = useDependencyContext();
+  const [providerRegistered, setProviderRegistered] = useState(false);
+  
+  // Register this component as a provider when mounted
   useEffect(() => {
-    try {
-      // Check if a dependency already exists
-      const existingDep = dependency.findDependency(providerId, consumerId, definitionId);
-      
-      if (existingDep) {
-        // Use the existing dependency
-        setDependencyId(existingDep.id);
-        setIsActive(existingDep.isActive);
-        setError(existingDep.error || null);
-      } else {
-        // Create a new dependency
-        const newDepId = dependency.createDependency(definitionId, providerId, consumerId);
-        setDependencyId(newDepId);
-        setIsActive(true);
-        setError(null);
-      }
-    } catch (err) {
-      console.error('Error creating dependency:', err);
-      setError(err.message || 'Failed to create dependency');
+    if (!providerRegistered) {
+      dependencyManager.registerProvider(instanceId, dataType);
+      setProviderRegistered(true);
     }
-
-    // Clean up when unmounted
+    
+    // Cleanup when unmounted
     return () => {
-      if (dependencyId) {
-        dependency.removeDependency(dependencyId);
+      if (providerRegistered) {
+        dependencyManager.unregisterProvider(instanceId, dataType);
       }
     };
-  }, [dependency, providerId, consumerId, definitionId]);
-
-  // Function to update the dependency data
-  const updateData = useCallback(
-    (data: T) => {
-      if (!dependencyId) return false;
-
-      try {
-        const result = dependency.updateDependencyData(dependencyId, data);
-        
-        if (!result) {
-          setError('Failed to update dependency data');
-        } else {
-          setError(null);
-        }
-        
-        return result;
-      } catch (err) {
-        console.error('Error updating dependency data:', err);
-        setError(err.message || 'Failed to update dependency data');
-        return false;
-      }
-    },
-    [dependency, dependencyId]
-  );
-
-  // Function to set the dependency status
-  const setStatus = useCallback(
-    (status: DependencyStatus, errorMessage?: string) => {
-      if (!dependencyId) return false;
-
-      try {
-        const result = dependency.setDependencyStatus(dependencyId, status, errorMessage);
-        
-        if (result) {
-          setIsActive(status === DependencyStatus.ACTIVE);
-          setError(errorMessage || null);
-        }
-        
-        return result;
-      } catch (err) {
-        console.error('Error setting dependency status:', err);
-        setError(err.message || 'Failed to set dependency status');
-        return false;
-      }
-    },
-    [dependency, dependencyId]
-  );
-
+  }, [dependencyManager, instanceId, dataType, providerRegistered]);
+  
+  // Method to update the data this provider shares with consumers
+  const updateProviderData = useCallback((data: T) => {
+    dependencyManager.updateProviderData(instanceId, dataType, data);
+  }, [dependencyManager, instanceId, dataType]);
+  
+  // Method to get all consumers dependent on this provider
+  const getDependentConsumers = useCallback(() => {
+    return dependencyManager.getConsumersForProvider(instanceId, dataType);
+  }, [dependencyManager, instanceId, dataType]);
+  
   return {
-    dependencyId,
-    isActive,
-    error,
-    updateData,
-    setStatus
+    updateProviderData,
+    getDependentConsumers,
+    isRegistered: providerRegistered
   };
 }
 
 /**
- * Hook for consuming dependency data from a component
- * @param consumerId ID of the consumer component
- * @param providerId ID of the provider component
- * @param definitionId ID of the dependency definition
- * @returns The dependency data and state
+ * Hook for component instances to register and act as dependency consumers
+ * 
+ * @param instanceId Unique identifier for the component instance
+ * @param dataType The type of data this consumer requires
+ * @returns Object with the consumed data and dependency status
  */
-export function useConsumeDependency<T>(
-  consumerId: string,
-  providerId: string,
-  definitionId: string
-) {
-  const dependency = useDependencyContext();
-  const [dependencyId, setDependencyId] = useState<string | null>(null);
-  const [data, setData] = useState<T | null>(null);
-  const [isReady, setIsReady] = useState(false);
-  const [isActive, setIsActive] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Create/find the dependency
+export function useDependencyConsumer<T>(instanceId: string, dataType: DependencyDataType) {
+  const { dependencyManager } = useDependencyContext();
+  const [consumerData, setConsumerData] = useState<T | null>(null);
+  const [status, setStatus] = useState<DependencyStatus>(DependencyStatus.INACTIVE);
+  const [providerId, setProviderId] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
+  
+  // Register this component as a consumer when mounted
   useEffect(() => {
-    try {
-      // Check if a dependency already exists
-      const existingDep = dependency.findDependency(providerId, consumerId, definitionId);
-      
-      if (existingDep) {
-        // Use the existing dependency
-        setDependencyId(existingDep.id);
-        setData(existingDep.currentData || null);
-        setIsReady(existingDep.isReady);
-        setIsActive(existingDep.isActive);
-        setError(existingDep.error || null);
-      } else {
-        // Create a new dependency
-        const newDepId = dependency.createDependency(definitionId, providerId, consumerId);
-        setDependencyId(newDepId);
-        setIsActive(true);
-        setError(null);
+    dependencyManager.registerConsumer(instanceId, dataType);
+    
+    // Set up data listener
+    const unsubscribe = dependencyManager.subscribeToData<T>(
+      instanceId,
+      dataType,
+      (data, source, timestamp) => {
+        setConsumerData(data);
+        setProviderId(source);
+        setLastUpdated(timestamp);
+        setStatus(DependencyStatus.ACTIVE);
       }
-    } catch (err) {
-      console.error('Error establishing dependency:', err);
-      setError(err.message || 'Failed to establish dependency');
+    );
+    
+    // Get initial state
+    const initialState = dependencyManager.getDependencyState(instanceId, dataType);
+    if (initialState && initialState.isReady && initialState.currentData) {
+      setConsumerData(initialState.currentData as T);
+      setProviderId(initialState.providerId);
+      setLastUpdated(initialState.lastUpdated || null);
+      setStatus(DependencyStatus.ACTIVE);
     }
-  }, [dependency, providerId, consumerId, definitionId]);
-
-  // Function to request data from the dependency
-  const requestData = useCallback(
-    async (params?: any) => {
-      if (!dependencyId) return null;
-
-      try {
-        const result = await dependency.requestDependencyData<T>(dependencyId, params);
-        setData(result);
-        setIsReady(true);
-        setError(null);
-        return result;
-      } catch (err) {
-        console.error('Error requesting dependency data:', err);
-        setError(err.message || 'Failed to request dependency data');
-        return null;
-      }
-    },
-    [dependency, dependencyId]
-  );
-
+    
+    // Cleanup when unmounted
+    return () => {
+      unsubscribe();
+      dependencyManager.unregisterConsumer(instanceId, dataType);
+    };
+  }, [dependencyManager, instanceId, dataType]);
+  
+  // Method to request data from the provider (pull)
+  const requestData = useCallback(() => {
+    setStatus(DependencyStatus.LOADING);
+    dependencyManager.requestDataFromProvider<T>(instanceId, dataType)
+      .then(result => {
+        if (result.success && result.data) {
+          setConsumerData(result.data as T);
+          setProviderId(result.providerId);
+          setLastUpdated(result.timestamp);
+          setStatus(DependencyStatus.ACTIVE);
+        } else {
+          setStatus(DependencyStatus.ERROR);
+        }
+      })
+      .catch(() => {
+        setStatus(DependencyStatus.ERROR);
+      });
+  }, [dependencyManager, instanceId, dataType]);
+  
   return {
-    dependencyId,
-    data,
-    isReady,
-    isActive,
-    error,
+    consumerData,
+    providerId,
+    lastUpdated,
+    status,
+    isLoading: status === DependencyStatus.LOADING,
+    isError: status === DependencyStatus.ERROR,
+    isReady: status === DependencyStatus.ACTIVE,
     requestData
   };
 }
 
 /**
- * Hook for finding provider components for a specific dependency type
- * @param consumerType The consumer component type
- * @param dataType The desired data type
- * @returns Compatible provider component types
+ * Hook to get data consumers for a specific data type
  */
-export function useFindProviders(
-  consumerType: ComponentType,
-  dataType: DependencyDataType
-) {
-  const dependency = useDependencyContext();
-  const [providers, setProviders] = useState<ComponentType[]>([]);
-
+export function useDataTypeConsumers(dataType: DependencyDataType) {
+  const { dependencyManager } = useDependencyContext();
+  const [consumers, setConsumers] = useState<string[]>([]);
+  
   useEffect(() => {
-    const deps = dependency.getDependencyDefinitionsByConsumer(consumerType)
-      .filter(dep => dep.dataType === dataType);
-
-    const providerTypes = [...new Set(deps.map(dep => dep.providerType))];
-    setProviders(providerTypes);
-  }, [dependency, consumerType, dataType]);
-
-  return providers;
-}
-
-/**
- * Hook for finding consumer components for a specific dependency type
- * @param providerType The provider component type
- * @param dataType The data type to provide
- * @returns Compatible consumer component types
- */
-export function useFindConsumers(
-  providerType: ComponentType,
-  dataType: DependencyDataType
-) {
-  const dependency = useDependencyContext();
-  const [consumers, setConsumers] = useState<ComponentType[]>([]);
-
-  useEffect(() => {
-    const deps = dependency.getDependencyDefinitionsByProvider(providerType)
-      .filter(dep => dep.dataType === dataType);
-
-    const consumerTypes = [...new Set(deps.map(dep => dep.consumerType))];
-    setConsumers(consumerTypes);
-  }, [dependency, providerType, dataType]);
-
+    // Get initial consumers
+    setConsumers(dependencyManager.getConsumersForDataType(dataType));
+    
+    // Subscribe to consumer registration changes
+    const unsubscribe = dependencyManager.subscribeToConsumerChanges(dataType, (updatedConsumers) => {
+      setConsumers(updatedConsumers);
+    });
+    
+    return unsubscribe;
+  }, [dependencyManager, dataType]);
+  
   return consumers;
 }
 
 /**
- * Hook for accessing all dependency instances for a component
- * @param componentId The component ID
- * @param asProvider Whether to get dependencies as provider (true) or consumer (false)
- * @returns Array of dependency instances
+ * Hook to get data providers for a specific data type
  */
-export function useComponentDependencies(
-  componentId: string,
-  asProvider: boolean = true
-) {
-  const dependency = useDependencyContext();
-  const [dependencies, setDependencies] = useState<DependencyInstance[]>([]);
-
-  useEffect(() => {
-    const deps = asProvider
-      ? dependency.getDependenciesForProvider(componentId)
-      : dependency.getDependenciesForConsumer(componentId);
-
-    setDependencies(deps);
-  }, [dependency, componentId, asProvider]);
-
-  return dependencies;
-}
-
-/**
- * Hook to check if a component type can provide data to another component type
- * @param providerType The provider component type
- * @param consumerType The consumer component type
- * @returns Whether a dependency exists between the component types
- */
-export function useCanProvideFor(
-  providerType: ComponentType,
-  consumerType: ComponentType
-) {
-  const dependency = useDependencyContext();
-  const [canProvide, setCanProvide] = useState(false);
-
-  useEffect(() => {
-    const result = dependency.canProvideFor(providerType, consumerType);
-    setCanProvide(result);
-  }, [dependency, providerType, consumerType]);
-
-  return canProvide;
-}
-
-/**
- * Hook to get all possible dependencies between two component types
- * @param providerType The provider component type
- * @param consumerType The consumer component type
- * @returns Array of dependency definitions
- */
-export function usePossibleDependencies(
-  providerType: ComponentType,
-  consumerType: ComponentType
-) {
-  const dependency = useDependencyContext();
-  const [dependencies, setDependencies] = useState([]);
-
-  useEffect(() => {
-    const deps = dependency.findPossibleDependencies(providerType, consumerType);
-    setDependencies(deps);
-  }, [dependency, providerType, consumerType]);
-
-  return dependencies;
-}
-
-/**
- * Convenience hook for the common email selection pattern
- * @param emailListId ID of the email list component
- * @param emailViewerId ID of the email viewer component
- * @returns Functions for managing the email selection
- */
-export function useEmailSelectionDependency(
-  emailListId: string,
-  emailViewerId: string
-) {
-  const dependency = useDependencyContext();
-  const [dependencyId, setDependencyId] = useState<string | null>(null);
+export function useDataTypeProviders(dataType: DependencyDataType) {
+  const { dependencyManager } = useDependencyContext();
+  const [providers, setProviders] = useState<string[]>([]);
   
-  // Find the email selection dependency definition
   useEffect(() => {
-    const emailSelectionDef = dependency.getDependencyDefinitionsByProvider(ComponentType.EMAIL_LIST)
-      .find(dep => 
-        dep.consumerType === ComponentType.EMAIL_VIEWER &&
-        dep.dataType === DependencyDataType.EMAIL
-      );
+    // Get initial providers
+    setProviders(dependencyManager.getProvidersForDataType(dataType));
     
-    if (emailSelectionDef) {
-      // Check if a dependency already exists
-      const existingDep = dependency.findDependency(emailListId, emailViewerId, emailSelectionDef.id);
-      
-      if (existingDep) {
-        setDependencyId(existingDep.id);
-      } else {
-        // Create a new dependency
-        try {
-          const newDepId = dependency.createDependency(
-            emailSelectionDef.id,
-            emailListId,
-            emailViewerId
-          );
-          setDependencyId(newDepId);
-        } catch (err) {
-          console.error('Error creating email selection dependency:', err);
-        }
-      }
-    }
-  }, [dependency, emailListId, emailViewerId]);
+    // Subscribe to provider registration changes
+    const unsubscribe = dependencyManager.subscribeToProviderChanges(dataType, (updatedProviders) => {
+      setProviders(updatedProviders);
+    });
+    
+    return unsubscribe;
+  }, [dependencyManager, dataType]);
   
-  // Function to update the selected email
-  const updateSelectedEmail = useCallback(
-    (email: any) => {
-      if (!dependencyId) return false;
-      
-      try {
-        return dependency.updateDependencyData(dependencyId, email);
-      } catch (err) {
-        console.error('Error updating selected email:', err);
-        return false;
-      }
-    },
-    [dependency, dependencyId]
-  );
+  return providers;
+}
+
+/**
+ * Hook to find and connect to a provider automatically
+ */
+export function useAutoDependency<T>(
+  instanceId: string, 
+  dataType: DependencyDataType,
+  options?: { autoRequest?: boolean }
+) {
+  const { dependencyManager } = useDependencyContext();
+  const [connected, setConnected] = useState(false);
+  
+  // Register as consumer and find provider automatically
+  useEffect(() => {
+    dependencyManager.registerConsumer(instanceId, dataType);
+    
+    const result = dependencyManager.findAndConnectProvider(instanceId, dataType);
+    setConnected(result.success);
+    
+    // Auto-request data if configured
+    if (result.success && options?.autoRequest) {
+      dependencyManager.requestDataFromProvider(instanceId, dataType);
+    }
+    
+    return () => {
+      dependencyManager.unregisterConsumer(instanceId, dataType);
+    };
+  }, [dependencyManager, instanceId, dataType, options?.autoRequest]);
+  
+  // Re-use the consumer hook for convenience
+  const consumerHook = useDependencyConsumer<T>(instanceId, dataType);
   
   return {
-    dependencyId,
-    updateSelectedEmail
+    ...consumerHook,
+    connected
+  };
+}
+
+/**
+ * Hook to create a bidirectional dependency between two components
+ */
+export function useBidirectionalDependency<T, U>(
+  instanceId: string,
+  dataType: DependencyDataType,
+  options?: { 
+    sendDataType?: DependencyDataType,
+    receiveDataType?: DependencyDataType
+  }
+) {
+  const sendType = options?.sendDataType || dataType;
+  const receiveType = options?.receiveDataType || dataType;
+  
+  // Use both provider and consumer hooks
+  const provider = useDependencyProvider<T>(instanceId, sendType);
+  const consumer = useDependencyConsumer<U>(instanceId, receiveType);
+  
+  return {
+    provider,
+    consumer,
+    updateData: provider.updateProviderData,
+    data: consumer.consumerData,
+    isReady: consumer.isReady
   };
 }

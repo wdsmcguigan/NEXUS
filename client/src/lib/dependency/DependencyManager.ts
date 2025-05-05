@@ -1,391 +1,537 @@
-/**
- * Dependency Manager
- * 
- * This file implements the runtime management of dependencies.
- * It creates, tracks, and updates dependency instances
- * and manages data flow between components.
- */
-
 import { v4 as uuidv4 } from 'uuid';
-import { 
-  DependencyInstance, 
-  DependencyConfig,
-  DependencyStatus,
-  DependencyDataRequest,
-  DependencyDataResponse
-} from './DependencyInterfaces';
 import { dependencyRegistry } from './DependencyRegistry';
-import { ComponentType } from '../communication/ComponentCommunication';
+import {
+  DependencyDataType,
+  DependencyStatus,
+  DependencySyncStrategy,
+  DataRequestResponse,
+  DependencyState,
+  DependencyInstance,
+  DependencyOptions,
+  ProviderInfo
+} from './DependencyInterfaces';
 
 /**
- * The DependencyManager handles runtime aspects of the dependency system
- * including dependency instances and data flow.
+ * Manages runtime dependencies between component instances
+ * Provides a high-level API for components to register as providers or consumers
  */
-class DependencyManager {
-  private dependencies: Map<string, DependencyInstance> = new Map();
-  private providerDependencies: Map<string, Set<string>> = new Map();
-  private consumerDependencies: Map<string, Set<string>> = new Map();
-  private pendingRequests: Map<string, (data?: any, error?: string) => void> = new Map();
-  private initialized: boolean = false;
-
-  /**
-   * Initialize the dependency manager
-   */
-  initialize() {
-    if (!this.initialized) {
-      this.dependencies.clear();
-      this.providerDependencies.clear();
-      this.consumerDependencies.clear();
-      this.pendingRequests.clear();
-      this.initialized = true;
-      console.log("DependencyManager initialized");
-    }
+export class DependencyManager {
+  // Track registered providers
+  private providers: Map<string, Set<string>> = new Map(); // dataType -> instanceIds
+  
+  // Track registered consumers
+  private consumers: Map<string, Set<string>> = new Map(); // dataType -> instanceIds
+  
+  // Store provider data
+  private providerData: Map<string, any> = new Map(); // providerId:dataType -> data
+  
+  // Store data subscribers
+  private dataSubscribers: Map<string, Set<(data: any, source: string, timestamp: number) => void>> = new Map(); // consumerId:dataType -> callbacks
+  
+  // Store provider change subscribers
+  private providerChangeSubscribers: Map<string, Set<(providers: string[]) => void>> = new Map(); // dataType -> callbacks
+  
+  // Store consumer change subscribers
+  private consumerChangeSubscribers: Map<string, Set<(consumers: string[]) => void>> = new Map(); // dataType -> callbacks
+  
+  constructor() {
+    console.log('DependencyManager initialized');
   }
-
+  
   /**
-   * Create a new dependency instance
-   * @param definitionId The ID of the dependency definition
-   * @param providerId The ID of the provider component
-   * @param consumerId The ID of the consumer component
-   * @returns The ID of the created dependency instance
+   * Register a component instance as a provider for a data type
    */
-  createDependency(
-    definitionId: string,
-    providerId: string,
-    consumerId: string
-  ): string {
-    // Get the dependency definition
-    const definition = dependencyRegistry.getDependency(definitionId);
+  registerProvider(instanceId: string, dataType: DependencyDataType): void {
+    // Get or create the set of providers for this data type
+    const providers = this.providers.get(dataType) || new Set<string>();
     
-    if (!definition) {
-      throw new Error(`Dependency definition not found: ${definitionId}`);
-    }
+    // Add this instance to the providers
+    providers.add(instanceId);
+    this.providers.set(dataType, providers);
     
-    // Check if a dependency already exists
-    const existingDependency = this.findDependency(providerId, consumerId, definitionId);
-    
-    if (existingDependency) {
-      return existingDependency.id;
-    }
-    
-    // Create a new dependency instance
-    const id = uuidv4();
-    const dependency: DependencyInstance = {
-      id,
-      definitionId,
-      providerId,
-      providerType: definition.providerType,
-      consumerId,
-      consumerType: definition.consumerType,
-      dataType: definition.dataType,
-      isActive: true,
-      isReady: false,
-      createdAt: Date.now(),
-      config: {
-        isActive: true,
-        autoUpdate: true,
-        notifyOnChange: true,
-        options: {}
-      }
-    };
-    
-    // Store the dependency
-    this.dependencies.set(id, dependency);
-    
-    // Update provider and consumer maps
-    this.addToComponentDependencies(this.providerDependencies, providerId, id);
-    this.addToComponentDependencies(this.consumerDependencies, consumerId, id);
-    
-    return id;
+    // Notify subscribers of provider changes
+    this.notifyProviderChangeSubscribers(dataType);
   }
-
+  
   /**
-   * Add a dependency ID to a component dependencies map
-   * @param map The map to update
-   * @param componentId The component ID
-   * @param dependencyId The dependency ID
+   * Register a component instance as a consumer for a data type
    */
-  private addToComponentDependencies(
-    map: Map<string, Set<string>>,
-    componentId: string,
-    dependencyId: string
-  ): void {
-    if (!map.has(componentId)) {
-      map.set(componentId, new Set());
-    }
+  registerConsumer(instanceId: string, dataType: DependencyDataType): void {
+    // Get or create the set of consumers for this data type
+    const consumers = this.consumers.get(dataType) || new Set<string>();
     
-    map.get(componentId)?.add(dependencyId);
+    // Add this instance to the consumers
+    consumers.add(instanceId);
+    this.consumers.set(dataType, consumers);
+    
+    // Notify subscribers of consumer changes
+    this.notifyConsumerChangeSubscribers(dataType);
   }
-
+  
   /**
-   * Get a dependency instance by ID
-   * @param id The dependency ID
-   * @returns The dependency instance or undefined if not found
+   * Unregister a component instance as a provider for a data type
    */
-  getDependency(id: string): DependencyInstance | undefined {
-    return this.dependencies.get(id);
-  }
-
-  /**
-   * Find a dependency instance by provider and consumer IDs
-   * @param providerId The provider component ID
-   * @param consumerId The consumer component ID
-   * @param definitionId Optional dependency definition ID
-   * @returns The dependency instance or undefined if not found
-   */
-  findDependency(
-    providerId: string,
-    consumerId: string,
-    definitionId?: string
-  ): DependencyInstance | undefined {
-    // Get all dependencies for the provider
-    const providerDeps = this.getDependenciesForProvider(providerId);
+  unregisterProvider(instanceId: string, dataType: DependencyDataType): void {
+    // Get the set of providers for this data type
+    const providers = this.providers.get(dataType);
     
-    // Filter by consumer ID
-    const matchingDeps = providerDeps.filter(dep => dep.consumerId === consumerId);
-    
-    // Filter by definition ID if provided
-    if (definitionId) {
-      return matchingDeps.find(dep => dep.definitionId === definitionId);
-    }
-    
-    // Return first matching dependency
-    return matchingDeps[0];
-  }
-
-  /**
-   * Get all dependencies for a provider component
-   * @param providerId The provider component ID
-   * @returns Array of dependency instances
-   */
-  getDependenciesForProvider(providerId: string): DependencyInstance[] {
-    const dependencyIds = this.providerDependencies.get(providerId) || new Set();
-    return Array.from(dependencyIds)
-      .map(id => this.dependencies.get(id))
-      .filter(Boolean) as DependencyInstance[];
-  }
-
-  /**
-   * Get all dependencies for a consumer component
-   * @param consumerId The consumer component ID
-   * @returns Array of dependency instances
-   */
-  getDependenciesForConsumer(consumerId: string): DependencyInstance[] {
-    const dependencyIds = this.consumerDependencies.get(consumerId) || new Set();
-    return Array.from(dependencyIds)
-      .map(id => this.dependencies.get(id))
-      .filter(Boolean) as DependencyInstance[];
-  }
-
-  /**
-   * Update dependency data from provider to consumer
-   * @param id The dependency ID
-   * @param data The data to update
-   * @returns True if the update succeeded
-   */
-  updateDependencyData<T>(id: string, data: T): boolean {
-    const dependency = this.dependencies.get(id);
-    
-    if (!dependency) {
-      return false;
-    }
-    
-    // Get the dependency definition
-    const definition = dependencyRegistry.getDependency(dependency.definitionId);
-    
-    if (!definition) {
-      return false;
-    }
-    
-    // Validate data if a validator is defined
-    if (definition.validateData && !definition.validateData(data)) {
-      console.warn(`Invalid data provided for dependency ${id}`);
-      return false;
-    }
-    
-    // Transform data if a transformer is defined
-    let transformedData = data;
-    
-    if (definition.transformData) {
-      transformedData = definition.transformData(data);
-    } else if (dependency.config.customTransform) {
-      transformedData = dependency.config.customTransform(data);
-    }
-    
-    // Update the dependency instance
-    dependency.currentData = transformedData;
-    dependency.lastUpdated = Date.now();
-    dependency.isReady = true;
-    
-    // Handle any pending requests
-    this.resolvePendingRequests(dependency);
-    
-    return true;
-  }
-
-  /**
-   * Resolve any pending data requests for a dependency
-   * @param dependency The dependency instance
-   */
-  private resolvePendingRequests(dependency: DependencyInstance): void {
-    // Check for pending requests
-    const requestIds = Array.from(this.pendingRequests.keys())
-      .filter(requestId => requestId.startsWith(`${dependency.id}:`));
-    
-    // Resolve each pending request
-    requestIds.forEach(requestId => {
-      const resolver = this.pendingRequests.get(requestId);
+    if (providers) {
+      // Remove this instance from the providers
+      providers.delete(instanceId);
       
-      if (resolver) {
-        resolver(dependency.currentData);
-        this.pendingRequests.delete(requestId);
+      // If there are no more providers, remove the data type
+      if (providers.size === 0) {
+        this.providers.delete(dataType);
+      } else {
+        this.providers.set(dataType, providers);
+      }
+      
+      // Remove provider data
+      const key = `${instanceId}:${dataType}`;
+      this.providerData.delete(key);
+      
+      // Notify subscribers of provider changes
+      this.notifyProviderChangeSubscribers(dataType);
+    }
+  }
+  
+  /**
+   * Unregister a component instance as a consumer for a data type
+   */
+  unregisterConsumer(instanceId: string, dataType: DependencyDataType): void {
+    // Get the set of consumers for this data type
+    const consumers = this.consumers.get(dataType);
+    
+    if (consumers) {
+      // Remove this instance from the consumers
+      consumers.delete(instanceId);
+      
+      // If there are no more consumers, remove the data type
+      if (consumers.size === 0) {
+        this.consumers.delete(dataType);
+      } else {
+        this.consumers.set(dataType, consumers);
+      }
+      
+      // Remove data subscribers
+      const subscriberKey = `${instanceId}:${dataType}`;
+      this.dataSubscribers.delete(subscriberKey);
+      
+      // Notify subscribers of consumer changes
+      this.notifyConsumerChangeSubscribers(dataType);
+    }
+  }
+  
+  /**
+   * Update the data provided by a provider
+   */
+  updateProviderData<T>(providerId: string, dataType: DependencyDataType, data: T): void {
+    // Update the provider data
+    const key = `${providerId}:${dataType}`;
+    this.providerData.set(key, data);
+    
+    // Update dependency registry data
+    dependencyRegistry.updateDependencyData(providerId, dataType, data);
+    
+    // Notify all consumers that depend on this provider
+    const timestamp = Date.now();
+    const consumers = dependencyRegistry.getConsumersForProvider(providerId);
+    
+    consumers.forEach(consumerId => {
+      const subscriberKey = `${consumerId}:${dataType}`;
+      const subscribers = this.dataSubscribers.get(subscriberKey);
+      
+      if (subscribers) {
+        subscribers.forEach(callback => {
+          try {
+            callback(data, providerId, timestamp);
+          } catch (error) {
+            console.error('Error in data subscriber callback:', error);
+          }
+        });
       }
     });
   }
-
+  
   /**
-   * Request data from a dependency
-   * @param id The dependency ID
-   * @param params Optional parameters for the request
-   * @returns Promise that resolves with the requested data
+   * Request data from a provider (pull model)
    */
-  async requestData<T>(id: string, params?: any): Promise<T> {
-    const dependency = this.dependencies.get(id);
+  async requestDataFromProvider<T>(
+    consumerId: string,
+    dataType: DependencyDataType
+  ): Promise<DataRequestResponse<T>> {
+    // Find providers for this consumer
+    const providers = dependencyRegistry.getProvidersForConsumer(consumerId);
     
-    if (!dependency) {
-      throw new Error(`Dependency not found: ${id}`);
+    if (providers.length === 0) {
+      return {
+        success: false,
+        providerId: null,
+        data: null,
+        timestamp: Date.now(),
+        errorMessage: 'No provider found for this consumer'
+      };
     }
     
-    // If data is already available and ready, return it immediately
-    if (dependency.isReady && dependency.currentData !== undefined) {
-      return dependency.currentData as T;
+    // Find a provider that provides this data type
+    // (In a more sophisticated implementation, we might have preferences
+    // or priority for selecting a provider)
+    let providerId = null;
+    
+    for (const p of providers) {
+      const providerDataTypes = this.getProviderDataTypes(p);
+      if (providerDataTypes.includes(dataType as string)) {
+        providerId = p;
+        break;
+      }
     }
     
-    // Otherwise, create a new data request
-    const requestId = `${id}:${uuidv4()}`;
+    if (!providerId) {
+      return {
+        success: false,
+        providerId: null,
+        data: null,
+        timestamp: Date.now(),
+        errorMessage: 'No provider found for the requested data type'
+      };
+    }
     
-    // Create a promise to resolve when data becomes available
-    return new Promise<T>((resolve, reject) => {
-      // Set a timeout to reject the promise if data is not received
-      const timeoutId = setTimeout(() => {
-        this.pendingRequests.delete(requestId);
-        reject(new Error(`Timeout waiting for data from dependency ${id}`));
-      }, 5000);
-      
-      // Store the resolver
-      this.pendingRequests.set(requestId, (data, error) => {
-        clearTimeout(timeoutId);
-        
-        if (error) {
-          reject(new Error(error));
+    // Get the data from the provider
+    const key = `${providerId}:${dataType}`;
+    const data = this.providerData.get(key) || null;
+    const timestamp = Date.now();
+    
+    // If no data is available, return an error
+    if (data === null) {
+      return {
+        success: false,
+        providerId,
+        data: null,
+        timestamp,
+        errorMessage: 'Provider has no data available'
+      };
+    }
+    
+    // Return the data
+    return {
+      success: true,
+      providerId,
+      data: data as T,
+      timestamp
+    };
+  }
+  
+  /**
+   * Subscribe to data updates for a consumer
+   */
+  subscribeToData<T>(
+    consumerId: string,
+    dataType: DependencyDataType,
+    callback: (data: T, source: string, timestamp: number) => void
+  ): () => void {
+    const key = `${consumerId}:${dataType}`;
+    
+    // Get or create the set of subscribers for this consumer and data type
+    const subscribers = this.dataSubscribers.get(key) || new Set();
+    
+    // Add the callback to the subscribers
+    subscribers.add(callback as any);
+    this.dataSubscribers.set(key, subscribers);
+    
+    // Return an unsubscribe function
+    return () => {
+      const subscribers = this.dataSubscribers.get(key);
+      if (subscribers) {
+        subscribers.delete(callback as any);
+        if (subscribers.size === 0) {
+          this.dataSubscribers.delete(key);
         } else {
-          resolve(data as T);
+          this.dataSubscribers.set(key, subscribers);
+        }
+      }
+    };
+  }
+  
+  /**
+   * Subscribe to provider changes for a data type
+   */
+  subscribeToProviderChanges(
+    dataType: DependencyDataType,
+    callback: (providers: string[]) => void
+  ): () => void {
+    // Get or create the set of subscribers for this data type
+    const subscribers = this.providerChangeSubscribers.get(dataType as string) || new Set();
+    
+    // Add the callback to the subscribers
+    subscribers.add(callback);
+    this.providerChangeSubscribers.set(dataType as string, subscribers);
+    
+    // Call the callback with the current providers
+    callback(this.getProvidersForDataType(dataType));
+    
+    // Return an unsubscribe function
+    return () => {
+      const subscribers = this.providerChangeSubscribers.get(dataType as string);
+      if (subscribers) {
+        subscribers.delete(callback);
+        if (subscribers.size === 0) {
+          this.providerChangeSubscribers.delete(dataType as string);
+        } else {
+          this.providerChangeSubscribers.set(dataType as string, subscribers);
+        }
+      }
+    };
+  }
+  
+  /**
+   * Subscribe to consumer changes for a data type
+   */
+  subscribeToConsumerChanges(
+    dataType: DependencyDataType,
+    callback: (consumers: string[]) => void
+  ): () => void {
+    // Get or create the set of subscribers for this data type
+    const subscribers = this.consumerChangeSubscribers.get(dataType as string) || new Set();
+    
+    // Add the callback to the subscribers
+    subscribers.add(callback);
+    this.consumerChangeSubscribers.set(dataType as string, subscribers);
+    
+    // Call the callback with the current consumers
+    callback(this.getConsumersForDataType(dataType));
+    
+    // Return an unsubscribe function
+    return () => {
+      const subscribers = this.consumerChangeSubscribers.get(dataType as string);
+      if (subscribers) {
+        subscribers.delete(callback);
+        if (subscribers.size === 0) {
+          this.consumerChangeSubscribers.delete(dataType as string);
+        } else {
+          this.consumerChangeSubscribers.set(dataType as string, subscribers);
+        }
+      }
+    };
+  }
+  
+  /**
+   * Notify subscribers of provider changes
+   */
+  private notifyProviderChangeSubscribers(dataType: DependencyDataType): void {
+    const subscribers = this.providerChangeSubscribers.get(dataType as string);
+    
+    if (subscribers) {
+      const providers = this.getProvidersForDataType(dataType);
+      
+      subscribers.forEach(callback => {
+        try {
+          callback(providers);
+        } catch (error) {
+          console.error('Error in provider change subscriber callback:', error);
         }
       });
+    }
+  }
+  
+  /**
+   * Notify subscribers of consumer changes
+   */
+  private notifyConsumerChangeSubscribers(dataType: DependencyDataType): void {
+    const subscribers = this.consumerChangeSubscribers.get(dataType as string);
+    
+    if (subscribers) {
+      const consumers = this.getConsumersForDataType(dataType);
+      
+      subscribers.forEach(callback => {
+        try {
+          callback(consumers);
+        } catch (error) {
+          console.error('Error in consumer change subscriber callback:', error);
+        }
+      });
+    }
+  }
+  
+  /**
+   * Get all providers for a data type
+   */
+  getProvidersForDataType(dataType: DependencyDataType): string[] {
+    const providers = this.providers.get(dataType as string);
+    return providers ? Array.from(providers) : [];
+  }
+  
+  /**
+   * Get all consumers for a data type
+   */
+  getConsumersForDataType(dataType: DependencyDataType): string[] {
+    const consumers = this.consumers.get(dataType as string);
+    return consumers ? Array.from(consumers) : [];
+  }
+  
+  /**
+   * Get all data types provided by a provider
+   */
+  getProviderDataTypes(providerId: string): string[] {
+    const dataTypes: string[] = [];
+    
+    this.providers.forEach((providers, dataType) => {
+      if (providers.has(providerId)) {
+        dataTypes.push(dataType);
+      }
     });
+    
+    return dataTypes;
   }
-
+  
   /**
-   * Set the status of a dependency
-   * @param id The dependency ID
-   * @param status The new status
-   * @param error Optional error message
-   * @returns True if the status was updated
+   * Get all data types consumed by a consumer
    */
-  setDependencyStatus(id: string, status: DependencyStatus, error?: string): boolean {
-    const dependency = this.dependencies.get(id);
+  getConsumerDataTypes(consumerId: string): string[] {
+    const dataTypes: string[] = [];
+    
+    this.consumers.forEach((consumers, dataType) => {
+      if (consumers.has(consumerId)) {
+        dataTypes.push(dataType);
+      }
+    });
+    
+    return dataTypes;
+  }
+  
+  /**
+   * Get all consumers for a provider
+   */
+  getConsumersForProvider(providerId: string, dataType?: DependencyDataType): string[] {
+    const dependencies = dependencyRegistry.getDependenciesByProvider(providerId);
+    
+    if (dataType) {
+      return dependencies
+        .filter(dep => dep.dataType === dataType)
+        .map(dep => dep.consumerId);
+    }
+    
+    return dependencies.map(dep => dep.consumerId);
+  }
+  
+  /**
+   * Get all providers for a consumer
+   */
+  getProvidersForConsumer(consumerId: string, dataType?: DependencyDataType): string[] {
+    const dependencies = dependencyRegistry.getDependenciesByConsumer(consumerId);
+    
+    if (dataType) {
+      return dependencies
+        .filter(dep => dep.dataType === dataType)
+        .map(dep => dep.providerId);
+    }
+    
+    return dependencies.map(dep => dep.providerId);
+  }
+  
+  /**
+   * Get the state of a dependency relationship
+   */
+  getDependencyState(consumerId: string, dataType: DependencyDataType): DependencyState | null {
+    // Find providers for this consumer
+    const providers = this.getProvidersForConsumer(consumerId, dataType);
+    
+    if (providers.length === 0) {
+      return {
+        isReady: false,
+        providerId: null,
+        currentData: null,
+        lastUpdated: null,
+        status: DependencyStatus.INACTIVE
+      };
+    }
+    
+    // Get the provider with the most recent data
+    // (In a more sophisticated implementation, we might have priorities or preferences)
+    const providerId = providers[0];
+    
+    // Get the dependency
+    const dependency = dependencyRegistry.findDependency(providerId, consumerId, dataType);
     
     if (!dependency) {
-      return false;
+      return {
+        isReady: false,
+        providerId,
+        currentData: null,
+        lastUpdated: null,
+        status: DependencyStatus.INACTIVE
+      };
     }
     
-    dependency.isActive = status === DependencyStatus.ACTIVE;
-    
-    if (status === DependencyStatus.ERROR) {
-      dependency.error = error || 'Unknown error';
-    } else {
-      dependency.error = undefined;
-    }
-    
-    return true;
+    // Return the dependency state
+    return {
+      isReady: dependency.status === DependencyStatus.ACTIVE,
+      providerId,
+      currentData: dependency.currentData,
+      lastUpdated: dependency.lastUpdated || null,
+      status: dependency.status
+    };
   }
-
+  
   /**
-   * Update a dependency's configuration
-   * @param id The dependency ID
-   * @param config The new configuration
-   * @returns True if the configuration was updated
+   * Find a provider for a consumer and establish a dependency
    */
-  updateDependencyConfig(id: string, config: Partial<DependencyConfig>): boolean {
-    const dependency = this.dependencies.get(id);
+  findAndConnectProvider(
+    consumerId: string,
+    dataType: DependencyDataType,
+    syncStrategy?: DependencySyncStrategy
+  ): { success: boolean; providerId: string | null } {
+    // Get all providers for this data type
+    const providers = this.getProvidersForDataType(dataType);
     
-    if (!dependency) {
-      return false;
+    if (providers.length === 0) {
+      return { success: false, providerId: null };
     }
     
-    dependency.config = {
-      ...dependency.config,
-      ...config
+    // For now, just use the first provider
+    // (In a more sophisticated implementation, we might use priorities or preferences)
+    const providerId = providers[0];
+    
+    // Create a dependency between the provider and consumer
+    const options: Partial<DependencyOptions> = {
+      isActive: true,
+      autoUpdate: true,
+      notifyOnChange: true
     };
     
-    return true;
-  }
-
-  /**
-   * Remove a dependency instance
-   * @param id The dependency ID
-   * @returns True if the dependency was removed
-   */
-  removeDependency(id: string): boolean {
-    const dependency = this.dependencies.get(id);
-    
-    if (!dependency) {
-      return false;
+    if (syncStrategy) {
+      options.options = { syncStrategy };
     }
     
-    // Remove from provider and consumer maps
-    this.removeFromComponentDependencies(this.providerDependencies, dependency.providerId, id);
-    this.removeFromComponentDependencies(this.consumerDependencies, dependency.consumerId, id);
+    const dependency = dependencyRegistry.createDependency(
+      providerId,
+      consumerId,
+      dataType,
+      options
+    );
     
-    // Remove any pending requests
-    const requestIds = Array.from(this.pendingRequests.keys())
-      .filter(requestId => requestId.startsWith(`${id}:`));
+    return {
+      success: !!dependency,
+      providerId: dependency ? providerId : null
+    };
+  }
+  
+  /**
+   * Get information about available providers
+   */
+  getAvailableProviders(dataType: DependencyDataType): ProviderInfo[] {
+    const providers = this.getProvidersForDataType(dataType);
     
-    requestIds.forEach(requestId => {
-      const resolver = this.pendingRequests.get(requestId);
+    return providers.map(providerId => {
+      const key = `${providerId}:${dataType}`;
+      const hasData = this.providerData.has(key);
       
-      if (resolver) {
-        resolver(undefined, 'Dependency removed');
-        this.pendingRequests.delete(requestId);
-      }
+      return {
+        instanceId: providerId,
+        componentId: providerId.split('-')[0], // Extract component ID from instance ID
+        dataType,
+        hasData,
+        lastUpdated: hasData ? Date.now() : undefined // For now, we don't track last updated time
+      };
     });
-    
-    // Remove from dependencies map
-    return this.dependencies.delete(id);
-  }
-
-  /**
-   * Remove a dependency ID from a component dependencies map
-   * @param map The map to update
-   * @param componentId The component ID
-   * @param dependencyId The dependency ID
-   */
-  private removeFromComponentDependencies(
-    map: Map<string, Set<string>>,
-    componentId: string,
-    dependencyId: string
-  ): void {
-    const dependencyIds = map.get(componentId);
-    
-    if (dependencyIds) {
-      dependencyIds.delete(dependencyId);
-      
-      if (dependencyIds.size === 0) {
-        map.delete(componentId);
-      }
-    }
   }
 }
-
-// Create singleton instance
-export const dependencyManager = new DependencyManager();

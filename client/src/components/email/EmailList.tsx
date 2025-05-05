@@ -218,6 +218,7 @@ const EmailList: React.FC<EmailListProps> = ({
     console.log("EmailList selected email changed:", selectedEmail);
     
     // Always update provider data, even if null (to clear the viewer)
+    // @ts-ignore - We intentionally want to pass null to clear dependencies
     updateProviderData(selectedEmail);
     
     if (selectedEmail) {

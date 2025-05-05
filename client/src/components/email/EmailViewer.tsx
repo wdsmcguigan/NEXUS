@@ -84,9 +84,9 @@ const EmailViewer: React.FC<EmailViewerProps> = ({
   
   // Log when email data changes
   useEffect(() => {
+    console.log("EmailViewer received email data:", email);
+    
     if (email) {
-      console.log("EmailViewer received email data:", email);
-      
       // Only show toast if we received a new email (not just initial render)
       if (currentEmailId !== 0 && currentEmailId !== email.id) {
         toast({
@@ -97,6 +97,18 @@ const EmailViewer: React.FC<EmailViewerProps> = ({
       }
       
       setCurrentEmailId(email.id);
+    } else {
+      // If email is null, it's been cleared
+      if (currentEmailId !== 0) {
+        console.log("EmailViewer: Email was cleared");
+        setCurrentEmailId(0);
+        
+        toast({
+          title: "Email Cleared",
+          description: "The email selection was cleared",
+          variant: "default",
+        });
+      }
     }
   }, [email, currentEmailId]);
   
@@ -234,8 +246,8 @@ const EmailViewer: React.FC<EmailViewerProps> = ({
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Badge 
-                      variant={showNewDataIndicator ? "success" : "default"}
-                      className={`flex items-center ${showNewDataIndicator ? 'animate-pulse' : ''}`}
+                      variant="default"
+                      className={`flex items-center ${showNewDataIndicator ? 'animate-pulse bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300' : ''}`}
                     >
                       <Link2 className={`w-3 h-3 mr-1 ${showNewDataIndicator ? 'animate-spin' : ''}`} /> 
                       Provider: {emailProviderId.split('-')[0]}

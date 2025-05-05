@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAppContext } from '../context/AppContext';
 import { TabContextMenu } from './TabContextMenu';
+import { DependencyIndicator } from './dependency/DependencyIndicator';
 
 interface TabProps {
   id: string;
@@ -235,20 +236,31 @@ export function DraggableTab({
             </span>
           </div>
           
-          {closeable && onClose && (
-            <div
-              className="ml-2 text-neutral-500 hover:text-white p-1 rounded-sm hover:bg-neutral-700"
-              style={{ 
-                transform: `scale(${Math.max(0.7, Math.min(1.2, settings.tabHeight * 0.02))})` 
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onClose();
-              }}
-            >
-              <X size={14} />
+          <div className="flex items-center ml-auto">
+            {/* Dependency Indicator - will only render if there are dependencies */}
+            <div className="mr-1">
+              <DependencyIndicator 
+                componentId={id} 
+                variant="dot" 
+                showEmpty={false}
+              />
             </div>
-          )}
+            
+            {closeable && onClose && (
+              <div
+                className="ml-1 text-neutral-500 hover:text-white p-1 rounded-sm hover:bg-neutral-700"
+                style={{ 
+                  transform: `scale(${Math.max(0.7, Math.min(1.2, settings.tabHeight * 0.02))})` 
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                }}
+              >
+                <X size={14} />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </TabContextMenu>

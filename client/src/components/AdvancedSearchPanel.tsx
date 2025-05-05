@@ -513,14 +513,14 @@ export function AdvancedSearchPanel({
                   Folder
                 </Label>
                 <Select 
-                  value={searchFields.folder || ''}
-                  onValueChange={(value) => updateSearchField('folder', value)}
+                  value={searchFields.folder || 'any'}
+                  onValueChange={(value) => updateSearchField('folder', value === 'any' ? '' : value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Any folder" />
                   </SelectTrigger>
                   <SelectContent className="bg-neutral-900 border-neutral-700">
-                    <SelectItem value="">Any folder</SelectItem>
+                    <SelectItem value="any">Any folder</SelectItem>
                     <SelectItem value="inbox">Inbox</SelectItem>
                     <SelectItem value="sent">Sent</SelectItem>
                     <SelectItem value="drafts">Drafts</SelectItem>

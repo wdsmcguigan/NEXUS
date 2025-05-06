@@ -40,6 +40,9 @@ export class PanelDependencyBridge {
   private componentsByPanel: Map<string, Set<string>> = new Map(); // panelId -> Set<tabId>
   private componentsByType: Map<PanelComponentType, Set<string>> = new Map(); // type -> Set<tabId>
   
+  // Configuration options
+  private autoConnectEnabled: boolean = false; // Default to false - only suggest connections, don't auto-create
+  
   constructor(registry: DependencyRegistryExtended, manager: DependencyManagerExtended) {
     this.registry = registry;
     this.manager = manager;

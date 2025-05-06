@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
-import { Info, AlertCircle, Check, X, Link2, RefreshCw } from 'lucide-react';
+import { Info, AlertCircle, Check, X, Link2, RefreshCw, Zap, RotateCw } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { usePanelDependencyContext } from '../context/PanelDependencyContext';
@@ -171,6 +171,44 @@ export function FlexibleEmailDebugPanel({ emailBridge }: FlexibleEmailDebugPanel
       });
     }
   };
+  
+  const forceUpdateConnection = (listId: string, detailId: string) => {
+    try {
+      emailBridge.forceUpdateConnection(listId, detailId);
+      toast({
+        title: "Connection Updated",
+        description: `Force-refreshed data for connection: ${getDisplayName(listId)} → ${getDisplayName(detailId)}`,
+        variant: "default",
+        duration: 1500
+      });
+    } catch (error) {
+      console.error("Error forcing connection update:", error);
+      toast({
+        title: "Update Error",
+        description: "Failed to force update the connection.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const forceUpdateAllConnections = () => {
+    try {
+      emailBridge.forceUpdateAllConnections();
+      toast({
+        title: "All Connections Updated",
+        description: `Force-refreshed data for all active connections`,
+        variant: "default",
+        duration: 1500
+      });
+    } catch (error) {
+      console.error("Error updating all connections:", error);
+      toast({
+        title: "Update Error",
+        description: "Failed to update all connections",
+        variant: "destructive"
+      });
+    }
+  };
 
   // Generate a display name for component IDs by removing UUIDs
   const getDisplayName = (id: string | null) => {
@@ -233,10 +271,19 @@ export function FlexibleEmailDebugPanel({ emailBridge }: FlexibleEmailDebugPanel
           {/* Global actions */}
           <div className="flex flex-wrap gap-2 justify-center">
             <Button size="sm" variant="default" onClick={connectAllPanes} className="text-xs">
-              Connect All Panes
+              <Link2 size={14} className="mr-1" /> Connect All
             </Button>
             <Button size="sm" variant="outline" onClick={refreshConnections} className="text-xs">
-              Refresh
+              <RefreshCw size={14} className="mr-1" /> Refresh
+            </Button>
+            <Button 
+              size="sm" 
+              variant="secondary" 
+              onClick={forceUpdateAllConnections} 
+              className="text-xs"
+              disabled={Object.values(connections).reduce((total, details) => total + details.length, 0) === 0}
+            >
+              <Zap size={14} className="mr-1" /> Force Update All
             </Button>
           </div>
           
@@ -295,7 +342,7 @@ export function FlexibleEmailDebugPanel({ emailBridge }: FlexibleEmailDebugPanel
                 disabled={!selectedListPane || !selectedDetailPane}
                 onClick={createConnection}
               >
-                Create Connection
+                <Link2 size={14} className="mr-1" /> Create Connection
               </Button>
             </div>
           </div>
@@ -318,21 +365,39 @@ export function FlexibleEmailDebugPanel({ emailBridge }: FlexibleEmailDebugPanel
                     {detailIds.length === 0 ? (
                       <p className="text-xs text-neutral-500 italic">No connections</p>
                     ) : (
-                      <div className="flex flex-wrap gap-1.5">
-                        {detailIds.map(detailId => (
-                          <Badge 
-                            key={detailId} 
-                            variant="secondary"
-                            className="text-xs py-0.5 flex items-center gap-1"
-                          >
-                            {getDisplayName(detailId)}
-                            <X 
-                              size={12} 
-                              className="cursor-pointer hover:text-red-400"
-                              onClick={() => removeConnection(listId, detailId)}
-                            />
-                          </Badge>
-                        ))}
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap gap-1.5">
+                          {detailIds.map(detailId => (
+                            <Badge 
+                              key={detailId} 
+                              variant="secondary"
+                              className="text-xs py-0.5 flex items-center gap-1"
+                            >
+                              {getDisplayName(detailId)}
+                              <X 
+                                size={12} 
+                                className="cursor-pointer hover:text-red-400"
+                                onClick={() => removeConnection(listId, detailId)}
+                              />
+                            </Badge>
+                          ))}
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-1">
+                          {detailIds.map(detailId => (
+                            <Button 
+                              key={`force-${detailId}`}
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-1 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-950/30"
+                              onClick={() => forceUpdateConnection(listId, detailId)}
+                              title={`Force update data flow: ${getDisplayName(listId)} → ${getDisplayName(detailId)}`}
+                            >
+                              <Zap size={12} className="mr-0.5" /> 
+                              {getDisplayName(detailId)}
+                            </Button>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>

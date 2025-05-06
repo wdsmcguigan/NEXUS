@@ -34,7 +34,7 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
   const tabContext = useTabContext();
   const { tags: globalTags } = useTagContext();
   
-  // Register with both dependency systems for backward compatibility
+  // Register with multiple dependency systems for maximum compatibility
   
   // 1. Legacy system
   // Add type prefix to tabId for dependency matching
@@ -51,6 +51,9 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
   
   // 2. Panel dependency system
   const { updateSelectedEmail, componentId } = useEmailListPanel(tabId || 'default', panelId);
+  
+  // 3. Flexible Email Dependency system (direct bridge)
+  const flexibleEmailBridge = useFlexibleEmailListPane(componentId);
   
   // Extract the methods we need from the legacy provider
   const updateSelectedEmailData = dependencyProvider.updateProviderData;
@@ -291,7 +294,7 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
           }
         };
         
-        // Update both dependency systems
+        // Update all dependency systems
         // 1. Legacy system
         console.log(`[EmailListPane ${tabId}] Updating legacy dependency system with email data`);
         updateSelectedEmailData(emailData);
@@ -299,6 +302,10 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
         // 2. Panel dependency system
         console.log(`[EmailListPane ${tabId}] Updating panel dependency system with email data`);
         updateSelectedEmail(emailData);
+        
+        // 3. Flexible Email Dependency Bridge system
+        console.log(`[EmailListPane ${tabId}] Updating flexible email bridge with email data`);
+        flexibleEmailBridge.updateSelectedEmail(emailData);
         
         // Force dependency status updates
         console.log(`[EmailListPane ${tabId}] Attempting to force connection status updates`);
@@ -324,11 +331,12 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
       // Send null when no email is selected
       console.log(`[EmailListPane ${tabId}] No email selected, sending null to consumers`);
       
-      // Update both dependency systems with null
+      // Update all dependency systems with null
       updateSelectedEmailData(null);
       updateSelectedEmail(null);
+      flexibleEmailBridge.updateSelectedEmail(null);
     }
-  }, [selectedEmailId, emails, connectionCount, tabId, updateSelectedEmailData, updateSelectedEmail, getDependentConsumers]);
+  }, [selectedEmailId, emails, connectionCount, tabId, updateSelectedEmailData, updateSelectedEmail, getDependentConsumers, flexibleEmailBridge]);
 
   // Handle email click with keyboard modifiers
   const handleEmailClick = (e: React.MouseEvent, emailId: number) => {

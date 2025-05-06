@@ -12,6 +12,7 @@ import { useTagContext, TagItem } from '../context/TagContext';
 import { useDependencyConsumer } from '../hooks/useDependencyHooks';
 import { DependencyDataTypes, DependencySyncStrategy } from '../lib/dependency/DependencyInterfaces';
 import { useEmailDetailPanel } from '../context/PanelDependencyContext';
+import { useFlexibleEmailDetailPane } from '../hooks/useFlexibleEmailDependency.tsx';
 import { toast } from '../hooks/use-toast';
 import {
   DropdownMenu,
@@ -39,7 +40,7 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
   const [replyText, setReplyText] = useState('');
   const { tags: globalTags } = useTagContext();
   
-  // Register with both dependency systems for backward compatibility
+  // Register with all dependency systems for maximum compatibility
   
   // 1. Legacy system
   // Add type prefix to tabId for dependency matching
@@ -57,6 +58,9 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
   // 2. Panel dependency system
   const { email: panelEmail, componentId } = useEmailDetailPanel(tabId || 'default', panelId);
   
+  // 3. Flexible Email Dependency system (direct bridge)
+  const flexibleEmailBridge = useFlexibleEmailDetailPane(componentId);
+  
   // Extract the methods and properties we need from the legacy consumer
   const dependencyEmailData = dependencyConsumer.consumerData;
   const hasProvider = dependencyConsumer.providerId !== null;
@@ -71,7 +75,7 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
     console.log(`[EmailDetailPane ${tabId}] Panel component ID:`, componentId);
   }, [tabId, dependencyConsumer.status, hasProvider, dependencyConsumer.providerId, isConnected, componentId]);
 
-  // Process dependency data when it's received - from either system
+  // Process dependency data when it's received - from any system
   useEffect(() => {
     // Create helper for logging data structure
     const logEmailData = (source: string, data: any) => {
@@ -89,7 +93,30 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
       });
     };
 
-    // First check panel system
+    // Check data from FlexibleEmailDependencyBridge first
+    const flexibleEmailData = flexibleEmailBridge.selectedEmail;
+    if (flexibleEmailData) {
+      logEmailData('Flexible Email Bridge', flexibleEmailData);
+      
+      // Check if we have an enriched data structure
+      const emailData = flexibleEmailData.metadata ? 
+        flexibleEmailData : // It's the enriched structure
+        flexibleEmailData;  // Regular email object
+        
+      console.log(`[EmailDetailPane ${tabId}] Setting email from flexible email bridge`);
+      setEmail(emailData);
+      setLoading(false);
+      
+      // Show toast to make dependency connection clear
+      toast({
+        title: "Email data received",
+        description: `Loading email data from flexible email bridge`,
+        duration: 2000,
+      });
+      return;
+    }
+
+    // Then check panel system
     if (panelEmail) {
       logEmailData('Panel dependency', panelEmail);
       
@@ -134,14 +161,14 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
         });
       }
     } else {
-      console.log(`[EmailDetailPane ${tabId}] Both dependency sources returned null/undefined data`);
+      console.log(`[EmailDetailPane ${tabId}] All dependency sources returned null/undefined data`);
       
       // If we have an emailId prop but no email loaded, we'll rely on the fetchEmailDetails effect
       if (emailId && !email) {
         console.log(`[EmailDetailPane ${tabId}] Will use direct fetch with emailId: ${emailId}`);
       }
     }
-  }, [dependencyEmailData, hasProvider, isConnected, tabId, panelEmail, emailId, email]);
+  }, [dependencyEmailData, hasProvider, isConnected, tabId, panelEmail, emailId, email, flexibleEmailBridge.selectedEmail]);
 
   // Fetch email details if no dependency data
   useEffect(() => {

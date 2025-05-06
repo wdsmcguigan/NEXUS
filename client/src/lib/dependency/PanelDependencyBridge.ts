@@ -368,6 +368,11 @@ export class PanelDependencyBridge {
       if (existingDependencies.length === 0) {
         // No existing connection, suggest one
         this.suggestConnection(listPane.componentId, detailPane.componentId);
+        
+        // Automatically create the connection after suggesting it
+        // This is more aggressive than just suggesting but ensures data flows
+        console.log(`[PanelDependencyBridge] Auto-creating connection from ${listPane.componentId} to ${detailPane.componentId}`);
+        this.createConnection(listPane.componentId, detailPane.componentId, DependencyDataTypes.EMAIL);
       }
     }
     

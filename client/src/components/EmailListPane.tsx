@@ -273,12 +273,34 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
       console.log(`[EmailListPane ${tabId}] Connection count:`, connectionCount);
       
       if (selectedEmail) {
+        // Add explicit logging for debugging
+        console.log(`[EmailListPane ${tabId}] Selected email details:`, {
+          id: selectedEmail.id,
+          subject: selectedEmail.subject,
+          timestamp: selectedEmail.timestamp
+        });
+        
+        // Create an enriched data structure for dependency updates
+        const emailData = {
+          ...selectedEmail,
+          metadata: {
+            selectionTimestamp: Date.now(),
+            source: `EmailListPane-${tabId}`,
+            updateType: 'email-selected'
+          }
+        };
+        
         // Update both dependency systems
         // 1. Legacy system
-        updateSelectedEmailData(selectedEmail);
+        console.log(`[EmailListPane ${tabId}] Updating legacy dependency system with email data`);
+        updateSelectedEmailData(emailData);
         
         // 2. Panel dependency system
-        updateSelectedEmail(selectedEmail);
+        console.log(`[EmailListPane ${tabId}] Updating panel dependency system with email data`);
+        updateSelectedEmail(emailData);
+        
+        // Force dependency status updates
+        console.log(`[EmailListPane ${tabId}] Attempting to force connection status updates`);
         
         if (connectionCount > 0) {
           // Show toast notification to make dependency connection clear to user
@@ -288,7 +310,13 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
             duration: 2000,
           });
           
-          console.log(`[EmailListPane ${tabId}] Broadcasting email data to consumers:`, getDependentConsumers());
+          const consumers = getDependentConsumers();
+          console.log(`[EmailListPane ${tabId}] Broadcasting email data to consumers:`, consumers);
+          
+          // Explicitly log each consumer for debugging
+          consumers.forEach(consumer => {
+            console.log(`[EmailListPane ${tabId}] Sending data to consumer:`, consumer);
+          });
         }
       }
     } else {

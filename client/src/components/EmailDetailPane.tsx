@@ -73,42 +73,75 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
 
   // Process dependency data when it's received - from either system
   useEffect(() => {
+    // Create helper for logging data structure
+    const logEmailData = (source: string, data: any) => {
+      if (!data) {
+        console.log(`[EmailDetailPane ${tabId}] ${source} data is null/undefined`);
+        return;
+      }
+      
+      // Log a simplified view of the data structure
+      console.log(`[EmailDetailPane ${tabId}] ${source} data received:`, {
+        id: data.id,
+        subject: data.subject,
+        metadata: data.metadata || 'no metadata',
+        hasContent: !!data.body
+      });
+    };
+
     // First check panel system
     if (panelEmail) {
-      console.log(`[EmailDetailPane ${tabId}] Setting email from panel dependency:`, panelEmail);
-      setEmail(panelEmail);
+      logEmailData('Panel dependency', panelEmail);
+      
+      // Check if we have an enriched data structure from the EmailListPane
+      const emailData = panelEmail.metadata ? 
+        panelEmail : // It's the enriched structure
+        panelEmail;  // Regular email object
+        
+      console.log(`[EmailDetailPane ${tabId}] Setting email from panel dependency`);
+      setEmail(emailData);
       setLoading(false);
       
       // Show toast to make dependency connection clear
       toast({
         title: "Email data received",
-        description: "Loading email data from connected panel",
+        description: `Loading email data from connected panel`,
         duration: 2000,
       });
       return;
     }
     
     // Then check legacy system
-    console.log(`[EmailDetailPane ${tabId}] Received dependency data:`, dependencyEmailData);
+    logEmailData('Legacy dependency', dependencyEmailData);
     
     if (dependencyEmailData) {
-      // If we have dependency data, use it 
-      console.log(`[EmailDetailPane ${tabId}] Setting email from legacy dependency:`, dependencyEmailData);
-      setEmail(dependencyEmailData);
+      // If we have dependency data, use it
+      // Check if it's the enriched structure created in EmailListPane
+      const emailData = dependencyEmailData.metadata ? 
+        dependencyEmailData : // It's the enriched structure
+        dependencyEmailData;  // Regular email object
+        
+      console.log(`[EmailDetailPane ${tabId}] Setting email from legacy dependency`);
+      setEmail(emailData);
       setLoading(false);
       
       if (hasProvider && isConnected) {
         // Show toast to make dependency connection clear
         toast({
           title: "Email data received",
-          description: "Loading email data from connected list",
+          description: `Loading email from connected component`,
           duration: 2000,
         });
       }
     } else {
-      console.log(`[EmailDetailPane ${tabId}] Dependency data is null or undefined`);
+      console.log(`[EmailDetailPane ${tabId}] Both dependency sources returned null/undefined data`);
+      
+      // If we have an emailId prop but no email loaded, we'll rely on the fetchEmailDetails effect
+      if (emailId && !email) {
+        console.log(`[EmailDetailPane ${tabId}] Will use direct fetch with emailId: ${emailId}`);
+      }
     }
-  }, [dependencyEmailData, hasProvider, isConnected, tabId, panelEmail]);
+  }, [dependencyEmailData, hasProvider, isConnected, tabId, panelEmail, emailId, email]);
 
   // Fetch email details if no dependency data
   useEffect(() => {

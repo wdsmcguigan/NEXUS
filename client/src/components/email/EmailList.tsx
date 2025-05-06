@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDependencyProvider } from '../../hooks/useDependencyHooks';
+import { useDependencyContext } from '../../context/DependencyContext';
 import { DependencyDataTypes } from '../../lib/dependency/DependencyInterfaces';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -136,6 +137,9 @@ const EmailList: React.FC<EmailListProps> = ({
   filterFolder,
   filterTag
 }) => {
+  // Get dependency context hooks
+  const { suspendAllDependenciesForComponent } = useDependencyContext();
+  
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [filteredEmails, setFilteredEmails] = useState<Email[]>(emails);
   const [hasDependentViewer, setHasDependentViewer] = useState(false);
@@ -155,14 +159,12 @@ const EmailList: React.FC<EmailListProps> = ({
     const consumers = getDependentConsumers();
     if (consumers.length > 0) {
       console.log(`EmailList: Has ${consumers.length} connected consumers`);
-      // If we have a selected email, make sure to send it 
-      if (selectedEmail) {
-        console.log("Sending existing selected email to consumers:", selectedEmail);
-        // @ts-ignore - intentionally allowing null
-        updateProviderData(selectedEmail);
-      }
+      // Always send current selection state (even if null) when consumers connect
+      console.log("Sending current email selection state to consumers:", selectedEmail);
+      // @ts-ignore - intentionally allowing null
+      updateProviderData(selectedEmail);
     }
-  }, [getDependentConsumers, selectedEmail]);
+  }, [getDependentConsumers]);
   
   // Register as dependency provider for email list data
   const { 
@@ -286,15 +288,14 @@ const EmailList: React.FC<EmailListProps> = ({
   
   // Disconnect from all dependents
   const handleDisconnectDependents = () => {
-    // In a real implementation, you would use dependency registry 
-    // to disconnect all dependencies
+    // Use the suspendAllDependenciesForComponent method from DependencyContext
+    suspendAllDependenciesForComponent(instanceId);
+    
     toast({
-      title: "Dependencies Disconnected",
-      description: "All dependent components have been disconnected.",
+      title: "Dependencies Suspended",
+      description: "All dependencies for this component have been suspended.",
       variant: "default"
     });
-    // This is just for demo purposes - actual implementation would
-    // call dependency registry methods
   };
   
   return (

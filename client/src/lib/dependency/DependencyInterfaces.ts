@@ -15,6 +15,7 @@ export enum DependencyStatus {
   READY = 'ready',               // Connected and data is available
   CYCLE_DETECTED = 'cycle-detected', // Circular dependency detected
   OPTIMIZING = 'optimizing',     // Optimizing the data flow
+  SUSPENDED = 'suspended',       // Temporarily disabled
 }
 
 /**
@@ -242,4 +243,11 @@ export interface DependencyContextType {
   
   // Status methods
   getDependencyStatus(providerId: string, consumerId: string, dataType: DependencyDataTypes): DependencyStatus;
+  
+  // Dependency management methods
+  suspendDependency(dependencyId: string): void;
+  suspendAllDependencies(componentId: string): void;
+  resumeDependency(dependencyId: string): void;
+  resumeAllDependencies(componentId: string): void;
+  removeDependency(dependencyId: string): void;
 }

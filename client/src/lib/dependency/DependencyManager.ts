@@ -38,6 +38,12 @@ export class DependencyManager implements IDependencyManager {
     
     // Update each dependency
     for (const dependency of dependencies) {
+      // Skip suspended dependencies
+      if (dependency.status === DependencyStatus.SUSPENDED) {
+        console.log(`Skipping update for suspended dependency: ${dependency.id}`);
+        continue;
+      }
+      
       // Store the data
       this.dataStore.set(dependency.id, data);
       

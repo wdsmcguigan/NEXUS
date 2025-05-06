@@ -28,7 +28,12 @@ const DependencyContext = createContext<DependencyContextType>({
   unregisterComponent: () => {},
   updateComponentData: () => {},
   getComponentData: () => undefined,
-  getDependencyStatus: () => DependencyStatus.DISCONNECTED
+  getDependencyStatus: () => DependencyStatus.DISCONNECTED,
+  suspendDependency: () => {},
+  suspendAllDependencies: () => {},
+  resumeDependency: () => {},
+  resumeAllDependencies: () => {},
+  removeDependency: () => {}
 });
 
 // Provider component
@@ -96,6 +101,69 @@ export function DependencyProvider({ children }: { children: React.ReactNode }) 
     return DependencyStatus.DISCONNECTED;
   };
   
+  // Suspend a specific dependency (temporarily disable it)
+  const suspendDependency = (dependencyId: string) => {
+    const dependency = registry.getDependency(dependencyId);
+    if (dependency) {
+      // Set the status to suspended
+      registry.updateDependencyStatus(dependencyId, DependencyStatus.SUSPENDED);
+      console.log(`Suspended dependency: ${dependencyId}`);
+    }
+  };
+  
+  // Resume a specific dependency
+  const resumeDependency = (dependencyId: string) => {
+    const dependency = registry.getDependency(dependencyId);
+    if (dependency) {
+      // Set the status back to connected
+      registry.updateDependencyStatus(dependencyId, DependencyStatus.CONNECTED);
+      console.log(`Resumed dependency: ${dependencyId}`);
+    }
+  };
+  
+  // Suspend all dependencies for a component
+  const suspendAllDependencies = (componentId: string) => {
+    // Suspend dependencies where this component is a provider
+    const providingDeps = registry.getDependenciesByProvider(componentId);
+    providingDeps.forEach(dep => {
+      registry.updateDependencyStatus(dep.id, DependencyStatus.SUSPENDED);
+    });
+    
+    // Suspend dependencies where this component is a consumer
+    const consumingDeps = registry.getDependenciesByConsumer(componentId);
+    consumingDeps.forEach(dep => {
+      registry.updateDependencyStatus(dep.id, DependencyStatus.SUSPENDED);
+    });
+    
+    console.log(`Suspended all dependencies for component: ${componentId}`);
+  };
+  
+  // Resume all dependencies for a component
+  const resumeAllDependencies = (componentId: string) => {
+    // Resume dependencies where this component is a provider
+    const providingDeps = registry.getDependenciesByProvider(componentId);
+    providingDeps.forEach(dep => {
+      registry.updateDependencyStatus(dep.id, DependencyStatus.CONNECTED);
+    });
+    
+    // Resume dependencies where this component is a consumer
+    const consumingDeps = registry.getDependenciesByConsumer(componentId);
+    consumingDeps.forEach(dep => {
+      registry.updateDependencyStatus(dep.id, DependencyStatus.CONNECTED);
+    });
+    
+    console.log(`Resumed all dependencies for component: ${componentId}`);
+  };
+  
+  // Remove a dependency completely
+  const removeDependency = (dependencyId: string) => {
+    const dependency = registry.getDependency(dependencyId);
+    if (dependency) {
+      registry.removeDependency(dependencyId);
+      console.log(`Removed dependency: ${dependencyId}`);
+    }
+  };
+  
   const contextValue: DependencyContextType = {
     registry,
     manager,
@@ -103,7 +171,12 @@ export function DependencyProvider({ children }: { children: React.ReactNode }) 
     unregisterComponent,
     updateComponentData,
     getComponentData,
-    getDependencyStatus
+    getDependencyStatus,
+    suspendDependency,
+    suspendAllDependencies,
+    resumeDependency,
+    resumeAllDependencies,
+    removeDependency
   };
   
   return (

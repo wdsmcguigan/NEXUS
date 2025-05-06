@@ -10,6 +10,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { StarColor } from '../../shared/schema';
 import { useTagContext, TagItem } from '../context/TagContext';
+import { useDependencyConsumer } from '../hooks/useDependencyHooks';
+import { DependencyDataTypes } from '../lib/dependency/DependencyInterfaces';
+import { toast } from '../hooks/use-toast';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,9 +38,43 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
   const [replyMode, setReplyMode] = useState(false);
   const [replyText, setReplyText] = useState('');
   const { tags: globalTags } = useTagContext();
+  
+  // Register as dependency consumer for email data
+  const dependencyConsumer = useDependencyConsumer<any>(
+    DependencyDataTypes.EMAIL_DATA,
+    instanceId
+  );
+  
+  // Extract the methods and properties we need from the consumer
+  const dependencyEmailData = dependencyConsumer.data;
+  const hasProvider = dependencyConsumer.providerExists;
+  const isConnected = dependencyConsumer.isConnected;
 
-  // Fetch email details
+  // Process dependency data when it's received
   useEffect(() => {
+    if (dependencyEmailData) {
+      // If we have dependency data, use it 
+      setEmail(dependencyEmailData);
+      setLoading(false);
+      
+      if (hasProvider && isConnected) {
+        // Show toast to make dependency connection clear
+        toast({
+          title: "Email data received",
+          description: "Loading email data from connected list",
+          duration: 2000,
+        });
+      }
+    }
+  }, [dependencyEmailData, hasProvider, isConnected]);
+
+  // Fetch email details if no dependency data
+  useEffect(() => {
+    // Skip API fetch if we're getting data from a dependency
+    if (hasProvider && isConnected) {
+      return;
+    }
+    
     const fetchEmailDetails = async () => {
       setLoading(true);
       try {
@@ -162,7 +199,7 @@ Sarah`,
     if (emailId) {
       fetchEmailDetails();
     }
-  }, [emailId]);
+  }, [emailId, hasProvider, isConnected]);
 
   // Toggle star color
   const handleStarClick = async (currentColor: StarColor) => {

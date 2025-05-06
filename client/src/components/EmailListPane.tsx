@@ -34,13 +34,17 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
   const { tags: globalTags } = useTagContext();
   
   // Register as dependency provider for selected email data
-  const { 
-    updateData: updateSelectedEmailData,
-    connectionCount
-  } = useDependencyProvider<any>(
+  const dependencyProvider = useDependencyProvider<any>(
     DependencyDataTypes.EMAIL_DATA,
     instanceId
   );
+  
+  // Extract the methods we need from the provider
+  const updateSelectedEmailData = dependencyProvider.updateProviderData;
+  const getDependentConsumers = dependencyProvider.getDependentConsumers;
+  const connectionCount = useMemo(() => {
+    return getDependentConsumers().length;
+  }, [getDependentConsumers]);
 
   // Fetch emails for the current view/category
   useEffect(() => {
@@ -240,6 +244,26 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
     }
   };
   
+  // When the selected email changes, update the dependency data
+  useEffect(() => {
+    if (selectedEmailId !== null) {
+      const selectedEmail = emails.find(email => email.id === selectedEmailId);
+      if (selectedEmail && connectionCount > 0) {
+        // Show toast notification to make dependency connection clear to user
+        toast({
+          title: "Email selected",
+          description: `Sending email data to connected viewers (${connectionCount})`,
+          duration: 2000,
+        });
+      }
+      // Update the dependency data with the selected email
+      updateSelectedEmailData(selectedEmail || null);
+    } else {
+      // Send null when no email is selected
+      updateSelectedEmailData(null);
+    }
+  }, [selectedEmailId, emails, connectionCount, updateSelectedEmailData]);
+
   // Handle email click with keyboard modifiers
   const handleEmailClick = (e: React.MouseEvent, emailId: number) => {
     if (e.ctrlKey || e.metaKey) {

@@ -1,0 +1,286 @@
+import React, { useState, useEffect } from 'react';
+import { FlexibleEmailDependencyBridge } from '../lib/dependency/FlexibleEmailDependencyBridge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { toast } from '@/hooks/use-toast';
+import { Info, AlertCircle, Check, X, Link2, RefreshCw } from 'lucide-react';
+
+interface FlexibleEmailDebugPanelProps {
+  emailBridge: FlexibleEmailDependencyBridge;
+}
+
+export function FlexibleEmailDebugPanel({ emailBridge }: FlexibleEmailDebugPanelProps) {
+  const [listPaneIds, setListPaneIds] = useState<string[]>([]);
+  const [detailPaneIds, setDetailPaneIds] = useState<string[]>([]);
+  const [connections, setConnections] = useState<{ [key: string]: string[] }>({});
+  const [selectedListPane, setSelectedListPane] = useState<string | null>(null);
+  const [selectedDetailPane, setSelectedDetailPane] = useState<string | null>(null);
+  const [refreshCounter, setRefreshCounter] = useState(0);
+
+  // Refresh the connection data
+  useEffect(() => {
+    try {
+      const listIds = emailBridge.getListPaneIds();
+      const detailIds = emailBridge.getDetailPaneIds();
+      
+      setListPaneIds(listIds);
+      setDetailPaneIds(detailIds);
+      
+      // Build the connections object
+      const connectionMap: { [key: string]: string[] } = {};
+      
+      listIds.forEach(listId => {
+        connectionMap[listId] = emailBridge.getConnectionsForListPane(listId);
+      });
+      
+      setConnections(connectionMap);
+      
+      // Clear selections if they're no longer valid
+      if (selectedListPane && !listIds.includes(selectedListPane)) {
+        setSelectedListPane(null);
+      }
+      
+      if (selectedDetailPane && !detailIds.includes(selectedDetailPane)) {
+        setSelectedDetailPane(null);
+      }
+    } catch (error) {
+      console.error('Error refreshing connections:', error);
+      toast({
+        title: "Connection Refresh Error",
+        description: "Failed to refresh connection data.",
+        variant: "destructive"
+      });
+    }
+  }, [emailBridge, refreshCounter]);
+
+  const refreshConnections = () => {
+    setRefreshCounter(prev => prev + 1);
+  };
+
+  const createConnection = () => {
+    if (!selectedListPane || !selectedDetailPane) {
+      toast({
+        title: "Connection Error",
+        description: "Please select both a list pane and a detail pane.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      emailBridge.createConnection(selectedListPane, selectedDetailPane);
+      toast({
+        title: "Connection Created",
+        description: `Created connection from ${selectedListPane} to ${selectedDetailPane}`,
+        variant: "default"
+      });
+      refreshConnections();
+    } catch (error) {
+      toast({
+        title: "Connection Error",
+        description: "Failed to create connection.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const removeConnection = (listId: string, detailId: string) => {
+    try {
+      emailBridge.removeConnection(listId, detailId);
+      toast({
+        title: "Connection Removed",
+        description: `Removed connection from ${listId} to ${detailId}`,
+        variant: "default"
+      });
+      refreshConnections();
+    } catch (error) {
+      toast({
+        title: "Remove Error",
+        description: "Failed to remove connection.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const connectAllPanes = () => {
+    try {
+      emailBridge.connectAllPanes();
+      toast({
+        title: "All Panes Connected",
+        description: "Connected all list panes to all detail panes.",
+        variant: "default"
+      });
+      refreshConnections();
+    } catch (error) {
+      toast({
+        title: "Connection Error",
+        description: "Failed to connect all panes.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Generate a display name for component IDs by removing UUIDs
+  const getDisplayName = (id: string) => {
+    // Remove UUID pattern at the end if present
+    return id.replace(/-[a-zA-Z0-9]{6,}$/, '');
+  };
+
+  return (
+    <Card className="w-full h-full overflow-auto text-white bg-neutral-900 border-neutral-800">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center justify-between">
+          <span>Email Dependency Debug</span>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={refreshConnections}
+            className="h-8 w-8 p-0"
+          >
+            <RefreshCw size={16} />
+          </Button>
+        </CardTitle>
+      </CardHeader>
+      
+      <CardContent>
+        <div className="grid grid-cols-1 gap-4">
+          {/* Connection summary */}
+          <div className="rounded-md bg-neutral-800 p-3">
+            <h3 className="text-sm font-medium mb-2 flex items-center">
+              <Info size={14} className="mr-1.5" /> Connection Summary
+            </h3>
+            <div className="space-y-1 text-neutral-300 text-xs">
+              <div className="flex justify-between">
+                <span>List Panes:</span>
+                <span>{listPaneIds.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Detail Panes:</span>
+                <span>{detailPaneIds.length}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Total Connections:</span>
+                <span>
+                  {Object.values(connections).reduce((total, details) => total + details.length, 0)}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Global actions */}
+          <div className="flex flex-wrap gap-2 justify-center">
+            <Button size="sm" variant="default" onClick={connectAllPanes} className="text-xs">
+              Connect All Panes
+            </Button>
+            <Button size="sm" variant="outline" onClick={refreshConnections} className="text-xs">
+              Refresh
+            </Button>
+          </div>
+          
+          <Separator className="my-2 bg-neutral-700" />
+          
+          {/* Create new connection */}
+          <div className="rounded-md bg-neutral-800 p-3">
+            <h3 className="text-sm font-medium mb-2 flex items-center">
+              <Link2 size={14} className="mr-1.5" /> Create Connection
+            </h3>
+            
+            <div className="space-y-3">
+              {/* List pane selector */}
+              <div>
+                <p className="text-xs text-neutral-300 mb-1">Select List Pane:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {listPaneIds.map(id => (
+                    <Badge 
+                      key={id} 
+                      variant={selectedListPane === id ? "default" : "outline"}
+                      className="cursor-pointer text-xs py-0.5"
+                      onClick={() => setSelectedListPane(id)}
+                    >
+                      {getDisplayName(id)}
+                    </Badge>
+                  ))}
+                  {listPaneIds.length === 0 && (
+                    <p className="text-xs text-neutral-500 italic">No list panes available</p>
+                  )}
+                </div>
+              </div>
+              
+              {/* Detail pane selector */}
+              <div>
+                <p className="text-xs text-neutral-300 mb-1">Select Detail Pane:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {detailPaneIds.map(id => (
+                    <Badge 
+                      key={id} 
+                      variant={selectedDetailPane === id ? "default" : "outline"}
+                      className="cursor-pointer text-xs py-0.5"
+                      onClick={() => setSelectedDetailPane(id)}
+                    >
+                      {getDisplayName(id)}
+                    </Badge>
+                  ))}
+                  {detailPaneIds.length === 0 && (
+                    <p className="text-xs text-neutral-500 italic">No detail panes available</p>
+                  )}
+                </div>
+              </div>
+              
+              <Button 
+                size="sm" 
+                className="w-full text-xs"
+                disabled={!selectedListPane || !selectedDetailPane}
+                onClick={createConnection}
+              >
+                Create Connection
+              </Button>
+            </div>
+          </div>
+          
+          <Separator className="my-2 bg-neutral-700" />
+          
+          {/* Existing connections */}
+          <div>
+            <h3 className="text-sm font-medium mb-2">Existing Connections</h3>
+            <div className="space-y-3">
+              {Object.keys(connections).length === 0 ? (
+                <p className="text-xs text-neutral-500 italic">No connections available</p>
+              ) : (
+                Object.entries(connections).map(([listId, detailIds]) => (
+                  <div key={listId} className="rounded-md bg-neutral-800 p-2">
+                    <p className="text-xs font-medium text-neutral-200 mb-1">
+                      {getDisplayName(listId)}
+                    </p>
+                    
+                    {detailIds.length === 0 ? (
+                      <p className="text-xs text-neutral-500 italic">No connections</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {detailIds.map(detailId => (
+                          <Badge 
+                            key={detailId} 
+                            variant="secondary"
+                            className="text-xs py-0.5 flex items-center gap-1"
+                          >
+                            {getDisplayName(detailId)}
+                            <X 
+                              size={12} 
+                              className="cursor-pointer hover:text-red-400"
+                              onClick={() => removeConnection(listId, detailId)}
+                            />
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

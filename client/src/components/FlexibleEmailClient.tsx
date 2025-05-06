@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { TabProvider } from '../context/TabContext';
 import { DragProvider } from '../context/DragContext';
 import { DependencyProvider, useDependencyContext } from '../context/DependencyContext';
+import { PanelDependencyProvider } from '../context/PanelDependencyContext';
+import { FlexibleEmailDependencyProvider } from '../hooks/useFlexibleEmailDependency.tsx';
 import { PanelManager } from './PanelManager';
 import TopNavbar from './TopNavbar';
 import registerComponents from '../lib/componentRegistry.setup';
@@ -11,6 +13,8 @@ import { connectEmailComponents, createTestEmail } from '../lib/dependency/testE
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import { DependencyDataTypes, DependencyDefinition, DependencyStatus } from '../lib/dependency/DependencyInterfaces';
+import { FlexibleEmailDebugPanel } from './FlexibleEmailDebugPanel';
+import { useFlexibleEmailDependency } from '../hooks/useFlexibleEmailDependency.tsx';
 
 export function FlexibleEmailClient() {
   // Initialize component registry only once on app start
@@ -23,12 +27,16 @@ export function FlexibleEmailClient() {
     <TabProvider>
       <DragProvider>
         <DependencyProvider>
-          <div className="h-screen w-screen flex flex-col overflow-hidden bg-neutral-950 text-white">
-            <Header />
-            <main className="flex-1 overflow-hidden">
-              <EmailClientContent />
-            </main>
-          </div>
+          <PanelDependencyProvider>
+            <FlexibleEmailDependencyProvider>
+              <div className="h-screen w-screen flex flex-col overflow-hidden bg-neutral-950 text-white">
+                <Header />
+                <main className="flex-1 overflow-hidden">
+                  <EmailClientContent />
+                </main>
+              </div>
+            </FlexibleEmailDependencyProvider>
+          </PanelDependencyProvider>
         </DependencyProvider>
       </DragProvider>
     </TabProvider>
@@ -384,11 +392,20 @@ function DependencyTester() {
 }
 
 function EmailClientContent() {
+  const emailBridge = useFlexibleEmailDependency();
+  
   return (
-    <div className="h-full w-full">
-      <PanelManager />
-      <DragManager />
-      <DependencyTester />
+    <div className="h-full w-full flex">
+      <div className="flex-1">
+        <PanelManager />
+        <DragManager />
+        <DependencyTester />
+      </div>
+      
+      {/* Debug Panel */}
+      <div className="w-80 border-l border-neutral-800 overflow-hidden">
+        <FlexibleEmailDebugPanel emailBridge={emailBridge} />
+      </div>
     </div>
   );
 }

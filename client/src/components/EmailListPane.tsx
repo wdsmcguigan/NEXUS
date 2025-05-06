@@ -13,6 +13,7 @@ import { useTagContext, TagItem } from '../context/TagContext';
 import { useDependencyProvider } from '../hooks/useDependencyHooks';
 import { DependencyDataTypes, DependencySyncStrategy } from '../lib/dependency/DependencyInterfaces';
 import { useEmailListPanel } from '../context/PanelDependencyContext';
+import { useFlexibleEmailListPane } from '../hooks/useFlexibleEmailDependency.tsx';
 import { toast } from '../hooks/use-toast';
 
 interface EmailListPaneProps {

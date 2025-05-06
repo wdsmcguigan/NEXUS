@@ -1,352 +1,484 @@
 /**
- * PanelDependencyBridge.ts
+ * PanelDependencyBridge
  * 
- * This file creates a bridge between the Panel/Tab system and the Dependency system.
- * It maps TabIDs to ComponentIDs consistently, handles component lifecycle events,
- * and ensures proper communication between the two systems.
+ * This component bridges the panel system and the dependency system,
+ * allowing components in panels to register and communicate with
+ * the dependency system.
  */
 
-import { DependencyManager } from './DependencyManager';
-import { DependencyRegistry } from './DependencyRegistry';
-import { DependencyDataTypes, DependencyStatus } from './DependencyInterfaces';
+import { 
+  DependencyDefinition, 
+  DependencyStatus,
+  DependencyDataTypes
+} from './DependencyInterfaces';
 import { EventEmitter } from '../utils/EventEmitter';
+import { DependencyRegistryExtended } from './DependencyRegistryExtended';
+import { DependencyManagerExtended } from './DependencyManagerExtended';
 
-// Events that the bridge will emit or listen for
-export enum PanelDependencyEvents {
-  COMPONENT_MOUNTED = 'component_mounted',
-  COMPONENT_UNMOUNTED = 'component_unmounted',
-  COMPONENT_FOCUSED = 'component_focused',
-  COMPONENT_BLURRED = 'component_blurred',
-  DATA_UPDATED = 'data_updated',
-  DEPENDENCY_CREATED = 'dependency_created',
-  DEPENDENCY_REMOVED = 'dependency_removed',
-  DEPENDENCY_STATUS_CHANGED = 'dependency_status_changed',
-}
+// Define the types of components supported in panels
+export type PanelComponentType = 'EmailListPane' | 'EmailDetailPane' | 'TagPane' | 'SearchPane' | 'TemplatePane' | 'SettingsPane' | 'Other';
 
-// The component type (matches our email components)
-export enum PanelComponentType {
-  EMAIL_LIST = 'EMAIL_LIST',
-  EMAIL_DETAIL = 'EMAIL_DETAIL',
-}
-
-// The shape of the component registration data
-export interface ComponentRegistrationData {
+// Structure to store component/panel registration
+export interface PanelComponentRegistration {
   tabId: string;
   panelId: string;
-  instanceId: string; // May be different from tabId due to React component lifecycle
   componentType: PanelComponentType;
-  metadata?: Record<string, any>;
+  componentId: string;
+  isActive: boolean;
 }
 
 /**
- * PanelDependencyBridge class handles communication between the Panel system and Dependency system
+ * Bridge between Panel system and Dependency system
  */
 export class PanelDependencyBridge {
-  private static instance: PanelDependencyBridge;
-  private registry: DependencyRegistry;
-  private manager: DependencyManager;
-  private eventEmitter: EventEmitter;
+  private registry: DependencyRegistryExtended;
+  private manager: DependencyManagerExtended;
+  private eventEmitter: EventEmitter = new EventEmitter();
   
-  // Maps tab IDs to component IDs for consistent lookup
-  private tabToComponentMap: Map<string, string> = new Map();
+  // Maps to track component registrations
+  private componentsByTab: Map<string, PanelComponentRegistration> = new Map();
+  private componentsByPanel: Map<string, Set<string>> = new Map(); // panelId -> Set<tabId>
+  private componentsByType: Map<PanelComponentType, Set<string>> = new Map(); // type -> Set<tabId>
   
-  // Maps component types to their tab IDs for quick lookup
-  private componentTypeMap: Map<PanelComponentType, Set<string>> = new Map();
-  
-  // Track active component state
-  private activeComponents: Set<string> = new Set();
-  
-  // Track registered components
-  private registeredComponents: Map<string, ComponentRegistrationData> = new Map();
-
-  /**
-   * Private constructor to enforce singleton pattern
-   */
-  private constructor(registry: DependencyRegistry, manager: DependencyManager) {
+  constructor(registry: DependencyRegistryExtended, manager: DependencyManagerExtended) {
     this.registry = registry;
     this.manager = manager;
-    this.eventEmitter = new EventEmitter();
     
-    // Initialize component type map
-    Object.values(PanelComponentType).forEach(type => {
-      this.componentTypeMap.set(type, new Set());
-    });
+    // Set up listeners for both systems
+    this.setupListeners();
     
-    // Set up event listeners
-    this.setupEventListeners();
+    console.log('[PanelDependencyBridge] Initialized');
   }
-
+  
   /**
-   * Get the singleton instance of the bridge
+   * Set up event listeners for both the panel and dependency systems
    */
-  public static getInstance(registry: DependencyRegistry, manager: DependencyManager): PanelDependencyBridge {
-    if (!PanelDependencyBridge.instance) {
-      PanelDependencyBridge.instance = new PanelDependencyBridge(registry, manager);
-    }
-    return PanelDependencyBridge.instance;
-  }
-
-  /**
-   * Set up event listeners for the bridge
-   */
-  private setupEventListeners() {
-    // Listen for dependency status changes from the registry
-    this.registry.on('dependencyStatusChanged', (dependencyId: string, status: DependencyStatus) => {
-      // Emit event to listeners
-      this.eventEmitter.emit(PanelDependencyEvents.DEPENDENCY_STATUS_CHANGED, { dependencyId, status });
+  private setupListeners(): void {
+    // Listen for panel events
+    this.on('panelTabActivated', this.handleTabActivated.bind(this));
+    this.on('panelTabClosed', this.handleTabClosed.bind(this));
+    this.on('panelClosed', this.handlePanelClosed.bind(this));
+    this.on('componentRegister', this.handleComponentRegister.bind(this));
+    this.on('componentUnregister', this.handleComponentUnregister.bind(this));
+    this.on('componentFocus', this.handleComponentFocus.bind(this));
+    this.on('componentBlur', this.handleComponentBlur.bind(this));
+    
+    // Listen for dependency system events
+    this.registry.on('dependencyStatusChanged', (data: any) => {
+      const { dependencyId, status } = data;
+      this.emit('dependencyStatusChanged', { dependencyId, status });
       
-      console.log(`[PanelDependencyBridge] Dependency ${dependencyId} status changed to ${status}`);
+      // If a connection is created or removed, schedule a sync
+      if (status === DependencyStatus.CONNECTED || status === DependencyStatus.DISCONNECTED) {
+        this.scheduleDependencySync();
+      }
     });
     
-    // Listen for data updates from the manager
-    this.manager.on('dataUpdated', (dependencyId: string, data: any) => {
-      // Emit event to listeners
-      this.eventEmitter.emit(PanelDependencyEvents.DATA_UPDATED, { dependencyId, data });
-      
-      console.log(`[PanelDependencyBridge] Data updated for dependency ${dependencyId}`);
+    this.manager.on('dataUpdated', (data: any) => {
+      const { componentId, dataType, dependencyId } = data;
+      this.emit('dataUpdated', { componentId, dataType, dependencyId, data: data.data });
     });
+    
+    // Set up interval to check for compatible components
+    setInterval(() => this.findCompatibleComponents(), 5000);
   }
-
+  
+  /**
+   * Subscribe to bridge events
+   */
+  on<T>(eventName: string, callback: (data: T) => void): () => void {
+    return this.eventEmitter.on(eventName, callback);
+  }
+  
+  /**
+   * Unsubscribe from bridge events
+   */
+  off(eventName: string, callback: Function): void {
+    this.eventEmitter.off(eventName, callback);
+  }
+  
+  /**
+   * Emit an event from the bridge
+   */
+  emit<T>(eventName: string, data: T): void {
+    this.eventEmitter.emit(eventName, data);
+  }
+  
   /**
    * Register a component with the bridge
    */
-  public registerComponent(data: ComponentRegistrationData): void {
-    const { tabId, panelId, instanceId, componentType } = data;
-    
-    // Normalize the component ID to ensure consistency across the component lifecycle
-    // Format: _COMPONENT_TYPE_-tabId 
-    // This allows components to be recreated with different instance IDs (React) but still be recognized
-    const normalizedComponentId = `_${componentType}_-${tabId}`;
-    
-    console.log(`[PanelDependencyBridge] Registering component: ${normalizedComponentId} (tabId: ${tabId}, type: ${componentType})`);
-    
-    // Store the mapping
-    this.tabToComponentMap.set(tabId, normalizedComponentId);
-    this.componentTypeMap.get(componentType)?.add(tabId);
-    this.registeredComponents.set(normalizedComponentId, {
-      ...data,
-      instanceId: normalizedComponentId // Override the instance ID with our normalized ID
-    });
-    
-    // Emit component mounted event
-    this.eventEmitter.emit(PanelDependencyEvents.COMPONENT_MOUNTED, {
+  registerComponent(
+    tabId: string, 
+    panelId: string, 
+    componentType: PanelComponentType, 
+    componentId: string
+  ): void {
+    // Store the registration
+    this.componentsByTab.set(tabId, {
       tabId,
       panelId,
-      componentId: normalizedComponentId,
-      componentType
+      componentType,
+      componentId,
+      isActive: false
     });
     
-    console.log(`[PanelDependencyBridge] Component registered successfully: ${normalizedComponentId}`);
+    // Add to the panel map
+    if (!this.componentsByPanel.has(panelId)) {
+      this.componentsByPanel.set(panelId, new Set());
+    }
+    this.componentsByPanel.get(panelId)!.add(tabId);
+    
+    // Add to the type map
+    if (!this.componentsByType.has(componentType)) {
+      this.componentsByType.set(componentType, new Set());
+    }
+    this.componentsByType.get(componentType)!.add(tabId);
+    
+    console.log(`[PanelDependencyBridge] Component ${componentId} registered in tab ${tabId}, panel ${panelId}`);
+    
+    // Emit event
+    this.emit('componentRegistered', { tabId, panelId, componentType, componentId });
+    
+    // Schedule a check for compatible components
+    this.scheduleDependencySync();
   }
-
+  
   /**
    * Unregister a component from the bridge
    */
-  public unregisterComponent(tabId: string): void {
-    const componentId = this.tabToComponentMap.get(tabId);
+  unregisterComponent(tabId: string): void {
+    const registration = this.componentsByTab.get(tabId);
     
-    if (!componentId) {
-      console.warn(`[PanelDependencyBridge] Cannot unregister component for tabId ${tabId}: Not found`);
+    if (!registration) {
       return;
     }
     
-    console.log(`[PanelDependencyBridge] Unregistering component: ${componentId} (tabId: ${tabId})`);
+    const { panelId, componentType, componentId } = registration;
     
-    // Get component data before removal
-    const componentData = this.registeredComponents.get(componentId);
-    if (!componentData) {
-      console.warn(`[PanelDependencyBridge] Component data not found for ${componentId}`);
-      return;
+    // Remove from the tab map
+    this.componentsByTab.delete(tabId);
+    
+    // Remove from the panel map
+    if (this.componentsByPanel.has(panelId)) {
+      this.componentsByPanel.get(panelId)!.delete(tabId);
+      
+      if (this.componentsByPanel.get(panelId)!.size === 0) {
+        this.componentsByPanel.delete(panelId);
+      }
     }
     
-    // Remove from maps
-    this.tabToComponentMap.delete(tabId);
-    this.componentTypeMap.get(componentData.componentType)?.delete(tabId);
-    this.registeredComponents.delete(componentId);
-    this.activeComponents.delete(componentId);
+    // Remove from the type map
+    if (this.componentsByType.has(componentType)) {
+      this.componentsByType.get(componentType)!.delete(tabId);
+      
+      if (this.componentsByType.get(componentType)!.size === 0) {
+        this.componentsByType.delete(componentType);
+      }
+    }
     
-    // Emit component unmounted event
-    this.eventEmitter.emit(PanelDependencyEvents.COMPONENT_UNMOUNTED, {
-      tabId,
-      componentId,
-      componentType: componentData.componentType
-    });
+    console.log(`[PanelDependencyBridge] Component ${componentId} unregistered from tab ${tabId}`);
     
-    console.log(`[PanelDependencyBridge] Component unregistered successfully: ${componentId}`);
+    // Emit event
+    this.emit('componentUnregistered', { tabId, panelId, componentType, componentId });
   }
-
+  
   /**
-   * Focus a component (tab activated)
+   * Handle a tab becoming active
    */
-  public focusComponent(tabId: string): void {
-    const componentId = this.tabToComponentMap.get(tabId);
+  private handleTabActivated(data: { tabId: string, panelId: string }): void {
+    const { tabId, panelId } = data;
+    const registration = this.componentsByTab.get(tabId);
     
-    if (!componentId) {
+    if (!registration) {
+      console.warn(`[PanelDependencyBridge] Cannot activate tab ${tabId} in panel ${panelId}: Not registered`);
+      return;
+    }
+    
+    // Update active state
+    registration.isActive = true;
+    
+    // Mark other tabs in the same panel as inactive
+    if (this.componentsByPanel.has(panelId)) {
+      for (const otherTabId of this.componentsByPanel.get(panelId)!) {
+        if (otherTabId !== tabId) {
+          const otherRegistration = this.componentsByTab.get(otherTabId);
+          
+          if (otherRegistration) {
+            otherRegistration.isActive = false;
+          }
+        }
+      }
+    }
+    
+    console.log(`[PanelDependencyBridge] Tab ${tabId} activated in panel ${panelId}`);
+    
+    // Focus the component
+    this.focusComponent(tabId);
+  }
+  
+  /**
+   * Handle a tab being closed
+   */
+  private handleTabClosed(data: { tabId: string }): void {
+    const { tabId } = data;
+    this.unregisterComponent(tabId);
+  }
+  
+  /**
+   * Handle a panel being closed
+   */
+  private handlePanelClosed(data: { panelId: string }): void {
+    const { panelId } = data;
+    
+    if (!this.componentsByPanel.has(panelId)) {
+      return;
+    }
+    
+    // Copy the set to avoid modification during iteration
+    const tabIds = Array.from(this.componentsByPanel.get(panelId)!);
+    
+    // Unregister all components in the panel
+    for (const tabId of tabIds) {
+      this.unregisterComponent(tabId);
+    }
+    
+    console.log(`[PanelDependencyBridge] Panel ${panelId} closed`);
+  }
+  
+  /**
+   * Focus a component
+   */
+  private focusComponent(tabId: string): void {
+    const registration = this.componentsByTab.get(tabId);
+    
+    if (!registration) {
       console.warn(`[PanelDependencyBridge] Cannot focus component for tabId ${tabId}: Not found`);
       return;
     }
     
-    console.log(`[PanelDependencyBridge] Focusing component: ${componentId} (tabId: ${tabId})`);
+    const { componentId } = registration;
     
-    // Add to active components
-    this.activeComponents.add(componentId);
+    // Emit an event for this
+    this.emit('componentFocused', { tabId, componentId });
     
-    // Emit component focused event
-    this.eventEmitter.emit(PanelDependencyEvents.COMPONENT_FOCUSED, {
-      tabId,
-      componentId
-    });
+    console.log(`[PanelDependencyBridge] Component ${componentId} focused`);
   }
-
+  
   /**
-   * Blur a component (tab deactivated)
+   * Handle component registration from React component
    */
-  public blurComponent(tabId: string): void {
-    const componentId = this.tabToComponentMap.get(tabId);
+  private handleComponentRegister(data: { 
+    tabId: string, 
+    panelId: string, 
+    componentType: PanelComponentType, 
+    componentId: string 
+  }): void {
+    const { tabId, panelId, componentType, componentId } = data;
+    this.registerComponent(tabId, panelId, componentType, componentId);
+  }
+  
+  /**
+   * Handle component unregistration from React component
+   */
+  private handleComponentUnregister(data: { tabId: string }): void {
+    const { tabId } = data;
+    this.unregisterComponent(tabId);
+  }
+  
+  /**
+   * Handle component focus from React component
+   */
+  private handleComponentFocus(data: { tabId: string }): void {
+    const { tabId } = data;
     
-    if (!componentId) {
-      console.warn(`[PanelDependencyBridge] Cannot blur component for tabId ${tabId}: Not found`);
+    const registration = this.componentsByTab.get(tabId);
+    
+    if (!registration) {
+      console.warn(`[PanelDependencyBridge] Cannot focus component for tabId ${tabId}: Not found`);
       return;
     }
     
-    console.log(`[PanelDependencyBridge] Blurring component: ${componentId} (tabId: ${tabId})`);
+    // Set as active
+    registration.isActive = true;
     
-    // Remove from active components
-    this.activeComponents.delete(componentId);
-    
-    // Emit component blurred event
-    this.eventEmitter.emit(PanelDependencyEvents.COMPONENT_BLURRED, {
-      tabId,
-      componentId
-    });
+    // Focus the component
+    this.focusComponent(tabId);
   }
-
+  
   /**
-   * Get the normalized component ID for a tab ID
+   * Handle component blur from React component
    */
-  public getComponentIdForTab(tabId: string): string | undefined {
-    return this.tabToComponentMap.get(tabId);
-  }
-
-  /**
-   * Find compatible dependency pairs (EMAIL_LIST -> EMAIL_DETAIL)
-   */
-  public findCompatiblePairs(): { providerId: string, consumerId: string }[] {
-    const pairs: { providerId: string, consumerId: string }[] = [];
+  private handleComponentBlur(data: { tabId: string }): void {
+    const { tabId } = data;
     
-    // Get all registered EMAIL_LIST components
-    const listTabs = Array.from(this.componentTypeMap.get(PanelComponentType.EMAIL_LIST) || []);
-    const detailTabs = Array.from(this.componentTypeMap.get(PanelComponentType.EMAIL_DETAIL) || []);
+    const registration = this.componentsByTab.get(tabId);
     
-    // Match each list with each detail
-    for (const listTabId of listTabs) {
-      const providerId = this.tabToComponentMap.get(listTabId);
-      if (!providerId) continue;
-      
-      for (const detailTabId of detailTabs) {
-        const consumerId = this.tabToComponentMap.get(detailTabId);
-        if (!consumerId) continue;
-        
-        pairs.push({ providerId, consumerId });
-      }
-    }
-    
-    return pairs;
-  }
-
-  /**
-   * Create dependencies between compatible components
-   */
-  public createDependenciesBetweenCompatibleComponents(): void {
-    const pairs = this.findCompatiblePairs();
-    console.log(`[PanelDependencyBridge] Found ${pairs.length} compatible pairs`);
-    
-    for (const { providerId, consumerId } of pairs) {
-      // Check if dependency already exists
-      const existingDeps = this.registry.getDependenciesByProvider(providerId)
-        .filter(dep => dep.consumerId === consumerId);
-      
-      if (existingDeps.length > 0) {
-        console.log(`[PanelDependencyBridge] Dependency already exists between ${providerId} and ${consumerId}`);
-        continue;
-      }
-      
-      // Create a new dependency
-      const dependency = this.registry.createDependency(
-        providerId,
-        consumerId,
-        DependencyDataTypes.EMAIL_DATA
-      );
-      
-      if (dependency) {
-        console.log(`[PanelDependencyBridge] Created new dependency: ${dependency.id}`);
-        
-        // Set dependency to READY state
-        this.registry.updateDependencyStatus(dependency.id, DependencyStatus.READY);
-        
-        // Emit dependency created event
-        this.eventEmitter.emit(PanelDependencyEvents.DEPENDENCY_CREATED, {
-          dependencyId: dependency.id,
-          providerId,
-          consumerId
-        });
-      } else {
-        console.error(`[PanelDependencyBridge] Failed to create dependency between ${providerId} and ${consumerId}`);
-      }
-    }
-  }
-
-  /**
-   * Subscribe to bridge events
-   */
-  public on<T>(event: PanelDependencyEvents, callback: (data: T) => void): () => void {
-    return this.eventEmitter.on(event, callback);
-  }
-
-  /**
-   * Unsubscribe from bridge events
-   */
-  public off(event: PanelDependencyEvents, callback: Function): void {
-    this.eventEmitter.off(event, callback);
-  }
-
-  /**
-   * Update data for a component
-   */
-  public updateComponentData(tabId: string, dataType: DependencyDataTypes, data: any): void {
-    const componentId = this.tabToComponentMap.get(tabId);
-    
-    if (!componentId) {
-      console.warn(`[PanelDependencyBridge] Cannot update data for tabId ${tabId}: Not found`);
+    if (!registration) {
       return;
     }
     
-    console.log(`[PanelDependencyBridge] Updating data for component: ${componentId} (tabId: ${tabId})`);
+    // Set as inactive
+    registration.isActive = false;
     
-    // Update data through manager
-    this.manager.updateData(componentId, dataType, data);
+    // Emit an event
+    this.emit('componentBlurred', { tabId, componentId: registration.componentId });
   }
-
+  
   /**
-   * DEBUG: Print the current state of the bridge
+   * Schedule a check for compatible components
    */
-  public debugState(): void {
-    console.log('======= PanelDependencyBridge Debug State =======');
-    console.log('Tab to Component Map:', Array.from(this.tabToComponentMap.entries()));
+  private scheduleDependencySync(): void {
+    // Use setTimeout to debounce the operation
+    setTimeout(() => this.findCompatibleComponents(), 500);
+  }
+  
+  /**
+   * Find compatible components that could be connected
+   */
+  private findCompatibleComponents(): void {
+    // Scan for potential email pane pairs to connect
+    const emailListPanes = Array.from(this.componentsByType.get('EmailListPane') || [])
+      .map(tabId => this.componentsByTab.get(tabId))
+      .filter(Boolean) as PanelComponentRegistration[];
     
-    for (const [type, tabs] of this.componentTypeMap.entries()) {
-      console.log(`Component Type ${type}:`, Array.from(tabs));
+    const emailDetailPanes = Array.from(this.componentsByType.get('EmailDetailPane') || [])
+      .map(tabId => this.componentsByTab.get(tabId))
+      .filter(Boolean) as PanelComponentRegistration[];
+    
+    // Look for active pairs
+    const activePairs: Array<[PanelComponentRegistration, PanelComponentRegistration]> = [];
+    
+    for (const listPane of emailListPanes) {
+      for (const detailPane of emailDetailPanes) {
+        if (listPane.isActive && detailPane.isActive) {
+          activePairs.push([listPane, detailPane]);
+        }
+      }
     }
     
-    console.log('Active Components:', Array.from(this.activeComponents));
-    console.log('Registered Components:', Array.from(this.registeredComponents.entries()));
-    console.log('===============================================');
+    console.log(`[PanelDependencyBridge] Found ${activePairs.length} compatible pairs`);
+    
+    // Suggest connections for these pairs
+    for (const [listPane, detailPane] of activePairs) {
+      // Check if they're already connected
+      const existingDependencies = this.registry.getDependenciesByProvider(listPane.componentId)
+        .filter(dep => dep.consumerId === detailPane.componentId && dep.dataType === DependencyDataTypes.EMAIL);
+      
+      if (existingDependencies.length === 0) {
+        // No existing connection, suggest one
+        this.suggestConnection(listPane.componentId, detailPane.componentId);
+      }
+    }
+    
+    // Update UI to reflect connection status
+    this.emit('compatibleComponentsUpdated', { pairs: activePairs });
   }
-}
-
-/**
- * Helper function to create a new event emitter
- */
-export function createPanelDependencyBridge(registry: DependencyRegistry, manager: DependencyManager): PanelDependencyBridge {
-  return PanelDependencyBridge.getInstance(registry, manager);
+  
+  /**
+   * Suggest a connection between two components
+   */
+  private suggestConnection(providerId: string, consumerId: string): void {
+    // Emit event to suggest a connection
+    this.emit('connectionSuggested', { 
+      providerId, 
+      consumerId, 
+      dataType: DependencyDataTypes.EMAIL 
+    });
+    
+    console.log(`[PanelDependencyBridge] Suggesting connection from ${providerId} to ${consumerId}`);
+  }
+  
+  /**
+   * Create a connection between components
+   */
+  createConnection(
+    providerId: string, 
+    consumerId: string, 
+    dataType: DependencyDataTypes = DependencyDataTypes.EMAIL
+  ): void {
+    // Check if the components exist
+    const providerRegistration = Array.from(this.componentsByTab.values())
+      .find(reg => reg.componentId === providerId);
+    
+    const consumerRegistration = Array.from(this.componentsByTab.values())
+      .find(reg => reg.componentId === consumerId);
+    
+    if (!providerRegistration || !consumerRegistration) {
+      console.warn(`[PanelDependencyBridge] Cannot create connection: Component not found`);
+      return;
+    }
+    
+    // Find matching definitions
+    const providerDefinitions = this.registry.getDefinitionsByComponent(providerId)
+      .filter(def => def.role === 'provider' && def.dataType === dataType);
+    
+    const consumerDefinitions = this.registry.getDefinitionsByComponent(consumerId)
+      .filter(def => def.role === 'consumer' && def.dataType === dataType);
+    
+    if (providerDefinitions.length === 0 || consumerDefinitions.length === 0) {
+      console.warn(`[PanelDependencyBridge] Cannot create connection: No matching definitions found`);
+      return;
+    }
+    
+    // Create the dependency
+    const dependency = this.registry.createDependency(providerDefinitions[0].id, consumerDefinitions[0].id);
+    
+    console.log(`[PanelDependencyBridge] Created connection: ${dependency.id}`);
+    
+    // Emit event
+    this.emit('connectionCreated', { 
+      dependencyId: dependency.id, 
+      providerId, 
+      consumerId, 
+      dataType 
+    });
+  }
+  
+  /**
+   * Get active components by type
+   */
+  getActiveComponentsByType(type: PanelComponentType): string[] {
+    const components: string[] = [];
+    
+    if (this.componentsByType.has(type)) {
+      for (const tabId of this.componentsByType.get(type)!) {
+        const registration = this.componentsByTab.get(tabId);
+        
+        if (registration && registration.isActive) {
+          components.push(registration.componentId);
+        }
+      }
+    }
+    
+    return components;
+  }
+  
+  /**
+   * Get all registered component IDs
+   */
+  getAllComponentIds(): string[] {
+    return Array.from(this.componentsByTab.values()).map(reg => reg.componentId);
+  }
+  
+  /**
+   * Debug - get registration info for a tab
+   */
+  getRegistrationForTab(tabId: string): PanelComponentRegistration | undefined {
+    return this.componentsByTab.get(tabId);
+  }
+  
+  /**
+   * Debug - get registration info for a component
+   */
+  getRegistrationForComponent(componentId: string): PanelComponentRegistration | undefined {
+    return Array.from(this.componentsByTab.values())
+      .find(reg => reg.componentId === componentId);
+  }
+  
+  /**
+   * Debug - get all registrations
+   */
+  getAllRegistrations(): PanelComponentRegistration[] {
+    return Array.from(this.componentsByTab.values());
+  }
 }

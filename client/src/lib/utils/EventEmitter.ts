@@ -1,50 +1,42 @@
 /**
- * A simple event emitter implementation for TypeScript
- * Used by the PanelDependencyBridge to emit and listen for events
+ * A simple event emitter that supports typed events
  */
-
 export class EventEmitter {
-  private events: Map<string, Function[]> = new Map();
+  private events: Map<string, Set<Function>> = new Map();
 
   /**
    * Subscribe to an event
    * @param eventName The name of the event to subscribe to
-   * @param callback The function to call when the event occurs
+   * @param callback The callback to call when the event is emitted
    * @returns A function to unsubscribe from the event
    */
-  public on<T>(eventName: string, callback: (data: T) => void): () => void {
-    // Get or create the event listeners array
-    const listeners = this.events.get(eventName) || [];
-    
-    // Add the callback to the listeners
-    listeners.push(callback);
-    
-    // Store the updated listeners
-    this.events.set(eventName, listeners);
-    
-    // Return an unsubscribe function
+  on<T>(eventName: string, callback: (data: T) => void): () => void {
+    // Get or create the set of callbacks for this event
+    if (!this.events.has(eventName)) {
+      this.events.set(eventName, new Set());
+    }
+
+    // Add the callback to the set
+    this.events.get(eventName)!.add(callback);
+
+    // Return a function to unsubscribe
     return () => this.off(eventName, callback);
   }
 
   /**
    * Unsubscribe from an event
    * @param eventName The name of the event to unsubscribe from
-   * @param callback The function to remove from the event listeners
+   * @param callback The callback to unsubscribe
    */
-  public off(eventName: string, callback: Function): void {
-    // Get the event listeners
-    const listeners = this.events.get(eventName);
-    
-    // If there are no listeners, do nothing
-    if (!listeners) return;
-    
-    // Filter out the callback
-    const filteredListeners = listeners.filter(listener => listener !== callback);
-    
-    // Store the updated listeners or remove the event if there are no listeners
-    if (filteredListeners.length > 0) {
-      this.events.set(eventName, filteredListeners);
-    } else {
+  off(eventName: string, callback: Function): void {
+    if (!this.events.has(eventName)) {
+      return;
+    }
+
+    this.events.get(eventName)!.delete(callback);
+
+    // Clean up if there are no more callbacks
+    if (this.events.get(eventName)!.size === 0) {
       this.events.delete(eventName);
     }
   }
@@ -52,36 +44,57 @@ export class EventEmitter {
   /**
    * Emit an event
    * @param eventName The name of the event to emit
-   * @param data The data to pass to the listeners
+   * @param data The data to pass to the callbacks
    */
-  public emit<T>(eventName: string, data: T): void {
-    // Get the event listeners
-    const listeners = this.events.get(eventName);
-    
-    // If there are no listeners, do nothing
-    if (!listeners) return;
-    
-    // Call each listener with the data
-    listeners.forEach(listener => {
+  emit<T>(eventName: string, data: T): void {
+    if (!this.events.has(eventName)) {
+      return;
+    }
+
+    // Call all callbacks for this event with the provided data
+    const callbacks = Array.from(this.events.get(eventName)!);
+    for (const callback of callbacks) {
       try {
-        listener(data);
+        callback(data);
       } catch (error) {
-        console.error(`Error in event listener for ${eventName}:`, error);
+        console.error(`Error in event handler for ${eventName}:`, error);
       }
-    });
+    }
   }
 
   /**
-   * Remove all listeners for an event
-   * @param eventName The name of the event to clear listeners for
+   * Remove all subscriptions for an event
+   * @param eventName The name of the event to clear
    */
-  public removeAllListeners(eventName?: string): void {
-    if (eventName) {
-      // Remove all listeners for the specified event
-      this.events.delete(eventName);
-    } else {
-      // Remove all listeners for all events
-      this.events.clear();
+  clearEvent(eventName: string): void {
+    this.events.delete(eventName);
+  }
+
+  /**
+   * Remove all subscriptions
+   */
+  clearAll(): void {
+    this.events.clear();
+  }
+
+  /**
+   * Get the number of subscribers for an event
+   * @param eventName The name of the event
+   * @returns The number of subscribers
+   */
+  subscriberCount(eventName: string): number {
+    if (!this.events.has(eventName)) {
+      return 0;
     }
+
+    return this.events.get(eventName)!.size;
+  }
+
+  /**
+   * List all event names that have subscribers
+   * @returns Array of event names
+   */
+  eventNames(): string[] {
+    return Array.from(this.events.keys());
   }
 }

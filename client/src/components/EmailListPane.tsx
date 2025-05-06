@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Mail, Star, Paperclip, Tag, Clock, Trash, Archive } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { apiRequest } from '../lib/queryClient';
-import type { Email, Contact, Tag as TagType, StarColor } from '../types/schema';
+import type { Email, Contact, Tag as TagType, StarColor } from '../shared/schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,7 @@ import tabFactory from '../services/TabFactory';
 import { useTagContext, TagItem } from '../context/TagContext';
 import { useDependencyProvider } from '../hooks/useDependencyHooks';
 import { DependencyDataTypes, DependencySyncStrategy } from '../lib/dependency/DependencyInterfaces';
+import { useEmailListPanel } from '../context/PanelDependencyContext';
 import { toast } from '../hooks/use-toast';
 
 interface EmailListPaneProps {
@@ -21,9 +22,9 @@ interface EmailListPaneProps {
 }
 
 export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
-  // Add type prefix to tabId for dependency matching
-  const instanceId = tabId ? `_EMAIL_LIST_${tabId}` : '_EMAIL_LIST_default';
-
+  // Component should have a panel ID from the parent
+  const panelId = props.panelId || 'defaultPanel';
+  
   const [emails, setEmails] = useState<(Email & { fromContact?: Contact, tags?: (TagType & { id: number })[] })[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,7 +33,12 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
   const tabContext = useTabContext();
   const { tags: globalTags } = useTagContext();
   
-  // Register as dependency provider for selected email data
+  // Register with both dependency systems for backward compatibility
+  
+  // 1. Legacy system
+  // Add type prefix to tabId for dependency matching
+  const instanceId = tabId ? `_EMAIL_LIST_${tabId}` : '_EMAIL_LIST_default';
+  
   const dependencyProvider = useDependencyProvider<Email>(
     instanceId,
     DependencyDataTypes.EMAIL_DATA,
@@ -42,7 +48,10 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
     }
   );
   
-  // Extract the methods we need from the provider
+  // 2. Panel dependency system
+  const { updateSelectedEmail, componentId } = useEmailListPanel(tabId || 'default', panelId);
+  
+  // Extract the methods we need from the legacy provider
   const updateSelectedEmailData = dependencyProvider.updateProviderData;
   const getDependentConsumers = dependencyProvider.getDependentConsumers;
   const connectionCount = useMemo(() => {
@@ -53,7 +62,8 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
   useEffect(() => {
     console.log(`[EmailListPane ${tabId}] Provider registered:`, dependencyProvider.isRegistered);
     console.log(`[EmailListPane ${tabId}] Connected consumers:`, getDependentConsumers());
-  }, [tabId, dependencyProvider.isRegistered, getDependentConsumers]);
+    console.log(`[EmailListPane ${tabId}] Panel component ID:`, componentId);
+  }, [tabId, dependencyProvider.isRegistered, getDependentConsumers, componentId]);
 
   // Fetch emails for the current view/category
   useEffect(() => {
@@ -263,8 +273,12 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
       console.log(`[EmailListPane ${tabId}] Connection count:`, connectionCount);
       
       if (selectedEmail) {
-        // Always update the dependency data with the selected email
+        // Update both dependency systems
+        // 1. Legacy system
         updateSelectedEmailData(selectedEmail);
+        
+        // 2. Panel dependency system
+        updateSelectedEmail(selectedEmail);
         
         if (connectionCount > 0) {
           // Show toast notification to make dependency connection clear to user
@@ -280,9 +294,12 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
     } else {
       // Send null when no email is selected
       console.log(`[EmailListPane ${tabId}] No email selected, sending null to consumers`);
+      
+      // Update both dependency systems with null
       updateSelectedEmailData(null);
+      updateSelectedEmail(null);
     }
-  }, [selectedEmailId, emails, connectionCount, tabId, updateSelectedEmailData, getDependentConsumers]);
+  }, [selectedEmailId, emails, connectionCount, tabId, updateSelectedEmailData, updateSelectedEmail, getDependentConsumers]);
 
   // Handle email click with keyboard modifiers
   const handleEmailClick = (e: React.MouseEvent, emailId: number) => {

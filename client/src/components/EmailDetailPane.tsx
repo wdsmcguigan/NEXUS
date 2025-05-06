@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Reply, Forward, Star, FileText, Tag, Clock, Paperclip, ArrowLeft, MoreHorizontal, Download, Trash, Archive } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { apiRequest } from '../lib/queryClient';
-import type { Email, EmailWithDetails, Contact, Tag as TagType, EmailAttachment, StarColor } from '../types/schema';
+import type { Email, EmailWithDetails, Contact, Tag as TagType, EmailAttachment, StarColor } from '../shared/schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { useTagContext, TagItem } from '../context/TagContext';
 import { useDependencyConsumer } from '../hooks/useDependencyHooks';
 import { DependencyDataTypes, DependencySyncStrategy } from '../lib/dependency/DependencyInterfaces';
+import { useEmailDetailPanel } from '../context/PanelDependencyContext';
 import { toast } from '../hooks/use-toast';
 import {
   DropdownMenu,
@@ -29,16 +30,21 @@ interface EmailDetailPaneProps {
 }
 
 export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailDetailPaneProps) {
-  // Add type prefix to tabId for dependency matching
-  const instanceId = tabId ? `_EMAIL_DETAIL_${tabId}` : '_EMAIL_DETAIL_default';
-
+  // Component should have a panel ID from the parent
+  const panelId = props.panelId || 'defaultPanel';
+  
   const [email, setEmail] = useState<EmailWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [replyMode, setReplyMode] = useState(false);
   const [replyText, setReplyText] = useState('');
   const { tags: globalTags } = useTagContext();
   
-  // Register as dependency consumer for email data
+  // Register with both dependency systems for backward compatibility
+  
+  // 1. Legacy system
+  // Add type prefix to tabId for dependency matching
+  const instanceId = tabId ? `_EMAIL_DETAIL_${tabId}` : '_EMAIL_DETAIL_default';
+  
   const dependencyConsumer = useDependencyConsumer<Email>(
     instanceId,
     DependencyDataTypes.EMAIL_DATA,
@@ -48,7 +54,10 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
     }
   );
   
-  // Extract the methods and properties we need from the consumer
+  // 2. Panel dependency system
+  const { email: panelEmail, componentId } = useEmailDetailPanel(tabId || 'default', panelId);
+  
+  // Extract the methods and properties we need from the legacy consumer
   const dependencyEmailData = dependencyConsumer.consumerData;
   const hasProvider = dependencyConsumer.providerId !== null;
   const isConnected = dependencyConsumer.isReady;
@@ -59,15 +68,32 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
     console.log(`[EmailDetailPane ${tabId}] Has provider:`, hasProvider);
     console.log(`[EmailDetailPane ${tabId}] Provider ID:`, dependencyConsumer.providerId);
     console.log(`[EmailDetailPane ${tabId}] Is connected:`, isConnected);
-  }, [tabId, dependencyConsumer.status, hasProvider, dependencyConsumer.providerId, isConnected]);
+    console.log(`[EmailDetailPane ${tabId}] Panel component ID:`, componentId);
+  }, [tabId, dependencyConsumer.status, hasProvider, dependencyConsumer.providerId, isConnected, componentId]);
 
-  // Process dependency data when it's received
+  // Process dependency data when it's received - from either system
   useEffect(() => {
+    // First check panel system
+    if (panelEmail) {
+      console.log(`[EmailDetailPane ${tabId}] Setting email from panel dependency:`, panelEmail);
+      setEmail(panelEmail);
+      setLoading(false);
+      
+      // Show toast to make dependency connection clear
+      toast({
+        title: "Email data received",
+        description: "Loading email data from connected panel",
+        duration: 2000,
+      });
+      return;
+    }
+    
+    // Then check legacy system
     console.log(`[EmailDetailPane ${tabId}] Received dependency data:`, dependencyEmailData);
     
     if (dependencyEmailData) {
       // If we have dependency data, use it 
-      console.log(`[EmailDetailPane ${tabId}] Setting email from dependency data:`, dependencyEmailData);
+      console.log(`[EmailDetailPane ${tabId}] Setting email from legacy dependency:`, dependencyEmailData);
       setEmail(dependencyEmailData);
       setLoading(false);
       
@@ -82,7 +108,7 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
     } else {
       console.log(`[EmailDetailPane ${tabId}] Dependency data is null or undefined`);
     }
-  }, [dependencyEmailData, hasProvider, isConnected, tabId]);
+  }, [dependencyEmailData, hasProvider, isConnected, tabId, panelEmail]);
 
   // Fetch email details if no dependency data
   useEffect(() => {

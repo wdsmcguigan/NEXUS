@@ -1,147 +1,215 @@
 /**
  * PanelDependencyContext.tsx
  * 
- * This context provides the bridge between the Panel system and Dependency system
- * to all components in the application.
+ * This provides a context that connects panel components to the dependency system.
+ * It takes care of registering components with the PanelDependencyBridge.
  */
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useDependencyContext } from './DependencyContext';
-import { useTabContext } from './TabContext';
 import { 
   PanelDependencyBridge, 
-  createPanelDependencyBridge, 
-  PanelDependencyEvents,
   PanelComponentType
 } from '../lib/dependency/PanelDependencyBridge';
-import { DependencyStatus, DependencyDataTypes } from '../lib/dependency/DependencyInterfaces';
+import { nanoid } from 'nanoid';
+import { DependencyDataTypes } from '../lib/dependency/DependencyInterfaces';
 
-// Define the context type
-export interface PanelDependencyContextType {
+// Create context type
+interface PanelDependencyContextType {
   bridge: PanelDependencyBridge;
-  registerPanelComponent: (
-    tabId: string, 
-    panelId: string, 
-    componentType: PanelComponentType,
-    metadata?: Record<string, any>
-  ) => void;
+  registerPanelComponent: (tabId: string, panelId: string, componentType: PanelComponentType, instanceId?: string) => string;
   unregisterPanelComponent: (tabId: string) => void;
   focusPanelComponent: (tabId: string) => void;
-  updatePanelComponentData: (tabId: string, dataType: DependencyDataTypes, data: any) => void;
+  blurPanelComponent: (tabId: string) => void;
+  getComponentId: (tabId: string) => string | undefined;
+  isTabConnected: (tabId: string) => boolean;
+  connectTabs: (sourceTabId: string, targetTabId: string) => void;
+  disconnectTabs: (sourceTabId: string, targetTabId: string) => void;
   createAllCompatibleDependencies: () => void;
-  isDependencyReady: (providerId: string, consumerId: string) => boolean;
   getComponentIdForTab: (tabId: string) => string | undefined;
   showDebugInfo: boolean;
-  setShowDebugInfo: (show: boolean) => void;
 }
 
-// Create the context
-const PanelDependencyContext = createContext<PanelDependencyContextType | undefined>(undefined);
+// Create context
+const PanelDependencyContext = createContext<PanelDependencyContextType | null>(null);
 
 // Provider component
 export function PanelDependencyProvider({ children }: { children: React.ReactNode }) {
-  const dependencyContext = useDependencyContext();
-  const { registry, manager } = dependencyContext;
-  const [bridge, setBridge] = useState<PanelDependencyBridge | null>(null);
-  const [showDebugInfo, setShowDebugInfo] = useState(false);
+  const { registry, manager } = useDependencyContext();
+  const bridgeRef = useRef<PanelDependencyBridge | null>(null);
   
-  // Initialize the bridge
-  useEffect(() => {
-    const bridgeInstance = createPanelDependencyBridge(registry, manager);
-    setBridge(bridgeInstance);
+  // Initialize the bridge if not already created
+  if (!bridgeRef.current) {
+    // Cast to extended types
+    const registryExt = registry as any;
+    const managerExt = manager as any;
     
-    console.log('[PanelDependencyContext] Bridge initialized');
-    
-    return () => {
-      // Clean up event listeners when the context is unmounted
-      console.log('[PanelDependencyContext] Cleaning up bridge');
-    };
-  }, [registry, manager]);
+    // Create the bridge
+    bridgeRef.current = new PanelDependencyBridge(registryExt, managerExt);
+    console.log('[PanelDependencyProvider] Created new bridge');
+  }
   
-  // Register a panel component with the bridge
+  const bridge = bridgeRef.current!;
+  
+  /**
+   * Register a component in a panel
+   */
   const registerPanelComponent = (
     tabId: string, 
     panelId: string, 
     componentType: PanelComponentType,
-    metadata?: Record<string, any>
-  ) => {
-    if (!bridge) return;
+    instanceId?: string
+  ): string => {
+    // Generate a unique component ID if not provided
+    const componentId = instanceId || `${componentType.toLowerCase()}-${nanoid(6)}`;
     
-    bridge.registerComponent({
-      tabId,
-      panelId,
-      instanceId: `${componentType}-${tabId}`,
-      componentType,
-      metadata
-    });
+    // Register with the bridge
+    bridge.registerComponent(tabId, panelId, componentType, componentId);
     
-    console.log(`[PanelDependencyContext] Registered panel component: ${tabId} (${componentType})`);
+    // Fire event directly on the bridge's event emitter
+    bridge.emit('componentRegister', { tabId, panelId, componentType, componentId });
+    
+    console.log(`[PanelDependencyProvider] Registered component ${componentId} in tab ${tabId}, panel ${panelId}`);
+    
+    return componentId;
   };
   
-  // Unregister a panel component from the bridge
-  const unregisterPanelComponent = (tabId: string) => {
-    if (!bridge) return;
+  /**
+   * Unregister a component from a panel
+   */
+  const unregisterPanelComponent = (tabId: string): void => {
+    // Fire event directly on the bridge's event emitter
+    bridge.emit('componentUnregister', { tabId });
     
+    // Unregister with the bridge
     bridge.unregisterComponent(tabId);
+    
+    console.log(`[PanelDependencyProvider] Unregistered component from tab ${tabId}`);
   };
   
-  // Focus a panel component
-  const focusPanelComponent = (tabId: string) => {
-    if (!bridge) return;
+  /**
+   * Focus a component in a panel
+   */
+  const focusPanelComponent = (tabId: string): void => {
+    // Fire event directly on the bridge's event emitter
+    bridge.emit('componentFocus', { tabId });
     
-    bridge.focusComponent(tabId);
+    console.log(`[PanelDependencyProvider] Focused component in tab ${tabId}`);
   };
   
-  // Update a panel component's data
-  const updatePanelComponentData = (tabId: string, dataType: DependencyDataTypes, data: any) => {
-    if (!bridge) return;
+  /**
+   * Blur a component in a panel
+   */
+  const blurPanelComponent = (tabId: string): void => {
+    // Fire event directly on the bridge's event emitter
+    bridge.emit('componentBlur', { tabId });
     
-    bridge.updateComponentData(tabId, dataType, data);
+    console.log(`[PanelDependencyProvider] Blurred component in tab ${tabId}`);
   };
   
-  // Create dependencies between all compatible components
-  const createAllCompatibleDependencies = () => {
-    if (!bridge) return;
-    
-    bridge.createDependenciesBetweenCompatibleComponents();
+  /**
+   * Get the component ID for a tab
+   */
+  const getComponentId = (tabId: string): string | undefined => {
+    const registration = bridge.getRegistrationForTab(tabId);
+    return registration?.componentId;
   };
   
-  // Check if a dependency is ready
-  const isDependencyReady = (providerId: string, consumerId: string): boolean => {
-    const dependencies = registry.getDependenciesByProvider(providerId)
-      .filter(dep => dep.consumerId === consumerId);
+  /**
+   * Check if a tab is connected to another tab
+   */
+  const isTabConnected = (tabId: string): boolean => {
+    const componentId = getComponentId(tabId);
     
-    if (dependencies.length === 0) return false;
+    if (!componentId) {
+      return false;
+    }
     
-    return dependencies[0].status === DependencyStatus.READY || 
-           dependencies[0].status === DependencyStatus.CONNECTED;
+    // Check if the component is a provider
+    const asProvider = registry.getDependenciesByProvider(componentId).length > 0;
+    
+    // Check if the component is a consumer
+    const asConsumer = registry.getDependenciesByConsumer(componentId).length > 0;
+    
+    return asProvider || asConsumer;
   };
   
-  // Get the normalized component ID for a tab ID
+  /**
+   * Connect two tabs
+   */
+  const connectTabs = (sourceTabId: string, targetTabId: string): void => {
+    const sourceComponentId = getComponentId(sourceTabId);
+    const targetComponentId = getComponentId(targetTabId);
+    
+    if (!sourceComponentId || !targetComponentId) {
+      console.warn('[PanelDependencyProvider] Cannot connect tabs: Component ID not found');
+      return;
+    }
+    
+    // Connect the tabs
+    bridge.createConnection(sourceComponentId, targetComponentId, DependencyDataTypes.EMAIL);
+    
+    console.log(`[PanelDependencyProvider] Connected tab ${sourceTabId} to ${targetTabId}`);
+  };
+  
+  /**
+   * Disconnect two tabs
+   */
+  const disconnectTabs = (sourceTabId: string, targetTabId: string): void => {
+    const sourceComponentId = getComponentId(sourceTabId);
+    const targetComponentId = getComponentId(targetTabId);
+    
+    if (!sourceComponentId || !targetComponentId) {
+      console.warn('[PanelDependencyProvider] Cannot disconnect tabs: Component ID not found');
+      return;
+    }
+    
+    // Find dependencies between these components
+    const dependencies = registry.getDependenciesByProvider(sourceComponentId)
+      .filter(dep => dep.consumerId === targetComponentId);
+    
+    // Remove each dependency
+    for (const dep of dependencies) {
+      registry.removeDependency(dep.id);
+      console.log(`[PanelDependencyProvider] Removed dependency ${dep.id}`);
+    }
+    
+    console.log(`[PanelDependencyProvider] Disconnected tab ${sourceTabId} from ${targetTabId}`);
+  };
+  
+  /**
+   * Create compatible dependencies between components
+   */
+  const createAllCompatibleDependencies = (): void => {
+    bridge.findCompatibleComponents();
+    console.log('[PanelDependencyProvider] Checking for compatible components');
+  };
+
+  /**
+   * Get component ID for tab (same as getComponentId but with a better name for UI code)
+   */
   const getComponentIdForTab = (tabId: string): string | undefined => {
-    if (!bridge) return undefined;
-    
-    return bridge.getComponentIdForTab(tabId);
+    return getComponentId(tabId);
   };
+  
+  // Debug flag for UI
+  const showDebugInfo = true;
   
   // Context value
   const contextValue: PanelDependencyContextType = {
-    bridge: bridge!,
+    bridge,
     registerPanelComponent,
     unregisterPanelComponent,
     focusPanelComponent,
-    updatePanelComponentData,
+    blurPanelComponent,
+    getComponentId,
+    isTabConnected,
+    connectTabs,
+    disconnectTabs,
     createAllCompatibleDependencies,
-    isDependencyReady,
     getComponentIdForTab,
-    showDebugInfo,
-    setShowDebugInfo
+    showDebugInfo
   };
-  
-  // Only render the provider when the bridge is initialized
-  if (!bridge) {
-    return <div>Initializing dependency bridge...</div>;
-  }
   
   return (
     <PanelDependencyContext.Provider value={contextValue}>
@@ -151,267 +219,154 @@ export function PanelDependencyProvider({ children }: { children: React.ReactNod
 }
 
 // Hook to access the panel dependency context
-export function usePanelDependencyContext(): PanelDependencyContextType {
+export function usePanelDependencyContext() {
   const context = useContext(PanelDependencyContext);
   
-  if (context === undefined) {
+  if (!context) {
     throw new Error('usePanelDependencyContext must be used within a PanelDependencyProvider');
   }
   
   return context;
 }
 
-// Custom hook for email list panels to register themselves
+// React hook for EmailListPane components to use in panels
 export function useEmailListPanel(tabId: string, panelId: string) {
-  const { 
-    registerPanelComponent, 
-    unregisterPanelComponent, 
-    updatePanelComponentData, 
-    getComponentIdForTab 
-  } = usePanelDependencyContext();
+  const { registerPanelComponent, unregisterPanelComponent, focusPanelComponent, blurPanelComponent, getComponentId } = usePanelDependencyContext();
+  const { updateComponentData } = useDependencyContext();
+  const componentIdRef = useRef<string | null>(null);
   
-  // Register the component when mounted
+  // Register the component on mount
   useEffect(() => {
-    registerPanelComponent(tabId, panelId, PanelComponentType.EMAIL_LIST);
+    componentIdRef.current = registerPanelComponent(tabId, panelId, 'EmailListPane');
     
-    // Unregister on unmount
+    // Log registration
+    console.log(`[useEmailListPanel] Registered EmailListPane with ID ${componentIdRef.current} in tab ${tabId}`);
+    
+    // Clean up on unmount
     return () => {
       unregisterPanelComponent(tabId);
+      console.log(`[useEmailListPanel] Unregistered EmailListPane from tab ${tabId}`);
     };
-  }, [tabId, panelId, registerPanelComponent, unregisterPanelComponent]);
+  }, []);
   
-  // Return the functions needed by the panel
-  return {
-    updateEmailData: (data: any) => updatePanelComponentData(tabId, DependencyDataTypes.EMAIL_DATA, data),
-    componentId: getComponentIdForTab(tabId)
-  };
-}
-
-// Custom hook for email detail panels to register themselves
-export function useEmailDetailPanel(tabId: string, panelId: string) {
-  const { 
-    registerPanelComponent, 
-    unregisterPanelComponent,
-    getComponentIdForTab 
-  } = usePanelDependencyContext();
-  const dependencyContext = useDependencyContext();
-  const [emailData, setEmailData] = useState<any>(null);
-  
-  // Register the component when mounted
+  // Handle when the component is activated or deactivated
   useEffect(() => {
-    registerPanelComponent(tabId, panelId, PanelComponentType.EMAIL_DETAIL);
-    
-    // Unregister on unmount
-    return () => {
-      unregisterPanelComponent(tabId);
+    const handleActivate = () => {
+      focusPanelComponent(tabId);
     };
-  }, [tabId, panelId, registerPanelComponent, unregisterPanelComponent]);
-  
-  // Get the normalized component ID
-  const componentId = getComponentIdForTab(tabId);
-  
-  // Listen for data updates
-  useEffect(() => {
-    if (!componentId) return;
     
-    // Get initial data
-    const initialData = dependencyContext.getComponentData(componentId, DependencyDataTypes.EMAIL_DATA);
-    if (initialData) {
-      setEmailData(initialData);
+    const handleDeactivate = () => {
+      blurPanelComponent(tabId);
+    };
+    
+    // Add event listeners to the tab container
+    const tabElement = document.getElementById(`tab-${tabId}`);
+    if (tabElement) {
+      tabElement.addEventListener('focus', handleActivate);
+      tabElement.addEventListener('blur', handleDeactivate);
     }
     
-    // Subscribe to data updates
-    const dependencies = dependencyContext.registry.getDependenciesByConsumer(componentId)
-      .filter(dep => dep.dataType === DependencyDataTypes.EMAIL_DATA);
-    
-    if (dependencies.length === 0) return;
-    
-    const dependencyId = dependencies[0].id;
-    
-    const handleDataUpdate = (data: any) => {
-      console.log(`[EmailDetailPanel ${tabId}] Received data update:`, data);
-      setEmailData(data);
-    };
-    
-    const unsubscribe = dependencyContext.manager.onDataUpdate(dependencyId, handleDataUpdate);
-    
+    // Clean up event listeners
     return () => {
-      unsubscribe();
+      if (tabElement) {
+        tabElement.removeEventListener('focus', handleActivate);
+        tabElement.removeEventListener('blur', handleDeactivate);
+      }
     };
-  }, [componentId, dependencyContext, tabId]);
+  }, []);
   
-  // Return the data and component ID
+  // Function to update email data
+  const updateSelectedEmail = (email: any) => {
+    if (componentIdRef.current) {
+      updateComponentData(componentIdRef.current, DependencyDataTypes.EMAIL, email);
+      console.log(`[useEmailListPanel] Updated email data for ${componentIdRef.current}`, email);
+    }
+  };
+  
   return {
-    emailData,
-    componentId
+    componentId: componentIdRef.current,
+    updateSelectedEmail
   };
 }
 
-// Visual debug component to show the panel dependency bridge state
-export function PanelDependencyDebugger() {
-  const { bridge, showDebugInfo, setShowDebugInfo } = usePanelDependencyContext();
-  const [debugState, setDebugState] = useState<Record<string, any>>({});
-  const [dependencies, setDependencies] = useState<any[]>([]);
-  const dependencyContext = useDependencyContext();
+// React hook for EmailDetailPane components to use in panels
+export function useEmailDetailPanel(tabId: string, panelId: string) {
+  const { registerPanelComponent, unregisterPanelComponent, focusPanelComponent, blurPanelComponent } = usePanelDependencyContext();
+  const { getComponentData } = useDependencyContext();
+  const [email, setEmail] = useState<any>(null);
+  const componentIdRef = useRef<string | null>(null);
   
-  // Update debug state every second
+  // Register the component on mount
   useEffect(() => {
-    if (!showDebugInfo) return;
+    componentIdRef.current = registerPanelComponent(tabId, panelId, 'EmailDetailPane');
     
-    // Print debug state to console
-    bridge.debugState();
+    // Log registration
+    console.log(`[useEmailDetailPanel] Registered EmailDetailPane with ID ${componentIdRef.current} in tab ${tabId}`);
     
-    // Get all dependencies from the registry
-    const allDependencies = dependencyContext.registry.getAllDefinitions()
-      .map(def => ({
-        id: def.id,
-        componentId: def.componentId,
-        dataType: def.dataType,
-        role: def.role
-      }));
+    // Clean up on unmount
+    return () => {
+      unregisterPanelComponent(tabId);
+      console.log(`[useEmailDetailPanel] Unregistered EmailDetailPane from tab ${tabId}`);
+    };
+  }, []);
+  
+  // Handle when the component is activated or deactivated
+  useEffect(() => {
+    const handleActivate = () => {
+      focusPanelComponent(tabId);
+    };
     
-    setDependencies(allDependencies);
+    const handleDeactivate = () => {
+      blurPanelComponent(tabId);
+    };
     
-    // Update debug state
-    setDebugState({
-      componentTypes: {
-        EMAIL_LIST: Array.from(bridge['componentTypeMap'].get(PanelComponentType.EMAIL_LIST) || []),
-        EMAIL_DETAIL: Array.from(bridge['componentTypeMap'].get(PanelComponentType.EMAIL_DETAIL) || [])
-      },
-      registeredComponents: Array.from(bridge['registeredComponents'].entries()),
-      activeComponents: Array.from(bridge['activeComponents']),
-      tabToComponentMap: Array.from(bridge['tabToComponentMap'].entries()),
-    });
+    // Add event listeners to the tab container
+    const tabElement = document.getElementById(`tab-${tabId}`);
+    if (tabElement) {
+      tabElement.addEventListener('focus', handleActivate);
+      tabElement.addEventListener('blur', handleDeactivate);
+    }
     
-    const interval = setInterval(() => {
-      // Update debug state every second only if debugger is shown
-      if (showDebugInfo) {
-        bridge.debugState();
-        
-        // Get all dependencies from the registry
-        const allDeps = dependencyContext.registry.getAllDefinitions()
-          .map(def => ({
-            id: def.id,
-            componentId: def.componentId,
-            dataType: def.dataType,
-            role: def.role
-          }));
-        
-        setDependencies(allDeps);
-        
-        // Update debug state
-        setDebugState({
-          componentTypes: {
-            EMAIL_LIST: Array.from(bridge['componentTypeMap'].get(PanelComponentType.EMAIL_LIST) || []),
-            EMAIL_DETAIL: Array.from(bridge['componentTypeMap'].get(PanelComponentType.EMAIL_DETAIL) || [])
-          },
-          registeredComponents: Array.from(bridge['registeredComponents'].entries()),
-          activeComponents: Array.from(bridge['activeComponents']),
-          tabToComponentMap: Array.from(bridge['tabToComponentMap'].entries()),
-        });
+    // Clean up event listeners
+    return () => {
+      if (tabElement) {
+        tabElement.removeEventListener('focus', handleActivate);
+        tabElement.removeEventListener('blur', handleDeactivate);
       }
-    }, 1000);
+    };
+  }, []);
+  
+  // Poll for email data changes
+  useEffect(() => {
+    if (!componentIdRef.current) return;
+    
+    const checkForUpdates = () => {
+      try {
+        const data = getComponentData(componentIdRef.current!, DependencyDataTypes.EMAIL);
+        
+        // Only update state if the data has changed
+        if (data && JSON.stringify(data) !== JSON.stringify(email)) {
+          setEmail(data);
+          console.log(`[useEmailDetailPanel] Received data update for ${componentIdRef.current}`, data);
+        }
+      } catch (error) {
+        console.error('[useEmailDetailPanel] Error checking for updates:', error);
+      }
+    };
+    
+    // Check immediately
+    checkForUpdates();
+    
+    // Then set up an interval
+    const intervalId = setInterval(checkForUpdates, 1000);
     
     return () => {
-      clearInterval(interval);
+      clearInterval(intervalId);
     };
-  }, [bridge, showDebugInfo, dependencyContext.registry]);
+  }, [email]);
   
-  if (!showDebugInfo) {
-    return (
-      <button 
-        onClick={() => setShowDebugInfo(true)}
-        className="fixed bottom-4 left-4 z-50 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-md text-sm"
-      >
-        Show Dependency Debug
-      </button>
-    );
-  }
-  
-  return (
-    <div className="fixed top-16 left-4 z-50 bg-neutral-900 border border-neutral-700 rounded-md p-4 text-white text-xs w-96 max-h-[80vh] overflow-auto">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="font-bold">Panel Dependency Bridge Debug</h3>
-        <button 
-          onClick={() => setShowDebugInfo(false)}
-          className="text-neutral-400 hover:text-white"
-        >
-          Close
-        </button>
-      </div>
-      
-      <div className="mb-4">
-        <h4 className="font-semibold mb-1">Registered Components</h4>
-        <div className="bg-neutral-800 p-2 rounded">
-          <h5 className="text-blue-400">EMAIL_LIST</h5>
-          <ul className="ml-2">
-            {debugState.componentTypes?.EMAIL_LIST.map((tabId: string) => (
-              <li key={tabId}>
-                Tab: {tabId} → Component: {bridge.getComponentIdForTab(tabId)}
-              </li>
-            ))}
-          </ul>
-          
-          <h5 className="text-green-400 mt-2">EMAIL_DETAIL</h5>
-          <ul className="ml-2">
-            {debugState.componentTypes?.EMAIL_DETAIL.map((tabId: string) => (
-              <li key={tabId}>
-                Tab: {tabId} → Component: {bridge.getComponentIdForTab(tabId)}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-      
-      <div className="mb-4">
-        <h4 className="font-semibold mb-1">Dependencies</h4>
-        <button 
-          onClick={() => bridge.createDependenciesBetweenCompatibleComponents()}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded text-xs mb-2"
-        >
-          Create Compatible Dependencies
-        </button>
-        <div className="bg-neutral-800 p-2 rounded">
-          {dependencies.length === 0 ? (
-            <p>No dependencies registered</p>
-          ) : (
-            <ul>
-              {dependencies.map(dep => (
-                <li key={dep.id} className={dep.role === 'provider' ? 'text-yellow-400' : 'text-purple-400'}>
-                  {dep.role}: {dep.componentId} ({dep.dataType})
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-      
-      <div className="mb-4">
-        <h4 className="font-semibold mb-1">Active Components</h4>
-        <div className="bg-neutral-800 p-2 rounded">
-          {debugState.activeComponents?.length === 0 ? (
-            <p>No active components</p>
-          ) : (
-            <ul>
-              {debugState.activeComponents?.map((componentId: string) => (
-                <li key={componentId}>{componentId}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-      
-      <div>
-        <button 
-          onClick={() => {
-            console.log('Full Debug State:', debugState);
-            console.log('Bridge:', bridge);
-          }}
-          className="bg-neutral-700 hover:bg-neutral-600 text-white px-2 py-1 rounded text-xs"
-        >
-          Log Full State to Console
-        </button>
-      </div>
-    </div>
-  );
+  return {
+    componentId: componentIdRef.current,
+    email
+  };
 }

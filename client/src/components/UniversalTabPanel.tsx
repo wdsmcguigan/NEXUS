@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useTabContext } from '../context/TabContext';
 import { useAppContext } from '../context/AppContext';
 import { useDependencyContext } from '../context/DependencyContext';
@@ -30,7 +30,7 @@ export function UniversalTabPanel({
   onClosePanel
 }: UniversalTabPanelProps) {
   const { state, activateTab, closeTab } = useTabContext();
-  const { createAllCompatibleDependencies, registerPanelComponent, unregisterPanelComponent } = usePanelDependencyContext();
+  const { registerPanelComponent, unregisterPanelComponent, connectTabs } = usePanelDependencyContext();
   const panel = state.panels[panelId];
   
   if (!panel) {
@@ -50,14 +50,27 @@ export function UniversalTabPanel({
     if (tabIds.length > 0) {
       // Small delay to ensure all components are registered
       const timer = setTimeout(() => {
-        createAllCompatibleDependencies();
+        // Check if the function exists before calling it
+        if (typeof connectTabs === 'function') {
+          console.log('[UniversalTabPanel] Looking for compatible tabs to connect');
+          
+          // Try to connect all tabs in this panel with each other
+          for (let i = 0; i < tabIds.length; i++) {
+            for (let j = 0; j < tabIds.length; j++) {
+              if (i !== j) {
+                // Try to connect in both directions
+                connectTabs(tabIds[i], tabIds[j]);
+              }
+            }
+          }
+        }
       }, 300);
       
       return () => {
         clearTimeout(timer);
       };
     }
-  }, [tabIds, createAllCompatibleDependencies]);
+  }, [tabIds, connectTabs]);
   
   // Handler functions
   const handleTabClick = (tabId: string) => {

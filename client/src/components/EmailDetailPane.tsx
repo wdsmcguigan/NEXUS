@@ -27,6 +27,9 @@ interface EmailDetailPaneProps {
 }
 
 export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailDetailPaneProps) {
+  // Add type prefix to tabId for dependency matching
+  const instanceId = tabId ? `_EMAIL_VIEWER_${tabId}` : undefined;
+
   const [email, setEmail] = useState<EmailWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [replyMode, setReplyMode] = useState(false);

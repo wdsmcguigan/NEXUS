@@ -11,6 +11,9 @@ import ItemContextMenu from './ContextMenu';
 import { useTabContext } from '../context/TabContext';
 import tabFactory from '../services/TabFactory';
 import { useTagContext, TagItem } from '../context/TagContext';
+import { useDependencyProvider } from '../hooks/useDependencyHooks';
+import { DependencyDataTypes } from '../lib/dependency/DependencyInterfaces';
+import { toast } from '../hooks/use-toast';
 
 interface EmailListPaneProps {
   tabId?: string;
@@ -19,6 +22,9 @@ interface EmailListPaneProps {
 }
 
 export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
+  // Add type prefix to tabId for dependency matching
+  const instanceId = tabId ? `_EMAIL_LIST_${tabId}` : undefined;
+
   const [emails, setEmails] = useState<(Email & { fromContact?: Contact, tags?: (TagType & { id: number })[] })[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,6 +32,15 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
   const [selectedCategory, setSelectedCategory] = useState('primary');
   const tabContext = useTabContext();
   const { tags: globalTags } = useTagContext();
+  
+  // Register as dependency provider for selected email data
+  const { 
+    updateData: updateSelectedEmailData,
+    connectionCount
+  } = useDependencyProvider<any>(
+    DependencyDataTypes.EMAIL_DATA,
+    instanceId
+  );
 
   // Fetch emails for the current view/category
   useEffect(() => {

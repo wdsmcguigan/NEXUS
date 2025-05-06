@@ -334,8 +334,9 @@ export class PanelDependencyBridge {
   
   /**
    * Find compatible components that could be connected
+   * Public method that can be called from PanelDependencyContext
    */
-  private findCompatibleComponents(): void {
+  findCompatibleComponents(): void {
     // Scan for potential email pane pairs to connect
     const emailListPanes = Array.from(this.componentsByType.get('EmailListPane') || [])
       .map(tabId => this.componentsByTab.get(tabId))
@@ -376,8 +377,9 @@ export class PanelDependencyBridge {
   
   /**
    * Suggest a connection between two components
+   * Public so it can be called from PanelDependencyContext
    */
-  private suggestConnection(providerId: string, consumerId: string): void {
+  suggestConnection(providerId: string, consumerId: string): void {
     // Emit event to suggest a connection
     this.emit('connectionSuggested', { 
       providerId, 

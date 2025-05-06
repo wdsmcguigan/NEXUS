@@ -1,12 +1,15 @@
 import React, { useEffect } from 'react';
 import { TabProvider } from '../context/TabContext';
 import { DragProvider } from '../context/DragContext';
-import { DependencyProvider } from '../context/DependencyContext';
+import { DependencyProvider, useDependencyContext } from '../context/DependencyContext';
 import { PanelManager } from './PanelManager';
 import TopNavbar from './TopNavbar';
 import registerComponents from '../lib/componentRegistry.setup';
-import { Star, Cog } from 'lucide-react';
+import { Star, Cog, Link } from 'lucide-react';
 import { DragManager } from './DragManager';
+import { connectEmailComponents } from '../lib/dependency/testEmailDependency';
+import { Button } from '@/components/ui/button';
+import { toast } from '@/hooks/use-toast';
 
 export function FlexibleEmailClient() {
   // Initialize component registry only once on app start
@@ -75,11 +78,85 @@ function Header() {
   );
 }
 
+// Create a component that will test the email dependencies
+function DependencyTester() {
+  const dependencyContext = useDependencyContext();
+  const { registry, manager } = dependencyContext;
+
+  // Function to trigger the testing
+  const handleTestDependencies = () => {
+    // Find all active panes with email list and email detail components
+    const panelIds = document.querySelectorAll('[data-tab-id]');
+    const emailListPaneIds: string[] = [];
+    const emailDetailPaneIds: string[] = [];
+
+    // Collect panel IDs
+    panelIds.forEach((panel) => {
+      const id = panel.getAttribute('data-tab-id');
+      if (id) {
+        if (id.includes('_EMAIL_LIST_')) {
+          emailListPaneIds.push(id);
+        } else if (id.includes('_EMAIL_DETAIL_')) {
+          emailDetailPaneIds.push(id);
+        }
+      }
+    });
+
+    console.log('Found email list panes:', emailListPaneIds);
+    console.log('Found email detail panes:', emailDetailPaneIds);
+
+    // Make connection tests for each combination
+    if (emailListPaneIds.length === 0 || emailDetailPaneIds.length === 0) {
+      toast({
+        title: "No email panes found",
+        description: "Please add both Email List and Email Detail panes to continue testing",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Connect the first list and detail pane found
+    const result = connectEmailComponents(
+      emailListPaneIds[0], 
+      emailDetailPaneIds[0],
+      registry, 
+      manager
+    );
+
+    if (result.success) {
+      toast({
+        title: "Dependency Connection Successful",
+        description: result.message,
+        variant: "default"
+      });
+    } else {
+      toast({
+        title: "Dependency Connection Failed",
+        description: result.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  return (
+    <div className="fixed bottom-4 right-4 z-50">
+      <Button
+        onClick={handleTestDependencies}
+        className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2"
+      >
+        <Link size={16} />
+        Test Email Dependencies
+      </Button>
+    </div>
+  );
+}
+
 function EmailClientContent() {
   return (
     <div className="h-full w-full">
       <PanelManager />
       <DragManager />
+      <DependencyTester />
     </div>
   );
 }

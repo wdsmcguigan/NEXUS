@@ -25,35 +25,42 @@ export class DependencyManager implements IDependencyManager {
    * Update data for a dependency from a provider.
    */
   updateData(providerId: string, dataType: DependencyDataTypes, data: any): void {
+    console.log(`[DependencyManager] Updating data from provider ${providerId} for data type ${dataType}`, data);
+    
     // Get all dependencies where this component is the provider
     const dependencies = this.registry.getDependenciesByProvider(providerId)
       .filter(dep => dep.dataType === dataType);
     
-    // If no dependencies, just store the data
+    console.log(`[DependencyManager] Found ${dependencies.length} dependencies for provider ${providerId}`);
+    
+    // If no dependencies, just store the data in the provider's storage
     if (dependencies.length === 0) {
       const key = `${providerId}:${dataType}`;
       this.dataStore.set(key, data);
+      console.log(`[DependencyManager] No dependencies found, storing data with key ${key}`);
       return;
     }
     
     // Update each dependency
     for (const dependency of dependencies) {
+      console.log(`[DependencyManager] Processing dependency ${dependency.id}, status: ${dependency.status}`);
+      
       // Skip suspended dependencies
       if (dependency.status === DependencyStatus.SUSPENDED) {
-        console.log(`Skipping update for suspended dependency: ${dependency.id}`);
+        console.log(`[DependencyManager] Skipping update for suspended dependency: ${dependency.id}`);
         continue;
       }
       
       // Store the data
       this.dataStore.set(dependency.id, data);
       
-      // Update the status
-      if (dependency.status !== DependencyStatus.READY) {
-        this.registry.updateDependencyStatus(dependency.id, DependencyStatus.READY);
-        this.notifyStatusChanged(dependency.id, DependencyStatus.READY);
-      }
+      // Always update to READY status when data is provided
+      this.registry.updateDependencyStatus(dependency.id, DependencyStatus.READY);
+      this.notifyStatusChanged(dependency.id, DependencyStatus.READY);
+      console.log(`[DependencyManager] Updated dependency ${dependency.id} status to READY`);
       
       // Notify listeners
+      console.log(`[DependencyManager] Notifying listeners for dependency ${dependency.id}`);
       this.notifyDataUpdated(dependency.id, data);
     }
   }
@@ -69,31 +76,71 @@ export class DependencyManager implements IDependencyManager {
    * Request data from a provider.
    */
   requestData(consumerId: string, providerId: string, dataType: DependencyDataTypes): void {
+    console.log(`[DependencyManager] Consumer ${consumerId} requesting data from provider ${providerId} for type ${dataType}`);
+    
     // Find the dependency
     const dependency = this.findDependency(providerId, consumerId, dataType);
     
     if (!dependency) {
+      console.log(`[DependencyManager] No existing dependency found, attempting to create one`);
+      
       // Try to create the dependency if it doesn't exist
       const newDependency = this.registry.createDependency(providerId, consumerId, dataType);
       
       if (!newDependency) {
-        console.warn(`Cannot request data: no dependency exists between ${providerId} and ${consumerId} for ${dataType}`);
+        console.warn(`[DependencyManager] Cannot request data: no dependency exists between ${providerId} and ${consumerId} for ${dataType}`);
         return;
       }
       
-      // Update status
+      console.log(`[DependencyManager] Created new dependency: ${newDependency.id}`);
+      
+      // Update status to CONNECTING
       this.registry.updateDependencyStatus(newDependency.id, DependencyStatus.CONNECTING);
       this.notifyStatusChanged(newDependency.id, DependencyStatus.CONNECTING);
+      
+      // Check if the provider already has data we can use immediately
+      const providerDataKey = `${providerId}:${dataType}`;
+      const providerData = this.dataStore.get(providerDataKey);
+      
+      if (providerData !== undefined) {
+        console.log(`[DependencyManager] Provider already has data, making it immediately available`);
+        
+        // Store the data with the dependency ID
+        this.dataStore.set(newDependency.id, providerData);
+        
+        // Update to READY status
+        this.registry.updateDependencyStatus(newDependency.id, DependencyStatus.READY);
+        this.notifyStatusChanged(newDependency.id, DependencyStatus.READY);
+        
+        // Notify about the data
+        this.notifyDataUpdated(newDependency.id, providerData);
+      }
+      
       return;
     }
     
-    // If data exists, update the status to READY
+    console.log(`[DependencyManager] Found existing dependency: ${dependency.id}, status: ${dependency.status}`);
+    
+    // If dependency is suspended, activate it
+    if (dependency.status === DependencyStatus.SUSPENDED) {
+      console.log(`[DependencyManager] Reactivating suspended dependency: ${dependency.id}`);
+      this.registry.updateDependencyStatus(dependency.id, DependencyStatus.CONNECTING);
+      this.notifyStatusChanged(dependency.id, DependencyStatus.CONNECTING);
+    }
+    
+    // If data exists, update the status to READY and notify
     const data = this.dataStore.get(dependency.id);
     
     if (data !== undefined) {
+      console.log(`[DependencyManager] Dependency has existing data, setting to READY`);
       this.registry.updateDependencyStatus(dependency.id, DependencyStatus.READY);
       this.notifyStatusChanged(dependency.id, DependencyStatus.READY);
+      
+      // Notify data again to ensure consumer receives it
+      this.notifyDataUpdated(dependency.id, data);
     } else {
+      console.log(`[DependencyManager] No data for dependency, setting to CONNECTING`);
+      
       // Otherwise, update to CONNECTING
       this.registry.updateDependencyStatus(dependency.id, DependencyStatus.CONNECTING);
       this.notifyStatusChanged(dependency.id, DependencyStatus.CONNECTING);
@@ -103,11 +150,15 @@ export class DependencyManager implements IDependencyManager {
       const providerData = this.dataStore.get(providerDataKey);
       
       if (providerData !== undefined) {
+        console.log(`[DependencyManager] Found provider data for key ${providerDataKey}, making it available`);
+        
         // Provider already has data, but no dependency data exists yet
         this.dataStore.set(dependency.id, providerData);
         this.registry.updateDependencyStatus(dependency.id, DependencyStatus.READY);
         this.notifyStatusChanged(dependency.id, DependencyStatus.READY);
         this.notifyDataUpdated(dependency.id, providerData);
+      } else {
+        console.log(`[DependencyManager] No provider data found for key ${providerDataKey}`);
       }
     }
   }

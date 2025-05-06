@@ -38,7 +38,7 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
     DependencyDataTypes.EMAIL_DATA,
     { 
       acceptsMultiple: true,
-      syncStrategy: DependencySyncStrategy.PULL
+      syncStrategy: DependencySyncStrategy.BOTH // Changed from PULL to BOTH for better data flow
     }
   );
   
@@ -48,6 +48,12 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
   const connectionCount = useMemo(() => {
     return getDependentConsumers().length;
   }, [getDependentConsumers]);
+  
+  // Log dependency status for debugging
+  useEffect(() => {
+    console.log(`[EmailListPane ${tabId}] Provider registered:`, dependencyProvider.isRegistered);
+    console.log(`[EmailListPane ${tabId}] Connected consumers:`, getDependentConsumers());
+  }, [tabId, dependencyProvider.isRegistered, getDependentConsumers]);
 
   // Fetch emails for the current view/category
   useEffect(() => {
@@ -251,21 +257,32 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
   useEffect(() => {
     if (selectedEmailId !== null) {
       const selectedEmail = emails.find(email => email.id === selectedEmailId);
-      if (selectedEmail && connectionCount > 0) {
-        // Show toast notification to make dependency connection clear to user
-        toast({
-          title: "Email selected",
-          description: `Sending email data to connected viewers (${connectionCount})`,
-          duration: 2000,
-        });
+      
+      console.log(`[EmailListPane ${tabId}] Email selected:`, selectedEmailId);
+      console.log(`[EmailListPane ${tabId}] Found email:`, selectedEmail);
+      console.log(`[EmailListPane ${tabId}] Connection count:`, connectionCount);
+      
+      if (selectedEmail) {
+        // Always update the dependency data with the selected email
+        updateSelectedEmailData(selectedEmail);
+        
+        if (connectionCount > 0) {
+          // Show toast notification to make dependency connection clear to user
+          toast({
+            title: "Email selected",
+            description: `Sending email data to connected viewers (${connectionCount})`,
+            duration: 2000,
+          });
+          
+          console.log(`[EmailListPane ${tabId}] Broadcasting email data to consumers:`, getDependentConsumers());
+        }
       }
-      // Update the dependency data with the selected email
-      updateSelectedEmailData(selectedEmail || null);
     } else {
       // Send null when no email is selected
+      console.log(`[EmailListPane ${tabId}] No email selected, sending null to consumers`);
       updateSelectedEmailData(null);
     }
-  }, [selectedEmailId, emails, connectionCount, updateSelectedEmailData]);
+  }, [selectedEmailId, emails, connectionCount, tabId, updateSelectedEmailData, getDependentConsumers]);
 
   // Handle email click with keyboard modifiers
   const handleEmailClick = (e: React.MouseEvent, emailId: number) => {

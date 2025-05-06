@@ -44,7 +44,7 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
     DependencyDataTypes.EMAIL_DATA,
     {
       required: true,
-      syncStrategy: DependencySyncStrategy.PULL
+      syncStrategy: DependencySyncStrategy.BOTH // Changed from PULL to BOTH for better data flow
     }
   );
   
@@ -52,11 +52,22 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
   const dependencyEmailData = dependencyConsumer.consumerData;
   const hasProvider = dependencyConsumer.providerId !== null;
   const isConnected = dependencyConsumer.isReady;
+  
+  // Log dependency status for debugging
+  useEffect(() => {
+    console.log(`[EmailDetailPane ${tabId}] Consumer registered, status:`, dependencyConsumer.status);
+    console.log(`[EmailDetailPane ${tabId}] Has provider:`, hasProvider);
+    console.log(`[EmailDetailPane ${tabId}] Provider ID:`, dependencyConsumer.providerId);
+    console.log(`[EmailDetailPane ${tabId}] Is connected:`, isConnected);
+  }, [tabId, dependencyConsumer.status, hasProvider, dependencyConsumer.providerId, isConnected]);
 
   // Process dependency data when it's received
   useEffect(() => {
+    console.log(`[EmailDetailPane ${tabId}] Received dependency data:`, dependencyEmailData);
+    
     if (dependencyEmailData) {
       // If we have dependency data, use it 
+      console.log(`[EmailDetailPane ${tabId}] Setting email from dependency data:`, dependencyEmailData);
       setEmail(dependencyEmailData);
       setLoading(false);
       
@@ -68,8 +79,10 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
           duration: 2000,
         });
       }
+    } else {
+      console.log(`[EmailDetailPane ${tabId}] Dependency data is null or undefined`);
     }
-  }, [dependencyEmailData, hasProvider, isConnected]);
+  }, [dependencyEmailData, hasProvider, isConnected, tabId]);
 
   // Fetch email details if no dependency data
   useEffect(() => {

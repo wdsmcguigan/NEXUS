@@ -12,11 +12,11 @@ import {
  * This will make the EmailList and EmailViewer components work with the dependency system
  */
 export function registerEmailDependencies(registry: DependencyRegistry) {
-  // Use fixed IDs for more consistent dependency connection
   // Register Email List component as provider for email data
+  // Note: Using type prefixes ensures consistent connections regardless of instance IDs
   const emailListProvider: DependencyDefinition = {
-    id: `email-list-provider-fixed`,
-    componentId: 'email-list',
+    id: `email-list-provider-${nanoid(6)}`,
+    componentId: '_EMAIL_LIST_',  // This is a type prefix, will match any instanceId containing this string
     dataType: DependencyDataTypes.EMAIL_DATA,
     role: 'provider',
     description: 'Provides selected email data to viewers',
@@ -27,8 +27,8 @@ export function registerEmailDependencies(registry: DependencyRegistry) {
   
   // Register Email Viewer component as consumer for email data
   const emailViewerConsumer: DependencyDefinition = {
-    id: `email-viewer-consumer-fixed`,
-    componentId: 'email-viewer',
+    id: `email-viewer-consumer-${nanoid(6)}`,
+    componentId: '_EMAIL_VIEWER_',  // This is a type prefix, will match any instanceId containing this string
     dataType: DependencyDataTypes.EMAIL_DATA,
     role: 'consumer',
     description: 'Displays email content from selected email',
@@ -42,7 +42,8 @@ export function registerEmailDependencies(registry: DependencyRegistry) {
   registry.registerDefinition(emailViewerConsumer);
   
   // Create dependency between email list and email viewer
-  const dependency = registry.createDependency('email-list', 'email-viewer', DependencyDataTypes.EMAIL_DATA);
+  // Note: We're using type prefixes instead of specific IDs
+  const dependency = registry.createDependency('_EMAIL_LIST_', '_EMAIL_VIEWER_', DependencyDataTypes.EMAIL_DATA);
   
   // Set initial status
   if (dependency) {

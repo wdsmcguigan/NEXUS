@@ -203,6 +203,20 @@ export interface DependencyRegistry {
   // Utility methods
   findCompatibleProviders(consumerDefinitionId: string): DependencyDefinition[];
   findCompatibleConsumers(providerDefinitionId: string): DependencyDefinition[];
+  
+  // Helper methods for testing
+  getAllDefinitions(): DependencyDefinition[];
+  getAllComponents(): string[];
+  getComponent(componentId: string): any;
+  getDefinitionsByComponentAndRole(
+    componentId: string, 
+    role: 'provider' | 'consumer' | 'both',
+    dataType?: DependencyDataTypes
+  ): DependencyDefinition[];
+  getDependenciesByProviderAndDataType(
+    providerId: string,
+    dataType: DependencyDataTypes
+  ): Dependency[];
 }
 
 /**

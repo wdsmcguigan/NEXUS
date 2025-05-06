@@ -11,15 +11,22 @@ import { DependencyDataTypes, DependencyStatus } from './DependencyInterfaces';
 
 /**
  * Creates a test email object with sample data
+ * The function generates a complete email with all fields that might be needed
+ * by the UI component, making it easier to verify data flow is working
  */
-export function createTestEmail(id: number = 1): Email {
+export function createTestEmail(id: number = 1): any {
+  // Create a timestamp within the last hour for realistic recency
+  const timestamp = new Date();
+  timestamp.setMinutes(timestamp.getMinutes() - Math.floor(Math.random() * 60));
+  
+  // Create a test email with full details needed by the UI
   return {
     id,
     accountId: 1,
     fromContactId: 1,
-    subject: `Test Email ${id}`,
-    body: `This is test email ${id} body content.`,
-    timestamp: new Date().toISOString(),
+    subject: `[TEST] Dependency System Demo Email #${id}`,
+    body: `This is a test email sent by the dependency testing system.\n\nThis email is specially formatted to verify that data is flowing correctly between email list and email detail components.\n\nHere are some things you should see:\n- The subject line should start with [TEST]\n- The email should be marked as unread\n- The email should have a gold star\n- The timestamp should be within the last hour\n\nIf you can see all these details in the email detail pane, then the dependency system is working correctly!\n\nTimestamp: ${timestamp.toISOString()}\nID: ${id}`,
+    timestamp: timestamp.toISOString(),
     category: 'primary',
     isRead: false,
     isArchived: false,
@@ -27,6 +34,84 @@ export function createTestEmail(id: number = 1): Email {
     starColor: 'gold',
     todoText: null,
     todoCompleted: false,
+    
+    // Add extra fields needed for full email detail display
+    fromContact: {
+      id: 1,
+      name: "Dependency System",
+      email: "test@dependency.nexus",
+      company: "NEXUS Email",
+      avatarUrl: null,
+      notes: "Test System"
+    },
+    
+    // Add recipients
+    recipients: [
+      {
+        id: 1,
+        emailId: id,
+        contactId: 2,
+        type: "to",
+        contact: {
+          id: 2,
+          name: "Current User",
+          email: "user@example.com", 
+          company: "User Company",
+          avatarUrl: null,
+          notes: null
+        }
+      }
+    ],
+    
+    // Add a few attachments
+    attachments: [
+      {
+        id: 1,
+        emailId: id,
+        fileName: "test-document.pdf",
+        fileType: "application/pdf",
+        fileSize: 1024 * 1024, // 1MB
+        fileContent: null
+      },
+      {
+        id: 2,
+        emailId: id,
+        fileName: "dependency-diagram.png",
+        fileType: "image/png",
+        fileSize: 512 * 1024, // 512KB
+        fileContent: null
+      }
+    ],
+    
+    // Add tags
+    tags: [
+      {
+        id: 1,
+        emailId: id,
+        tagId: 1,
+        tag: {
+          id: 1,
+          name: "Test",
+          parentId: null,
+          bgColor: "#4b5563",
+          textColor: "#f9fafb",
+          emoji: "🔄"
+        }
+      },
+      {
+        id: 2,
+        emailId: id, 
+        tagId: 2,
+        tag: {
+          id: 2,
+          name: "Dependency",
+          parentId: 1,
+          bgColor: "#60a5fa",
+          textColor: "#1e3a8a",
+          emoji: "🔗"
+        }
+      }
+    ]
   };
 }
 

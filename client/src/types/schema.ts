@@ -65,10 +65,11 @@ export interface Tag {
 export interface EmailAttachment {
   id: number;
   emailId: number;
-  name: string;
-  type: string;
-  size: number;
-  url: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  fileContent?: string;
+  url?: string;
 }
 
 export interface EmailFolder {
@@ -110,8 +111,9 @@ export interface Contact {
   company?: string;
   phone?: string;
   avatar?: string;
-  notes?: string;
-  tags: string[];
+  avatarUrl?: string | null;
+  notes?: string | null;
+  tags?: string[];
 }
 
 // User preferences

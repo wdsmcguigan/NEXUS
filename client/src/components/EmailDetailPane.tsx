@@ -205,12 +205,12 @@ Sarah`,
   }, [emailId, hasProvider, isConnected]);
 
   // Toggle star color
-  const handleStarClick = async (currentColor: StarColor) => {
+  const handleStarClick = async (currentColor: StarColor | undefined) => {
     if (!email) return;
     
     // Colors cycle: none -> gold -> green -> blue -> orange -> red -> none
     const starColors: StarColor[] = ["none", "gold", "green", "blue", "orange", "red"];
-    const currentIndex = starColors.indexOf(currentColor);
+    const currentIndex = starColors.indexOf(currentColor || "none");
     const nextIndex = (currentIndex + 1) % starColors.length;
     const newStarColor = starColors[nextIndex];
     
@@ -300,7 +300,7 @@ Sarah`,
   };
 
   // Get star color for rendering
-  const getStarColorClass = (color: StarColor) => {
+  const getStarColorClass = (color: StarColor | undefined) => {
     switch(color) {
       case 'red': return 'text-red-500';
       case 'orange': return 'text-orange-500';
@@ -369,7 +369,7 @@ Sarah`,
               className={`${getStarColorClass(email.starColor)}`}
               onClick={() => handleStarClick(email.starColor)}
             >
-              <Star size={20} fill={email.starColor !== 'none' ? 'currentColor' : 'none'} />
+              <Star size={20} fill={(email.starColor && email.starColor !== 'none') ? 'currentColor' : 'none'} />
             </button>
             
             <DropdownMenu>

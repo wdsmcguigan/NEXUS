@@ -109,8 +109,17 @@ export class FlexibleEmailDependencyBridge extends EventEmitter {
     const consumerId = `${detailPaneId}-consumer`;
     
     try {
+      console.log('[FlexibleEmailDependencyBridge] Registry type:', this.registry && typeof this.registry);
+      console.log('[FlexibleEmailDependencyBridge] Registry methods:', 
+        this.registry && Object.getOwnPropertyNames(Object.getPrototypeOf(this.registry)));
+
+      // Defensive check for registry and method existence
+      if (!this.registry || typeof this.registry.registerDefinition !== 'function') {
+        throw new Error('Registry or registerDefinition method not available');
+      }
+      
       // Create provider definition for the list pane
-      const providerDef = this.registry.addDefinition({
+      const providerDef = this.registry.registerDefinition({
         id: providerId,
         componentId: listPaneId,
         dataType: DependencyDataTypes.EMAIL,
@@ -118,31 +127,38 @@ export class FlexibleEmailDependencyBridge extends EventEmitter {
       });
       
       // Create consumer definition for the detail pane
-      const consumerDef = this.registry.addDefinition({
+      const consumerDef = this.registry.registerDefinition({
         id: consumerId,
         componentId: detailPaneId,
         dataType: DependencyDataTypes.EMAIL,
         role: 'consumer'
       });
       
-      // Create the dependency between them
-      const dependency = this.registry.createDependency(providerId, consumerId);
+      // Create the dependency between them - note we need to pass the dataType
+      const dependency = this.registry.createDependency(providerId, consumerId, DependencyDataTypes.EMAIL);
       
       // Store the connection
       if (!this.activeConnections.has(listPaneId)) {
         this.activeConnections.set(listPaneId, []);
       }
       
-      this.activeConnections.get(listPaneId)?.push(detailPaneId);
+      const connections = this.activeConnections.get(listPaneId);
+      if (connections) {
+        connections.push(detailPaneId);
+      }
       
-      console.log(`[FlexibleEmailDependencyBridge] Successfully created dependency: ${dependency.id}`);
-      
-      // Emit an event for the new connection
-      this.emit('connectionCreated', {
-        dependencyId: dependency.id,
-        sourceId: listPaneId,
-        targetId: detailPaneId
-      });
+      if (dependency) {
+        console.log(`[FlexibleEmailDependencyBridge] Successfully created dependency: ${dependency.id}`);
+        
+        // Emit an event for the new connection
+        this.emit('connectionCreated', {
+          dependencyId: dependency.id,
+          sourceId: listPaneId,
+          targetId: detailPaneId
+        });
+      } else {
+        console.warn(`[FlexibleEmailDependencyBridge] Dependency creation returned undefined`);
+      }
       
       toast({
         title: 'Components Connected',
@@ -204,13 +220,17 @@ export class FlexibleEmailDependencyBridge extends EventEmitter {
     }
     
     // Handle detail pane removal (need to check all list panes)
-    for (const [listId, detailIds] of this.activeConnections.entries()) {
-      if (detailIds.includes(componentId)) {
-        const updatedDetails = detailIds.filter(id => id !== componentId);
-        this.activeConnections.set(listId, updatedDetails);
-        
-        console.log(`[FlexibleEmailDependencyBridge] Removed connection from ${listId} to ${componentId}`);
+    try {
+      for (const [listId, detailIds] of this.activeConnections.entries()) {
+        if (detailIds && Array.isArray(detailIds) && componentId && detailIds.includes(componentId)) {
+          const updatedDetails = detailIds.filter(id => id !== componentId);
+          this.activeConnections.set(listId, updatedDetails);
+          
+          console.log(`[FlexibleEmailDependencyBridge] Removed connection from ${listId} to ${componentId}`);
+        }
       }
+    } catch (error) {
+      console.error(`[FlexibleEmailDependencyBridge] Error cleaning up connections:`, error);
     }
   }
   

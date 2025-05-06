@@ -67,11 +67,19 @@ export function useFlexibleEmailListPane(componentId: string) {
     
     console.log(`[useFlexibleEmailListPane] Sending email data from ${componentId}:`, email);
     
-    // Update via the bridge
-    bridge.sendEmailData(componentId, email);
-    
-    // Also update via the manager for backward compatibility
-    manager.updateData(componentId, DependencyDataTypes.EMAIL, email);
+    try {
+      // Update via the bridge
+      if (componentId && bridge) {
+        bridge.sendEmailData(componentId, email);
+      }
+      
+      // Also update via the manager for backward compatibility
+      if (manager && componentId) {
+        manager.updateData(componentId, DependencyDataTypes.EMAIL, email);
+      }
+    } catch (error) {
+      console.error(`[useFlexibleEmailListPane] Error sending email data:`, error);
+    }
   };
   
   return {
@@ -101,20 +109,30 @@ export function useFlexibleEmailDetailPane(componentId: string) {
   // Create a listener for data updates from the bridge
   useEffect(() => {
     const handleDataUpdated = (event: any) => {
-      if (event.targets && event.targets.includes(componentId)) {
-        console.log(`[useFlexibleEmailDetailPane] Received data update for ${componentId}:`, event.data);
-        setEmail(event.data);
+      try {
+        if (event && event.targets && Array.isArray(event.targets) && componentId && 
+            event.targets.includes(componentId)) {
+          console.log(`[useFlexibleEmailDetailPane] Received data update for ${componentId}:`, event.data);
+          setEmail(event.data);
+        }
+      } catch (error) {
+        console.error(`[useFlexibleEmailDetailPane] Error handling data update:`, error);
       }
     };
     
-    bridge.on('dataUpdated', handleDataUpdated);
+    if (bridge) {
+      bridge.on('dataUpdated', handleDataUpdated);
+    }
     
     return () => {
-      bridge.off('dataUpdated', handleDataUpdated);
+      if (bridge) {
+        bridge.off('dataUpdated', handleDataUpdated);
+      }
     };
   }, [componentId, bridge]);
   
   return {
-    email
+    email,
+    selectedEmail: email  // Add the selectedEmail alias for compatibility with EmailDetailPane
   };
 }

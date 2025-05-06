@@ -427,18 +427,39 @@ export class PanelDependencyBridge {
       return;
     }
     
-    // Create the dependency
-    const dependency = this.registry.createDependency(providerDefinitions[0].id, consumerDefinitions[0].id);
+    // Check for registry method existence
+    if (!this.registry || typeof this.registry.createDependency !== 'function') {
+      console.error('[PanelDependencyBridge] Registry or createDependency method not available');
+      return;
+    }
     
-    console.log(`[PanelDependencyBridge] Created connection: ${dependency.id}`);
+    console.log(`[PanelDependencyBridge] Creating dependency with: 
+      provider=${providerDefinitions[0].id}, 
+      consumer=${consumerDefinitions[0].id}, 
+      dataType=${dataType}`);
     
-    // Emit event
-    this.emit('connectionCreated', { 
-      dependencyId: dependency.id, 
-      providerId, 
-      consumerId, 
-      dataType 
-    });
+    try {
+      // Create the dependency with required dataType parameter
+      const dependency = this.registry.createDependency(
+        providerDefinitions[0].id, 
+        consumerDefinitions[0].id,
+        dataType
+      );
+      
+      if (dependency) {
+        console.log(`[PanelDependencyBridge] Created connection: ${dependency.id}`);
+        
+        // Emit event
+        this.emit('connectionCreated', { 
+          dependencyId: dependency.id, 
+          providerId, 
+          consumerId, 
+          dataType 
+        });
+      }
+    } catch (error) {
+      console.error(`[PanelDependencyBridge] Error creating dependency:`, error);
+    }
   }
   
   /**

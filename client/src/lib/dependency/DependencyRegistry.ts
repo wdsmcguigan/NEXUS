@@ -99,34 +99,45 @@ export class DependencyRegistry implements IDependencyRegistry {
    * Get all dependency definitions for a component.
    */
   getDefinitionsByComponent(componentId: string): DependencyDefinition[] {
+    // Guard against null/undefined componentId
+    if (!componentId) {
+      console.warn('[DependencyRegistry] getDefinitionsByComponent called with null/undefined componentId');
+      return [];
+    }
+    
     // For normal components, look for exact match
     const exactIds = this.definitionsByComponent.get(componentId) || new Set();
     let result = Array.from(exactIds).map(id => this.definitions.get(id)!).filter(Boolean);
     
-    // For pattern matching (prefixed components like _EMAIL_LIST_xyz), find all matching definitions
-    if (componentId.includes('_')) {
-      // Extract pattern (e.g., _EMAIL_LIST_ from _EMAIL_LIST_abc123)
-      const patterns = componentId.match(/(_[A-Z_]+_)/g);
-      
-      if (patterns && patterns.length > 0) {
-        const patternToMatch = patterns[0];
+    try {
+      // For pattern matching (prefixed components like _EMAIL_LIST_xyz), find all matching definitions
+      if (typeof componentId === 'string' && componentId.includes('_')) {
+        // Extract pattern (e.g., _EMAIL_LIST_ from _EMAIL_LIST_abc123)
+        const patterns = componentId.match(/(_[A-Z_]+_)/g);
         
-        // Look for definitions with matching pattern
-        for (const [defCompId, defIds] of this.definitionsByComponent.entries()) {
-          // Skip the exact match we already processed
-          if (defCompId === componentId) continue;
+        if (patterns && patterns.length > 0) {
+          const patternToMatch = patterns[0];
           
-          // Check if this component has the same pattern prefix
-          if (defCompId.includes(patternToMatch)) {
-            const matchingDefs = Array.from(defIds)
-              .map(id => this.definitions.get(id)!)
-              .filter(Boolean);
+          // Look for definitions with matching pattern
+          for (const [defCompId, defIds] of this.definitionsByComponent.entries()) {
+            // Skip the exact match we already processed
+            if (defCompId === componentId) continue;
             
-            // Add to results
-            result = result.concat(matchingDefs);
+            // Check if this component has the same pattern prefix - add safety check
+            if (typeof defCompId === 'string' && defCompId.includes(patternToMatch)) {
+              const matchingDefs = Array.from(defIds)
+                .map(id => this.definitions.get(id))
+                .filter(Boolean) as DependencyDefinition[];
+              
+              // Add to results
+              result = result.concat(matchingDefs);
+            }
           }
         }
       }
+    } catch (error) {
+      console.error('[DependencyRegistry] Error in pattern matching:', error);
+      // Continue with whatever results we have so far
     }
     
     return result;

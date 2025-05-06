@@ -115,8 +115,18 @@ function tabReducer(state: TabState, action: TabAction): TabState {
         return state;
       }
 
-      // Generate a unique ID for the tab
-      const tabId = nanoid();
+      // Generate a unique ID for the tab (6 chars only)
+      const tabId = nanoid(6);
+      
+      // Check if this tab should be stored for persistence
+      try {
+        // Store componentId -> tabId mappings in localStorage for persistence
+        const storedTabIds = JSON.parse(localStorage.getItem('nexus_tab_ids') || '{}');
+        storedTabIds[`${componentId}_${Date.now()}`] = tabId;
+        localStorage.setItem('nexus_tab_ids', JSON.stringify(storedTabIds));
+      } catch (err) {
+        console.error('Failed to store tab ID in localStorage:', err);
+      }
       
       // Create the new tab
       const newTab: Tab = {
@@ -467,7 +477,7 @@ function tabReducer(state: TabState, action: TabAction): TabState {
 
     case 'ADD_PANEL': {
       const { type, parentId, direction, size } = action.payload;
-      const panelId = nanoid();
+      const panelId = nanoid(6);
       
       const newPanel: Panel = {
         id: panelId,
@@ -537,7 +547,7 @@ function tabReducer(state: TabState, action: TabAction): TabState {
       }
 
       // Create a new panel with optional custom ID
-      const newPanelId = options?.newPanelId || nanoid();
+      const newPanelId = options?.newPanelId || nanoid(6);
       
       // First child panel (original tabs go here)
       const childPanel1Id = `${panelId}-child1-${Date.now()}`;
@@ -622,7 +632,7 @@ export function TabProvider({ children }: TabProviderProps) {
   const [maximizedPanelId, setMaximizedPanelId] = React.useState<string | null>(null);
 
   const addTab = useCallback((componentId: string, panelId: string, props?: any, options?: { title?: string; icon?: React.ReactNode; closeable?: boolean }): string => {
-    const tabId = nanoid();
+    const tabId = nanoid(6);
     dispatch({
       type: 'ADD_TAB',
       payload: {
@@ -711,7 +721,7 @@ export function TabProvider({ children }: TabProviderProps) {
   }, [state.tabs, state.panels]);
 
   const addPanel = useCallback((type: PanelType, parentId?: string, options?: { direction?: 'horizontal' | 'vertical', size?: number }) => {
-    const panelId = nanoid();
+    const panelId = nanoid(6);
     dispatch({
       type: 'ADD_PANEL',
       payload: {

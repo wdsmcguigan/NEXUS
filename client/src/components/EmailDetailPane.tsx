@@ -2,13 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Reply, Forward, Star, FileText, Tag, Clock, Paperclip, ArrowLeft, MoreHorizontal, Download, Trash, Archive } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { apiRequest } from '../lib/queryClient';
-import type { Email, EmailWithDetails, Contact, Tag as TagType, EmailAttachment } from '../../shared/schema';
+import type { Email, EmailWithDetails, Contact, Tag as TagType, EmailAttachment, StarColor } from '../types/schema';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
-import { StarColor } from '../../shared/schema';
 import { useTagContext, TagItem } from '../context/TagContext';
 import { useDependencyConsumer } from '../hooks/useDependencyHooks';
 import { DependencyDataTypes } from '../lib/dependency/DependencyInterfaces';
@@ -41,7 +40,7 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
   
   // Register as dependency consumer for email data
   const dependencyConsumer = useDependencyConsumer<any>(
-    DependencyDataTypes.EMAIL_DATA,
+    DependencyDataTypes.EMAIL_DATA as DependencyDataTypes,
     instanceId
   );
   

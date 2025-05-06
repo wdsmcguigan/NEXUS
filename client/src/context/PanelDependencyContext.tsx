@@ -26,6 +26,7 @@ interface PanelDependencyContextType {
   connectTabs: (sourceTabId: string, targetTabId: string) => void;
   disconnectTabs: (sourceTabId: string, targetTabId: string) => void;
   createAllCompatibleDependencies: () => void;
+  forceCreateDependency: (providerId: string, consumerId: string) => void;
   getComponentIdForTab: (tabId: string) => string | undefined;
   showDebugInfo: boolean;
 }
@@ -184,6 +185,14 @@ export function PanelDependencyProvider({ children }: { children: React.ReactNod
     bridge.findCompatibleComponents();
     console.log('[PanelDependencyProvider] Checking for compatible components');
   };
+  
+  /**
+   * Force dependency creation between two components
+   */
+  const forceCreateDependency = (providerId: string, consumerId: string): void => {
+    console.log(`[PanelDependencyProvider] Force creating dependency from ${providerId} to ${consumerId}`);
+    bridge.createConnection(providerId, consumerId);
+  };
 
   /**
    * Get component ID for tab (same as getComponentId but with a better name for UI code)
@@ -207,6 +216,7 @@ export function PanelDependencyProvider({ children }: { children: React.ReactNod
     connectTabs,
     disconnectTabs,
     createAllCompatibleDependencies,
+    forceCreateDependency,
     getComponentIdForTab,
     showDebugInfo
   };

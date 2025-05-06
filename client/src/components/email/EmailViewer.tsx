@@ -57,13 +57,18 @@ interface EmailViewerProps {
 }
 
 const EmailViewer: React.FC<EmailViewerProps> = ({
-  instanceId,
+  instanceId: rawInstanceId,
   email: propEmail,
   onReply,
   onForward,
   onDelete,
   onArchive
 }) => {
+  // Add type prefix to instanceId for dependency matching
+  const instanceId = rawInstanceId.includes('_EMAIL_VIEWER_') 
+    ? rawInstanceId 
+    : `_EMAIL_VIEWER_${rawInstanceId}`;
+    
   const [emailSource, setEmailSource] = useState<string | null>(null);
   const [hasDependentConsumers, setHasDependentConsumers] = useState(false);
   

@@ -129,7 +129,7 @@ const mockEmails: Email[] = [
 ];
 
 const EmailList: React.FC<EmailListProps> = ({ 
-  instanceId,
+  instanceId: rawInstanceId,
   emails = mockEmails,
   loading = false,
   onEmailSelect,
@@ -137,6 +137,11 @@ const EmailList: React.FC<EmailListProps> = ({
   filterFolder,
   filterTag
 }) => {
+  // Add type prefix to instanceId for dependency matching
+  const instanceId = rawInstanceId.includes('_EMAIL_LIST_') 
+    ? rawInstanceId 
+    : `_EMAIL_LIST_${rawInstanceId}`;
+    
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [filteredEmails, setFilteredEmails] = useState<Email[]>(emails);
   const [hasDependentViewer, setHasDependentViewer] = useState(false);

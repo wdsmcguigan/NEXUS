@@ -141,8 +141,14 @@ export class FlexibleEmailDependencyBridge extends EventEmitter {
         role: 'consumer'
       });
       
-      // Create the dependency between them - note we need to pass the dataType
-      const dependency = this.registry.createDependency(providerId, consumerId, DependencyDataTypes.EMAIL);
+      // Create the dependency between them - use the component IDs directly
+      // This is a fix for a critical issue - we need to use component IDs, not definition IDs
+      console.log(`[FlexibleEmailDependencyBridge] Creating dependency between ${listPaneId} and ${detailPaneId}`);
+      const dependency = this.registry.createDependency(
+        listPaneId, 
+        detailPaneId, 
+        DependencyDataTypes.EMAIL
+      );
       
       // Store the connection
       if (!this.activeConnections.has(listPaneId)) {
@@ -258,26 +264,125 @@ export class FlexibleEmailDependencyBridge extends EventEmitter {
     }
     
     try {
-      // Handle list pane removal
+      // Handle list pane removal - we need to actually remove the dependencies from the registry
       if (this.activeConnections.has(componentId)) {
         const connections = this.activeConnections.get(componentId) || [];
         
-        console.log(`[FlexibleEmailDependencyBridge] Cleaning up ${connections.length} connections for ${componentId}`);
+        console.log(`[FlexibleEmailDependencyBridge] Cleaning up ${connections.length} connections for list pane ${componentId}`);
         
+        // For each detail pane connected to this list, remove the dependency
+        for (const detailId of connections) {
+          // Get the provider and consumer IDs
+          const providerId = `${componentId}-provider`;
+          const consumerId = `${detailId}-consumer`;
+          
+          // Find and remove the dependency
+          try {
+            const depIds = this.getRegistryDependencyIds(componentId, detailId);
+            
+            if (depIds.length > 0) {
+              console.log(`[FlexibleEmailDependencyBridge] Removing ${depIds.length} registry dependencies between ${componentId} and ${detailId}`);
+              
+              // Remove each dependency from registry
+              for (const depId of depIds) {
+                this.registry.removeDependency(depId);
+                console.log(`[FlexibleEmailDependencyBridge] Removed registry dependency: ${depId}`);
+              }
+            } else {
+              console.log(`[FlexibleEmailDependencyBridge] No registry dependencies found between ${componentId} and ${detailId}`);
+            }
+          } catch (removalError) {
+            console.error(`[FlexibleEmailDependencyBridge] Error removing registry dependency:`, removalError);
+          }
+        }
+        
+        // Finally remove from our active connections map
         this.activeConnections.delete(componentId);
       }
       
       // Handle detail pane removal (need to check all list panes)
       for (const [listId, detailIds] of this.activeConnections.entries()) {
         if (detailIds && Array.isArray(detailIds) && detailIds.includes(componentId)) {
+          // Get the provider and consumer IDs
+          const providerId = `${listId}-provider`;
+          const consumerId = `${componentId}-consumer`;
+          
+          // Find and remove the dependency
+          try {
+            const depIds = this.getRegistryDependencyIds(listId, componentId);
+            
+            if (depIds.length > 0) {
+              console.log(`[FlexibleEmailDependencyBridge] Removing ${depIds.length} registry dependencies between ${listId} and ${componentId}`);
+              
+              // Remove each dependency from registry
+              for (const depId of depIds) {
+                this.registry.removeDependency(depId);
+                console.log(`[FlexibleEmailDependencyBridge] Removed registry dependency: ${depId}`);
+              }
+            } else {
+              console.log(`[FlexibleEmailDependencyBridge] No registry dependencies found between ${listId} and ${componentId}`);
+            }
+          } catch (removalError) {
+            console.error(`[FlexibleEmailDependencyBridge] Error removing registry dependency:`, removalError);
+          }
+          
+          // Update our active connections map
           const updatedDetails = detailIds.filter(id => id !== componentId);
           this.activeConnections.set(listId, updatedDetails);
           
           console.log(`[FlexibleEmailDependencyBridge] Removed connection from ${listId} to ${componentId}`);
         }
       }
+      
+      // Emit an event about the connection removal
+      this.emit('connectionRemoved', {
+        componentId: componentId,
+        timestamp: Date.now()
+      });
+      
     } catch (error) {
       console.error(`[FlexibleEmailDependencyBridge] Error cleaning up connections:`, error);
+    }
+  }
+  
+  /**
+   * Helper method to find dependency IDs in the registry between two components
+   */
+  private getRegistryDependencyIds(providerId: string, consumerId: string): string[] {
+    try {
+      // Get the actual dependency IDs from the registry
+      const providerDepIds = this.registry.getDependenciesByProvider(providerId);
+      const consumerDepIds = this.registry.getDependenciesByConsumer(consumerId);
+      
+      // Find dependencies that connect these two components
+      const matchingDepIds: string[] = [];
+      
+      // Provider dependencies - we need to cast the array items to string
+      // (these are already dependency IDs even though TypeScript doesn't recognize it)
+      if (providerDepIds && providerDepIds.length > 0) {
+        for (const depId of providerDepIds) {
+          const dep = this.registry.getDependency(depId as string);
+          if (dep && dep.consumerId === consumerId) {
+            matchingDepIds.push(depId as string);
+          }
+        }
+      }
+      
+      // Consumer dependencies - same casting needed
+      if (consumerDepIds && consumerDepIds.length > 0) {
+        for (const depId of consumerDepIds) {
+          const dep = this.registry.getDependency(depId as string);
+          if (dep && dep.providerId === providerId) {
+            matchingDepIds.push(depId as string);
+          }
+        }
+      }
+      
+      console.log(`[FlexibleEmailDependencyBridge] Found ${matchingDepIds.length} dependencies between ${providerId} and ${consumerId}`);
+      return matchingDepIds;
+    } catch (error) {
+      console.error(`[FlexibleEmailDependencyBridge] Error finding dependency IDs:`, error);
+      return [];
     }
   }
   
@@ -306,18 +411,76 @@ export class FlexibleEmailDependencyBridge extends EventEmitter {
    * Remove a specific connection
    */
   removeConnection(listPaneId: string, detailPaneId: string): void {
+    console.log(`[FlexibleEmailDependencyBridge] Attempting to remove connection from ${listPaneId} to ${detailPaneId}`);
+    
+    // First, make sure these components exist in our registry
+    if (!this.listPaneIds.has(listPaneId)) {
+      console.warn(`[FlexibleEmailDependencyBridge] Cannot remove connection: List pane ${listPaneId} not found`);
+      return;
+    }
+    
+    if (!this.detailPaneIds.has(detailPaneId)) {
+      console.warn(`[FlexibleEmailDependencyBridge] Cannot remove connection: Detail pane ${detailPaneId} not found`);
+      return;
+    }
+    
+    // Update our internal connection tracking
     if (this.activeConnections.has(listPaneId)) {
       const connections = this.activeConnections.get(listPaneId) || [];
-      const updatedConnections = connections.filter(id => id !== detailPaneId);
       
-      this.activeConnections.set(listPaneId, updatedConnections);
+      // Check if this connection actually exists
+      if (!connections.includes(detailPaneId)) {
+        console.warn(`[FlexibleEmailDependencyBridge] No active connection found from ${listPaneId} to ${detailPaneId}`);
+        return;
+      }
       
-      console.log(`[FlexibleEmailDependencyBridge] Removed connection from ${listPaneId} to ${detailPaneId}`);
-      
-      this.emit('connectionRemoved', {
-        sourceId: listPaneId,
-        targetId: detailPaneId
-      });
+      // Find and remove the dependency in the registry
+      try {
+        const depIds = this.getRegistryDependencyIds(listPaneId, detailPaneId);
+        
+        if (depIds.length > 0) {
+          console.log(`[FlexibleEmailDependencyBridge] Removing ${depIds.length} registry dependencies between ${listPaneId} and ${detailPaneId}`);
+          
+          // Remove each dependency from registry
+          for (const depId of depIds) {
+            this.registry.removeDependency(depId);
+            console.log(`[FlexibleEmailDependencyBridge] Removed registry dependency: ${depId}`);
+          }
+        } else {
+          console.log(`[FlexibleEmailDependencyBridge] No registry dependencies found between ${listPaneId} and ${detailPaneId}`);
+        }
+        
+        // Update our active connections map
+        const updatedConnections = connections.filter(id => id !== detailPaneId);
+        this.activeConnections.set(listPaneId, updatedConnections);
+        
+        console.log(`[FlexibleEmailDependencyBridge] Removed connection from ${listPaneId} to ${detailPaneId}`);
+        
+        // Emit an event about this connection removal
+        this.emit('connectionRemoved', {
+          sourceId: listPaneId,
+          targetId: detailPaneId,
+          timestamp: Date.now()
+        });
+        
+        // Display toast notification
+        toast({
+          title: 'Connection Removed',
+          description: `Disconnected ${listPaneId} from ${detailPaneId}`,
+          variant: 'default'
+        });
+        
+      } catch (error) {
+        console.error(`[FlexibleEmailDependencyBridge] Error removing connection:`, error);
+        
+        toast({
+          title: 'Error Removing Connection',
+          description: `Failed to disconnect ${listPaneId} from ${detailPaneId}`,
+          variant: 'destructive'
+        });
+      }
+    } else {
+      console.warn(`[FlexibleEmailDependencyBridge] List pane ${listPaneId} has no connections to remove`);
     }
   }
   

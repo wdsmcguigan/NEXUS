@@ -132,7 +132,8 @@ export function FlexibleEmailDebugPanel({ emailBridge }: FlexibleEmailDebugPanel
   };
 
   // Generate a display name for component IDs by removing UUIDs
-  const getDisplayName = (id: string) => {
+  const getDisplayName = (id: string | null) => {
+    if (!id) return 'unknown';
     // Remove UUID pattern at the end if present
     return id.replace(/-[a-zA-Z0-9]{6,}$/, '');
   };

@@ -1,124 +1,118 @@
 /**
- * Schema types for the client side application
- * These types match the server-side types in shared/schema.ts
+ * Schema types for the application
  */
 
-// Enums
-export type AccountType = 'work' | 'personal' | 'school';
-export type Category = 'primary' | 'social' | 'promotions' | 'updates';
-export type EmailPriority = 'high' | 'medium' | 'low' | 'none';
-export type StarColor = 'red' | 'orange' | 'gold' | 'green' | 'blue' | 'none';
-
-// User
-export interface User {
-  id: number;
-  username: string;
-  displayName: string;
-  email: string;
-}
-
-// Email Account
-export interface EmailAccount {
-  id: number;
-  userId: number;
-  email: string;
-  name: string;
-  type: AccountType;
-  isDefault: boolean;
-  smtpServer?: string | null;
-  smtpPort?: number | null;
-  imapServer?: string | null;
-  imapPort?: number | null;
-}
-
-// Contact
-export interface Contact {
-  id: number;
-  name: string;
-  email: string;
-  company?: string | null;
-  avatarUrl?: string | null;
-  notes?: string | null;
-}
-
-// Tag
-export interface Tag {
-  id: number;
-  userId: number;
-  name: string;
-  parentId?: number | null;
-  bgColor: string;
-  textColor: string;
-  emoji?: string | null;
-}
-
-export type TagType = Tag;
-
-// Email
+// Email data types
 export interface Email {
   id: number;
   accountId: number;
   fromContactId: number;
   subject: string;
-  body?: string | null;
-  timestamp: string;
-  category: Category;
+  body: string;
+  snippet: string;
+  date: string;
   isRead: boolean;
-  isArchived: boolean;
-  isTrashed: boolean;
-  starColor: StarColor;
-  todoText?: string | null;
-  todoCompleted: boolean;
+  isStarred: boolean;
+  starColor?: string;
+  labels: string[];
+  folder: string;
+  tags: string[];
+  attachments: EmailAttachment[];
+  fromName?: string;
+  fromEmail?: string;
 }
 
-// Email Recipient
-export interface EmailRecipient {
-  id: number;
-  emailId: number;
-  contactId: number;
-  type: 'to' | 'cc' | 'bcc';
-  contact?: Contact;
-}
-
-// Email Attachment
 export interface EmailAttachment {
   id: number;
   emailId: number;
-  fileName: string;
-  fileType: string;
-  fileSize: number;
-  fileContent?: string;
+  name: string;
+  type: string;
+  size: number;
+  url: string;
 }
 
-// Email Tag
+export interface EmailFolder {
+  id: string;
+  name: string;
+  count: number;
+  icon?: string;
+}
+
+export interface EmailLabel {
+  id: string;
+  name: string;
+  color: string;
+  count: number;
+}
+
 export interface EmailTag {
+  id: string;
+  name: string;
+  color: string;
+  icon?: string;
+}
+
+export interface EmailAccount {
   id: number;
-  emailId: number;
-  tagId: number;
-  tag?: Tag;
+  email: string;
+  name: string;
+  defaultAccount: boolean;
+  provider: string;
+  folders: EmailFolder[];
+  labels: EmailLabel[];
+  signature?: string;
 }
 
-// User Preference
-export interface UserPreference {
+export interface Contact {
   id: number;
-  userId: number;
-  theme: string;
-  layout: string;
-  signature?: string | null;
-  defaultAccountId?: number | null;
-  emailsPerPage: number;
-  showNotifications: boolean;
+  name: string;
+  email: string;
+  company?: string;
+  phone?: string;
+  avatar?: string;
+  notes?: string;
+  tags: string[];
 }
 
-// Detailed Email with relationships
-export interface EmailWithDetails extends Email {
-  fromContact: Contact;
-  recipients: (EmailRecipient & { contact: Contact })[];
-  attachments: EmailAttachment[];
-  tags: (EmailTag & { tag: Tag })[];
+// User preferences
+export interface UserPreferences {
+  theme: 'light' | 'dark' | 'system';
+  layout: any; // Layout configuration
+  defaultAccount: number;
+  notificationsEnabled: boolean;
+  soundsEnabled: boolean;
+  composeDefaults: {
+    signature: boolean;
+    format: 'html' | 'plain';
+    font: string;
+    fontSize: number;
+  };
 }
 
-// Tag with children for hierarchical display
-export interface TagWithChildren extends Tag {
-  children?: TagWithChildren[];
+export interface SearchFilter {
+  id: string;
+  name: string;
+  query: string;
+  isSaved: boolean;
+  icon?: string;
+}
+
+// Template types
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+  tags: string[];
+  isDefault: boolean;
+  lastUsed?: string;
+}
+
+// Integration types
+export interface Integration {
+  id: string;
+  name: string;
+  type: string;
+  isEnabled: boolean;
+  settings: Record<string, any>;
 }

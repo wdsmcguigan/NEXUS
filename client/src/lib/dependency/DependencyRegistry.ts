@@ -99,8 +99,37 @@ export class DependencyRegistry implements IDependencyRegistry {
    * Get all dependency definitions for a component.
    */
   getDefinitionsByComponent(componentId: string): DependencyDefinition[] {
-    const definitionIds = this.definitionsByComponent.get(componentId) || new Set();
-    return Array.from(definitionIds).map(id => this.definitions.get(id)!).filter(Boolean);
+    // For normal components, look for exact match
+    const exactIds = this.definitionsByComponent.get(componentId) || new Set();
+    let result = Array.from(exactIds).map(id => this.definitions.get(id)!).filter(Boolean);
+    
+    // For pattern matching (prefixed components like _EMAIL_LIST_xyz), find all matching definitions
+    if (componentId.includes('_')) {
+      // Extract pattern (e.g., _EMAIL_LIST_ from _EMAIL_LIST_abc123)
+      const patterns = componentId.match(/(_[A-Z_]+_)/g);
+      
+      if (patterns && patterns.length > 0) {
+        const patternToMatch = patterns[0];
+        
+        // Look for definitions with matching pattern
+        for (const [defCompId, defIds] of this.definitionsByComponent.entries()) {
+          // Skip the exact match we already processed
+          if (defCompId === componentId) continue;
+          
+          // Check if this component has the same pattern prefix
+          if (defCompId.includes(patternToMatch)) {
+            const matchingDefs = Array.from(defIds)
+              .map(id => this.definitions.get(id)!)
+              .filter(Boolean);
+            
+            // Add to results
+            result = result.concat(matchingDefs);
+          }
+        }
+      }
+    }
+    
+    return result;
   }
   
   /**

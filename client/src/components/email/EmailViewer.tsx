@@ -85,7 +85,7 @@ const EmailViewer: React.FC<EmailViewerProps> = ({
   
   // Log when email data changes
   useEffect(() => {
-    console.log("EmailViewer received email data:", email);
+    console.log(`EmailViewer (${instanceId}) received email data:`, email);
     
     if (email) {
       // Only show toast if we received a new email (not just initial render)
@@ -95,6 +95,10 @@ const EmailViewer: React.FC<EmailViewerProps> = ({
           description: `Email "${email.subject.substring(0, 25)}${email.subject.length > 25 ? '...' : ''}" received from provider`,
           variant: "default",
         });
+        
+        // Show more visual feedback with animation
+        setShowNewDataIndicator(true);
+        setTimeout(() => setShowNewDataIndicator(false), 3000);
       }
       
       setCurrentEmailId(email.id);
@@ -111,7 +115,7 @@ const EmailViewer: React.FC<EmailViewerProps> = ({
         });
       }
     }
-  }, [email, currentEmailId]);
+  }, [email, currentEmailId, instanceId]);
   
   // Provider for contact information
   const {

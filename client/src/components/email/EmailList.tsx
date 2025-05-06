@@ -155,13 +155,13 @@ const EmailList: React.FC<EmailListProps> = ({
   useEffect(() => {
     const consumers = getDependentConsumers();
     if (consumers.length > 0) {
-      console.log(`EmailList: Has ${consumers.length} connected consumers`);
+      console.log(`EmailList (${instanceId}): Has ${consumers.length} connected consumers`);
       // Always send current selection state (even if null) when consumers connect
       console.log("Sending current email selection state to consumers:", selectedEmail);
       // @ts-ignore - intentionally allowing null
       updateProviderData(selectedEmail);
     }
-  }, [getDependentConsumers]);
+  }, [getDependentConsumers, selectedEmail, updateProviderData, instanceId]);
   
   // Register as dependency provider for email list data
   const { 
@@ -268,10 +268,18 @@ const EmailList: React.FC<EmailListProps> = ({
     // Deselect if already selected
     if (selectedEmail?.id === email.id) {
       setSelectedEmail(null);
+      
+      // Important: Explicitly send null to dependents to clear viewers
+      // @ts-ignore - intentionally allowing null
+      updateProviderData(null);
       return;
     }
     
+    // Update selected email state
     setSelectedEmail(email);
+    
+    // Explicitly update dependents with this email
+    updateProviderData(email);
     
     // Show visual feedback for dependencies
     if (hasDependentViewer) {

@@ -76,7 +76,8 @@ const EmailViewer: React.FC<EmailViewerProps> = ({
     providerId: emailProviderId,
     isReady: emailIsReady,
     lastUpdated: emailLastUpdated,
-    status: emailStatus
+    status: emailStatus,
+    disconnect: emailDisconnect
   } = useDependencyConsumer<Email>(
     instanceId,
     DependencyDataTypes.EMAIL_DATA
@@ -175,25 +176,32 @@ const EmailViewer: React.FC<EmailViewerProps> = ({
   
   // Disconnect from email provider
   const handleDisconnectFromProvider = () => {
-    setEmailSource(null);
-    // In a real implementation, you would use dependency registry 
-    // to disconnect the dependency
-    toast({
-      title: "Provider Disconnected",
-      description: "Disconnected from email provider.",
-      variant: "default"
-    });
+    if (emailProviderId) {
+      // Actually disconnect using the hook's disconnect function
+      emailDisconnect();
+      setEmailSource(null);
+      
+      toast({
+        title: "Provider Disconnected",
+        description: "Disconnected from email provider.",
+        variant: "default"
+      });
+    }
   };
   
   // Disconnect from contact consumers
   const handleDisconnectConsumers = () => {
-    // In a real implementation, you would use dependency registry 
-    // to disconnect all dependencies
-    toast({
-      title: "Dependencies Disconnected",
-      description: "All dependent components have been disconnected.",
-      variant: "default"
-    });
+    // Actually disconnect all consumers
+    if (contactIsRegistered && hasDependentConsumers) {
+      disconnectAllConsumers();
+      setHasDependentConsumers(false);
+      
+      toast({
+        title: "Dependencies Disconnected",
+        description: "All dependent components have been disconnected.",
+        variant: "default"
+      });
+    }
   };
   
   // Handle reply button

@@ -31,7 +31,7 @@ interface EmailDetailPaneProps {
 
 export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailDetailPaneProps) {
   // Add type prefix to tabId for dependency matching
-  const instanceId = tabId ? `_EMAIL_VIEWER_${tabId}` : undefined;
+  const instanceId = tabId ? `_EMAIL_DETAIL_${tabId}` : '_EMAIL_DETAIL_default';
 
   const [email, setEmail] = useState<EmailWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,9 +46,9 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
   );
   
   // Extract the methods and properties we need from the consumer
-  const dependencyEmailData = dependencyConsumer.data;
-  const hasProvider = dependencyConsumer.providerExists;
-  const isConnected = dependencyConsumer.isConnected;
+  const dependencyEmailData = dependencyConsumer.consumerData;
+  const hasProvider = dependencyConsumer.providerId !== null;
+  const isConnected = dependencyConsumer.isReady;
 
   // Process dependency data when it's received
   useEffect(() => {

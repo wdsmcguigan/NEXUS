@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Mail, Star, Paperclip, Tag, Clock, Trash, Archive } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { apiRequest } from '../lib/queryClient';
@@ -23,7 +23,7 @@ interface EmailListPaneProps {
 
 export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
   // Add type prefix to tabId for dependency matching
-  const instanceId = tabId ? `_EMAIL_LIST_${tabId}` : undefined;
+  const instanceId = tabId ? `_EMAIL_LIST_${tabId}` : '_EMAIL_LIST_default';
 
   const [emails, setEmails] = useState<(Email & { fromContact?: Contact, tags?: (TagType & { id: number })[] })[]>([]);
   const [loading, setLoading] = useState(true);

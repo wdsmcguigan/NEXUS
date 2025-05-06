@@ -10,7 +10,11 @@ import {
   Link2, 
   Link, 
   ChevronRight,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Pause,
+  Play,
+  Trash,
+  Link2Off
 } from 'lucide-react';
 import { useTabContext } from '../../context/TabContext';
 import { Button } from '@/components/ui/button';
@@ -24,7 +28,14 @@ interface DependencyPickerProps {
 }
 
 export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
-  const { registry, manager } = useDependencyContext();
+  const { 
+    registry, 
+    manager, 
+    suspendDependency, 
+    resumeDependency, 
+    removeDependency,
+    suspendAllDependenciesForComponent
+  } = useDependencyContext();
   const { state } = useTabContext();
   const { toast } = useToast();
   const [isActive, setIsActive] = useState(false);
@@ -166,6 +177,46 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
       .replace(/Panel$/, ' Panel'); // Add space before Panel
   };
   
+  // Handle suspending a dependency
+  const handleSuspendDependency = (dependencyId: string) => {
+    suspendDependency(dependencyId);
+    toast({
+      title: "Dependency Suspended",
+      description: `Dependency has been suspended.`,
+      variant: "default",
+    });
+  };
+  
+  // Handle resuming a dependency
+  const handleResumeDependency = (dependencyId: string) => {
+    resumeDependency(dependencyId);
+    toast({
+      title: "Dependency Resumed",
+      description: `Dependency has been resumed.`,
+      variant: "default",
+    });
+  };
+  
+  // Handle removing a dependency
+  const handleRemoveDependency = (dependencyId: string) => {
+    removeDependency(dependencyId);
+    toast({
+      title: "Dependency Removed",
+      description: `Dependency has been removed.`,
+      variant: "default",
+    });
+  };
+  
+  // Handle suspending all dependencies for this component
+  const handleSuspendAllDependencies = () => {
+    suspendAllDependenciesForComponent(tabId);
+    toast({
+      title: "All Dependencies Suspended",
+      description: `All dependencies for ${getTabName(tabId)} have been suspended.`,
+      variant: "default",
+    });
+  };
+  
   return (
     <>
       {isPickingMode && (
@@ -272,45 +323,131 @@ export function DependencyPicker({ tabId, className }: DependencyPickerProps) {
             {/* Show existing dependencies if any */}
             {(dependencies.providing.length > 0 || dependencies.consuming.length > 0) && (
               <div className="border rounded-md p-2 space-y-2 bg-blue-50/10">
-                <h5 className="text-xs font-medium">Active Dependencies</h5>
+                <div className="flex justify-between items-center mb-2">
+                  <h5 className="text-xs font-medium">Active Dependencies</h5>
+                  
+                  {(dependencies.providing.length > 0 || dependencies.consuming.length > 0) && (
+                    <div className="flex">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-amber-400 hover:text-amber-500"
+                        onClick={handleSuspendAllDependencies}
+                      >
+                        <Pause className="h-3 w-3 mr-1" />
+                        Suspend All
+                      </Button>
+                    </div>
+                  )}
+                </div>
                 
                 {dependencies.providing.length > 0 && (
                   <div className="space-y-1">
                     <div className="text-xs text-muted-foreground">Providing data to:</div>
-                    {dependencies.providing.map(dep => (
-                      <div key={dep.id} className="flex items-center p-1 text-xs bg-blue-100/10 rounded">
-                        <ArrowRightLeft className="h-3 w-3 mr-1 text-blue-500" />
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">{dep.consumerName}</span>
-                            <span className="text-muted-foreground text-xs">{dep.dataType}</span>
+                    {dependencies.providing.map(dep => {
+                      const dependency = registry.getDependency(dep.id);
+                      const isSuspended = dependency?.status === DependencyStatus.SUSPENDED;
+                      
+                      return (
+                        <div key={dep.id} className="flex items-center p-1 text-xs bg-blue-100/10 rounded group">
+                          <ArrowRightLeft className="h-3 w-3 mr-1 text-blue-500" />
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium">{dep.consumerName}</span>
+                              <span className="text-muted-foreground text-xs">{dep.dataType}</span>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              ID: {dep.consumerId.substring(0, 6)}
+                            </div>
                           </div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            ID: {dep.consumerId.substring(0, 8)}...
+                          
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {isSuspended ? (
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 w-6 p-0 text-green-400 hover:text-green-500"
+                                onClick={() => handleResumeDependency(dep.id)}
+                              >
+                                <Play className="h-3 w-3" />
+                              </Button>
+                            ) : (
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 w-6 p-0 text-amber-400 hover:text-amber-500"
+                                onClick={() => handleSuspendDependency(dep.id)}
+                              >
+                                <Pause className="h-3 w-3" />
+                              </Button>
+                            )}
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-6 w-6 p-0 text-red-400 hover:text-red-500"
+                              onClick={() => handleRemoveDependency(dep.id)}
+                            >
+                              <Trash className="h-3 w-3" />
+                            </Button>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
                 
                 {dependencies.consuming.length > 0 && (
                   <div className="space-y-1 mt-2">
                     <div className="text-xs text-muted-foreground">Consuming data from:</div>
-                    {dependencies.consuming.map(dep => (
-                      <div key={dep.id} className="flex items-center p-1 text-xs bg-blue-100/10 rounded">
-                        <ArrowRightLeft className="h-3 w-3 mr-1 text-green-500" />
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">{dep.providerName}</span>
-                            <span className="text-muted-foreground text-xs">{dep.dataType}</span>
+                    {dependencies.consuming.map(dep => {
+                      const dependency = registry.getDependency(dep.id);
+                      const isSuspended = dependency?.status === DependencyStatus.SUSPENDED;
+                      
+                      return (
+                        <div key={dep.id} className="flex items-center p-1 text-xs bg-blue-100/10 rounded group">
+                          <ArrowRightLeft className="h-3 w-3 mr-1 text-green-500" />
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium">{dep.providerName}</span>
+                              <span className="text-muted-foreground text-xs">{dep.dataType}</span>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-0.5">
+                              ID: {dep.providerId.substring(0, 6)}
+                            </div>
                           </div>
-                          <div className="text-xs text-muted-foreground mt-0.5">
-                            ID: {dep.providerId.substring(0, 8)}...
+                          
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {isSuspended ? (
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 w-6 p-0 text-green-400 hover:text-green-500"
+                                onClick={() => handleResumeDependency(dep.id)}
+                              >
+                                <Play className="h-3 w-3" />
+                              </Button>
+                            ) : (
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-6 w-6 p-0 text-amber-400 hover:text-amber-500"
+                                onClick={() => handleSuspendDependency(dep.id)}
+                              >
+                                <Pause className="h-3 w-3" />
+                              </Button>
+                            )}
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-6 w-6 p-0 text-red-400 hover:text-red-500"
+                              onClick={() => handleRemoveDependency(dep.id)}
+                            >
+                              <Trash className="h-3 w-3" />
+                            </Button>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

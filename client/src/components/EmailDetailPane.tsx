@@ -673,4 +673,40 @@ Sarah`,
   );
 }
 
+// Helper functions for attachments
+function getFileIcon(fileType: string | undefined): React.ReactNode {
+  if (!fileType) return <FileText />;
+  
+  switch (fileType.toLowerCase()) {
+    case 'pdf':
+      return <FileText />;
+    case 'doc':
+    case 'docx':
+      return <FileText />;
+    case 'xls':
+    case 'xlsx':
+      return <FileText />;
+    case 'ppt':
+    case 'pptx':
+      return <FileText />;
+    case 'jpg':
+    case 'jpeg':
+    case 'png':
+    case 'gif':
+      return <FileText />;
+    default:
+      return <FileText />;
+  }
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
 export default EmailDetailPane;

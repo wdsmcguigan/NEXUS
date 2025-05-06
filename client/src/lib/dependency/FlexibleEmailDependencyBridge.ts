@@ -181,48 +181,88 @@ export class FlexibleEmailDependencyBridge extends EventEmitter {
    * Send data directly from an email list pane to all connected email detail panes
    */
   sendEmailData(listPaneId: string, emailData: any): void {
-    console.log(`[FlexibleEmailDependencyBridge] Sending email data from ${listPaneId}:`, emailData);
+    if (!listPaneId) {
+      console.warn(`[FlexibleEmailDependencyBridge] Invalid list pane ID: ${listPaneId}`);
+      return;
+    }
+    
+    if (!emailData) {
+      console.warn(`[FlexibleEmailDependencyBridge] Null or undefined email data from ${listPaneId}`);
+      return;
+    }
+    
+    // Add a simplified log without the full data to prevent console clutter
+    console.log(`[FlexibleEmailDependencyBridge] Sending email data from ${listPaneId}:`, {
+      id: emailData?.id,
+      subject: emailData?.subject,
+      metadata: emailData?.metadata,
+      hasContent: !!emailData
+    });
     
     if (!this.listPaneIds.has(listPaneId)) {
       console.warn(`[FlexibleEmailDependencyBridge] List pane ${listPaneId} not found`);
       return;
     }
     
-    // Directly update data through the manager
-    this.manager.updateData(listPaneId, DependencyDataTypes.EMAIL, emailData);
-    
-    // Update via connected components as well
-    if (this.activeConnections.has(listPaneId)) {
-      const detailIds = this.activeConnections.get(listPaneId) || [];
+    try {
+      // Create sanitized version of the email data with proper null checks
+      const sanitizedData = emailData ? {
+        ...emailData,
+        tags: Array.isArray(emailData.tags) ? emailData.tags : [],
+        attachments: Array.isArray(emailData.attachments) ? emailData.attachments : [],
+        recipients: Array.isArray(emailData.recipients) ? emailData.recipients : [],
+        // Add metadata to track the source of this update
+        metadata: {
+          ...(emailData.metadata || {}),
+          selectionTimestamp: Date.now(),
+          source: listPaneId,
+          updateType: 'email-selected'
+        }
+      } : null;
       
-      console.log(`[FlexibleEmailDependencyBridge] Broadcasting to ${detailIds.length} detail panes`);
+      // Directly update data through the manager
+      this.manager.updateData(listPaneId, DependencyDataTypes.EMAIL, sanitizedData);
       
-      // Emit an event for the data update
-      this.emit('dataUpdated', {
-        sourceId: listPaneId,
-        targets: detailIds,
-        data: emailData
-      });
+      // Update via connected components as well
+      if (this.activeConnections.has(listPaneId)) {
+        const detailIds = this.activeConnections.get(listPaneId) || [];
+        
+        console.log(`[FlexibleEmailDependencyBridge] Broadcasting to ${detailIds.length} detail panes`);
+        
+        // Emit an event for the data update
+        this.emit('dataUpdated', {
+          sourceId: listPaneId,
+          targets: detailIds,
+          data: sanitizedData
+        });
+      }
+    } catch (error) {
+      console.error('[FlexibleEmailDependencyBridge] Error sending email data:', error);
     }
   }
   
   /**
    * Clean up connections for a removed component
    */
-  private cleanupConnections(componentId: string): void {
-    // Handle list pane removal
-    if (this.activeConnections.has(componentId)) {
-      const connections = this.activeConnections.get(componentId) || [];
-      
-      console.log(`[FlexibleEmailDependencyBridge] Cleaning up ${connections.length} connections for ${componentId}`);
-      
-      this.activeConnections.delete(componentId);
+  private cleanupConnections(componentId: string | null): void {
+    if (!componentId) {
+      console.warn(`[FlexibleEmailDependencyBridge] Attempted to clean up connections for null component ID`);
+      return;
     }
     
-    // Handle detail pane removal (need to check all list panes)
     try {
+      // Handle list pane removal
+      if (this.activeConnections.has(componentId)) {
+        const connections = this.activeConnections.get(componentId) || [];
+        
+        console.log(`[FlexibleEmailDependencyBridge] Cleaning up ${connections.length} connections for ${componentId}`);
+        
+        this.activeConnections.delete(componentId);
+      }
+      
+      // Handle detail pane removal (need to check all list panes)
       for (const [listId, detailIds] of this.activeConnections.entries()) {
-        if (detailIds && Array.isArray(detailIds) && componentId && detailIds.includes(componentId)) {
+        if (detailIds && Array.isArray(detailIds) && detailIds.includes(componentId)) {
           const updatedDetails = detailIds.filter(id => id !== componentId);
           this.activeConnections.set(listId, updatedDetails);
           

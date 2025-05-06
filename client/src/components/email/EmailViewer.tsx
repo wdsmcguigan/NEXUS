@@ -117,6 +117,7 @@ const EmailViewer: React.FC<EmailViewerProps> = ({
   const {
     updateProviderData: updateContactData,
     getDependentConsumers: getContactConsumers,
+    disconnectAllConsumers,
     isRegistered: contactIsRegistered
   } = useDependencyProvider<Contact>(
     instanceId,

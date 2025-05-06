@@ -28,7 +28,7 @@ import {
   Play
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { DependencyDataTypes, DependencyStatus } from '../lib/dependency/DependencyInterfaces';
+import { DependencyDataTypes, DependencyStatus, Dependency } from '../lib/dependency/DependencyInterfaces';
 
 interface TabContextMenuProps {
   children: React.ReactNode;
@@ -70,9 +70,9 @@ export function TabContextMenu({ children, tabId, panelId }: TabContextMenuProps
   }
   
   // Get dependencies for this tab
-  const getTabDependencies = () => {
+  const getTabDependencies = (): Dependency[] => {
     const allDataTypes = Object.values(DependencyDataTypes);
-    let dependencies = [];
+    let dependencies: Dependency[] = [];
     
     // Get dependencies where this tab is either provider or consumer
     for (const dataType of allDataTypes) {
@@ -237,6 +237,86 @@ export function TabContextMenu({ children, tabId, panelId }: TabContextMenuProps
           <Maximize2 size={16} className="mr-2 text-neutral-400" />
           <span>Maximize</span>
         </ContextMenuItem>
+        
+        <ContextMenuSeparator className="bg-neutral-700" />
+        
+        {/* Dependency management submenu */}
+        <ContextMenuSub>
+          <ContextMenuSubTrigger className="flex items-center focus:bg-neutral-700">
+            <Link size={16} className="mr-2 text-blue-400" />
+            <span>Dependencies</span>
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent className="bg-neutral-800 border-neutral-700 text-neutral-200">
+            {/* All dependencies operations */}
+            <ContextMenuItem 
+              onClick={handleSuspendAllDependencies}
+              className="flex items-center focus:bg-neutral-700"
+            >
+              <Pause size={16} className="mr-2 text-amber-400" />
+              <span>Suspend all dependencies</span>
+            </ContextMenuItem>
+            
+            <ContextMenuItem 
+              onClick={handleResumeAllDependencies}
+              className="flex items-center focus:bg-neutral-700"
+            >
+              <Play size={16} className="mr-2 text-green-400" />
+              <span>Resume all dependencies</span>
+            </ContextMenuItem>
+            
+            <ContextMenuSeparator className="bg-neutral-700" />
+            
+            {/* Individual dependencies */}
+            {(() => {
+              const dependencies = getTabDependencies();
+              if (dependencies.length === 0) {
+                return (
+                  <ContextMenuItem disabled className="text-neutral-500 focus:bg-neutral-800">
+                    No dependencies found
+                  </ContextMenuItem>
+                );
+              }
+              
+              return dependencies.map(dep => (
+                <ContextMenuSub key={dep.id}>
+                  <ContextMenuSubTrigger className="flex items-center focus:bg-neutral-700">
+                    <div className="flex items-center">
+                      <Link size={16} className={`mr-2 ${dep.status === DependencyStatus.SUSPENDED ? 'text-amber-400' : 'text-blue-400'}`} />
+                      <span className="font-mono text-xs">{dep.dataType}: {dep.providerId.substring(0, 6)} → {dep.consumerId.substring(0, 6)}</span>
+                    </div>
+                  </ContextMenuSubTrigger>
+                  <ContextMenuSubContent className="bg-neutral-800 border-neutral-700 text-neutral-200">
+                    {dep.status !== DependencyStatus.SUSPENDED ? (
+                      <ContextMenuItem 
+                        onClick={() => handleSuspendDependency(dep.id)}
+                        className="flex items-center focus:bg-neutral-700"
+                      >
+                        <Pause size={16} className="mr-2 text-amber-400" />
+                        <span>Suspend</span>
+                      </ContextMenuItem>
+                    ) : (
+                      <ContextMenuItem 
+                        onClick={() => handleResumeDependency(dep.id)}
+                        className="flex items-center focus:bg-neutral-700"
+                      >
+                        <Play size={16} className="mr-2 text-green-400" />
+                        <span>Resume</span>
+                      </ContextMenuItem>
+                    )}
+                    
+                    <ContextMenuItem 
+                      onClick={() => handleRemoveDependency(dep.id)}
+                      className="flex items-center focus:bg-neutral-700 text-red-400"
+                    >
+                      <Trash size={16} className="mr-2" />
+                      <span>Delete dependency</span>
+                    </ContextMenuItem>
+                  </ContextMenuSubContent>
+                </ContextMenuSub>
+              ));
+            })()}
+          </ContextMenuSubContent>
+        </ContextMenuSub>
         
         <ContextMenuSeparator className="bg-neutral-700" />
         

@@ -247,6 +247,7 @@ export interface DependencyContextType {
   // Dependency management methods
   suspendDependency(dependencyId: string): void;
   suspendAllDependencies(componentId: string): void;
+  suspendAllDependenciesForComponent(componentId: string): void;
   resumeDependency(dependencyId: string): void;
   resumeAllDependencies(componentId: string): void;
   removeDependency(dependencyId: string): void;

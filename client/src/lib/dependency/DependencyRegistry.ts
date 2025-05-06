@@ -268,7 +268,11 @@ export class DependencyRegistry implements IDependencyRegistry {
   removeDependency(dependencyId: string): void {
     const dependency = this.dependencies.get(dependencyId);
     
+    console.log(`Attempting to remove dependency with ID: ${dependencyId}`);
+    console.log(`Current dependencies:`, Array.from(this.dependencies.keys()));
+    
     if (!dependency) {
+      console.error(`Dependency with ID ${dependencyId} not found for removal`);
       return;
     }
     
@@ -286,6 +290,8 @@ export class DependencyRegistry implements IDependencyRegistry {
     
     // Remove the dependency
     this.dependencies.delete(dependencyId);
+    
+    console.log(`Dependency removal complete. Remaining dependencies:`, Array.from(this.dependencies.keys()));
     
     this.logEvent(
       DependencyLogLevel.INFO,

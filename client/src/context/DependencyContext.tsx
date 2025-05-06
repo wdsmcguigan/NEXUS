@@ -139,6 +139,9 @@ export function DependencyProvider({ children }: { children: React.ReactNode }) 
     console.log(`Suspended all dependencies for component: ${componentId}`);
   };
   
+  // Alias for suspendAllDependencies to maintain compatibility with the interface
+  const suspendAllDependenciesForComponent = suspendAllDependencies;
+  
   // Resume all dependencies for a component
   const resumeAllDependencies = (componentId: string) => {
     // Resume dependencies where this component is a provider
@@ -175,6 +178,7 @@ export function DependencyProvider({ children }: { children: React.ReactNode }) 
     getDependencyStatus,
     suspendDependency,
     suspendAllDependencies,
+    suspendAllDependenciesForComponent,
     resumeDependency,
     resumeAllDependencies,
     removeDependency

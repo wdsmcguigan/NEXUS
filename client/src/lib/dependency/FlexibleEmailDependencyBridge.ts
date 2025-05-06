@@ -458,77 +458,143 @@ export class FlexibleEmailDependencyBridge extends EventEmitter {
   /**
    * Remove a specific connection
    */
+  /**
+   * Remove a specific connection between a list pane and a detail pane
+   * @param listPaneId The ID of the email list pane (provider)
+   * @param detailPaneId The ID of the email detail pane (consumer)
+   */
   removeConnection(listPaneId: string, detailPaneId: string): void {
-    console.log(`[FlexibleEmailDependencyBridge] Attempting to remove connection from ${listPaneId} to ${detailPaneId}`);
-    
-    // First, make sure these components exist in our registry
-    if (!this.listPaneIds.has(listPaneId)) {
-      console.warn(`[FlexibleEmailDependencyBridge] Cannot remove connection: List pane ${listPaneId} not found`);
-      return;
-    }
-    
-    if (!this.detailPaneIds.has(detailPaneId)) {
-      console.warn(`[FlexibleEmailDependencyBridge] Cannot remove connection: Detail pane ${detailPaneId} not found`);
-      return;
-    }
-    
-    // Update our internal connection tracking
-    if (this.activeConnections.has(listPaneId)) {
-      const connections = this.activeConnections.get(listPaneId) || [];
+    try {
+      console.log(`[FlexibleEmailDependencyBridge] Attempting to remove connection from ${listPaneId} to ${detailPaneId}`);
       
-      // Check if this connection actually exists
-      if (!connections.includes(detailPaneId)) {
-        console.warn(`[FlexibleEmailDependencyBridge] No active connection found from ${listPaneId} to ${detailPaneId}`);
+      // Input validation - null checks
+      if (!listPaneId || !detailPaneId) {
+        console.warn(`[FlexibleEmailDependencyBridge] Cannot remove connection: Invalid IDs provided`, { listPaneId, detailPaneId });
         return;
       }
       
-      // Find and remove the dependency in the registry
-      try {
-        const depIds = this.getRegistryDependencyIds(listPaneId, detailPaneId);
+      // First, make sure these components exist in our registry
+      if (!this.listPaneIds.has(listPaneId)) {
+        console.warn(`[FlexibleEmailDependencyBridge] Cannot remove connection: List pane ${listPaneId} not found`);
+        return;
+      }
+      
+      if (!this.detailPaneIds.has(detailPaneId)) {
+        console.warn(`[FlexibleEmailDependencyBridge] Cannot remove connection: Detail pane ${detailPaneId} not found`);
+        return;
+      }
+      
+      // Update our internal connection tracking
+      if (this.activeConnections.has(listPaneId)) {
+        const connections = this.activeConnections.get(listPaneId) || [];
         
-        if (depIds.length > 0) {
-          console.log(`[FlexibleEmailDependencyBridge] Removing ${depIds.length} registry dependencies between ${listPaneId} and ${detailPaneId}`);
+        // Check if this connection actually exists
+        if (!connections.includes(detailPaneId)) {
+          console.warn(`[FlexibleEmailDependencyBridge] No active connection found from ${listPaneId} to ${detailPaneId}`);
           
-          // Remove each dependency from registry
-          for (const depId of depIds) {
-            this.registry.removeDependency(depId);
-            console.log(`[FlexibleEmailDependencyBridge] Removed registry dependency: ${depId}`);
-          }
-        } else {
-          console.log(`[FlexibleEmailDependencyBridge] No registry dependencies found between ${listPaneId} and ${detailPaneId}`);
+          // Even though our tracking doesn't show a connection, we'll still check the registry
+          // to ensure we're not leaving orphaned dependencies
+          console.log(`[FlexibleEmailDependencyBridge] Checking for orphaned dependencies anyway...`);
         }
         
-        // Update our active connections map
-        const updatedConnections = connections.filter(id => id !== detailPaneId);
-        this.activeConnections.set(listPaneId, updatedConnections);
+        // Find and remove the dependency in the registry
+        try {
+          // Check both ways - from list to detail and detail to list
+          // since connections can sometimes be asymmetrically tracked
+          const depIds = this.getRegistryDependencyIds(listPaneId, detailPaneId);
+          
+          if (depIds.length > 0) {
+            console.log(`[FlexibleEmailDependencyBridge] Removing ${depIds.length} registry dependencies between ${listPaneId} and ${detailPaneId}`);
+            
+            let successCount = 0;
+            
+            // Remove each dependency from registry
+            for (const depId of depIds) {
+              try {
+                const result = this.registry.removeDependency(depId);
+                if (result) {
+                  console.log(`[FlexibleEmailDependencyBridge] Successfully removed registry dependency: ${depId}`);
+                  successCount++;
+                } else {
+                  console.warn(`[FlexibleEmailDependencyBridge] Failed to remove registry dependency: ${depId}`);
+                }
+              } catch (depError) {
+                console.error(`[FlexibleEmailDependencyBridge] Error removing dependency ${depId}:`, depError);
+              }
+            }
+            
+            console.log(`[FlexibleEmailDependencyBridge] Removed ${successCount}/${depIds.length} dependencies`);
+          } else {
+            console.log(`[FlexibleEmailDependencyBridge] No registry dependencies found between ${listPaneId} and ${detailPaneId}`);
+          }
+          
+          // Update our active connections map regardless of registry results
+          // This ensures our internal tracking is clean even if registry removal fails
+          const updatedConnections = connections.filter(id => id !== detailPaneId);
+          this.activeConnections.set(listPaneId, updatedConnections);
+          
+          console.log(`[FlexibleEmailDependencyBridge] Removed connection from ${listPaneId} to ${detailPaneId}`);
+          
+          // Also check if the connection exists in the reverse direction
+          // (this shouldn't happen, but we're being defensive)
+          if (this.activeConnections.has(detailPaneId)) {
+            const reverseConnections = this.activeConnections.get(detailPaneId) || [];
+            if (reverseConnections.includes(listPaneId)) {
+              console.warn(`[FlexibleEmailDependencyBridge] Found reverse connection from ${detailPaneId} to ${listPaneId}, removing it`);
+              const updatedReverseConnections = reverseConnections.filter(id => id !== listPaneId);
+              this.activeConnections.set(detailPaneId, updatedReverseConnections);
+            }
+          }
+          
+          // Emit an event about this connection removal
+          this.emit('connectionRemoved', {
+            sourceId: listPaneId,
+            targetId: detailPaneId,
+            timestamp: Date.now()
+          });
+          
+          // Display toast notification
+          toast({
+            title: 'Connection Removed',
+            description: `Disconnected ${listPaneId} from ${detailPaneId}`,
+            variant: 'default'
+          });
+          
+        } catch (error) {
+          console.error(`[FlexibleEmailDependencyBridge] Error removing connection:`, error);
+          
+          toast({
+            title: 'Error Removing Connection',
+            description: `Failed to disconnect ${listPaneId} from ${detailPaneId}`,
+            variant: 'destructive'
+          });
+        }
+      } else {
+        console.warn(`[FlexibleEmailDependencyBridge] List pane ${listPaneId} has no tracked connections to remove`);
         
-        console.log(`[FlexibleEmailDependencyBridge] Removed connection from ${listPaneId} to ${detailPaneId}`);
-        
-        // Emit an event about this connection removal
-        this.emit('connectionRemoved', {
-          sourceId: listPaneId,
-          targetId: detailPaneId,
-          timestamp: Date.now()
-        });
-        
-        // Display toast notification
-        toast({
-          title: 'Connection Removed',
-          description: `Disconnected ${listPaneId} from ${detailPaneId}`,
-          variant: 'default'
-        });
-        
-      } catch (error) {
-        console.error(`[FlexibleEmailDependencyBridge] Error removing connection:`, error);
-        
-        toast({
-          title: 'Error Removing Connection',
-          description: `Failed to disconnect ${listPaneId} from ${detailPaneId}`,
-          variant: 'destructive'
-        });
+        // Even when no connections are tracked, we'll still try to clean up any orphaned dependencies
+        // This handles the case where our tracking gets out of sync with the registry
+        const depIds = this.getRegistryDependencyIds(listPaneId, detailPaneId);
+        if (depIds.length > 0) {
+          console.warn(`[FlexibleEmailDependencyBridge] Found ${depIds.length} orphaned dependencies to clean up`);
+          for (const depId of depIds) {
+            try {
+              this.registry.removeDependency(depId);
+              console.log(`[FlexibleEmailDependencyBridge] Removed orphaned dependency: ${depId}`);
+            } catch (depError) {
+              console.error(`[FlexibleEmailDependencyBridge] Error removing orphaned dependency:`, depError);
+            }
+          }
+        }
       }
-    } else {
-      console.warn(`[FlexibleEmailDependencyBridge] List pane ${listPaneId} has no connections to remove`);
+    } catch (error) {
+      console.error(`[FlexibleEmailDependencyBridge] Critical error in removeConnection:`, error);
+      
+      toast({
+        title: 'System Error',
+        description: 'An unexpected error occurred while managing connections',
+        variant: 'destructive'
+      });
     }
   }
   

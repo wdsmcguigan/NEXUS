@@ -31,6 +31,7 @@ const DependencyContext = createContext<DependencyContextType>({
   getDependencyStatus: () => DependencyStatus.DISCONNECTED,
   suspendDependency: () => {},
   suspendAllDependencies: () => {},
+  suspendAllDependenciesForComponent: () => {},
   resumeDependency: () => {},
   resumeAllDependencies: () => {},
   removeDependency: () => {}

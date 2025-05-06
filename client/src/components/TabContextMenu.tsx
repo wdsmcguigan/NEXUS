@@ -10,6 +10,7 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { useTabContext } from '../context/TabContext';
+import { useDependencyContext } from '../context/DependencyContext';
 import { 
   Copy, 
   X, 
@@ -20,8 +21,14 @@ import {
   PanelTop,
   LayoutPanelLeft,
   MoveHorizontal,
-  Trash
+  Trash,
+  Link,
+  Link2Off,
+  Pause,
+  Play
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { DependencyDataTypes, DependencyStatus } from '../lib/dependency/DependencyInterfaces';
 
 interface TabContextMenuProps {
   children: React.ReactNode;
@@ -44,12 +51,40 @@ export function TabContextMenu({ children, tabId, panelId }: TabContextMenuProps
     activateTab
   } = useTabContext();
   
+  const {
+    registry,
+    suspendDependency,
+    resumeDependency,
+    removeDependency,
+    suspendAllDependenciesForComponent
+  } = useDependencyContext();
+  
+  const { toast } = useToast();
+  
   // Get the tab data
   const tab = state.tabs[tabId];
   
   if (!tab) {
     console.error(`Tab with ID ${tabId} not found`);
     return <>{children}</>;
+  }
+  
+  // Get dependencies for this tab
+  const getTabDependencies = () => {
+    const allDataTypes = Object.values(DependencyDataTypes);
+    let dependencies = [];
+    
+    // Get dependencies where this tab is either provider or consumer
+    for (const dataType of allDataTypes) {
+      const depsForType = registry.getDependenciesByType(dataType);
+      const filteredDeps = depsForType.filter(
+        dep => dep.providerId === tabId || dep.consumerId === tabId
+      );
+      dependencies = [...dependencies, ...filteredDeps];
+    }
+    
+    // Remove duplicates
+    return Array.from(new Map(dependencies.map(dep => [dep.id, dep])).values());
   }
   
   // Handle close tab
@@ -124,6 +159,65 @@ export function TabContextMenu({ children, tabId, panelId }: TabContextMenuProps
       // Use a friendly display name based on panel type and ID
       displayName: getPanelDisplayName(id, panel.type)
     }));
+    
+  // Handle suspending a single dependency
+  const handleSuspendDependency = (dependencyId: string) => {
+    suspendDependency(dependencyId);
+    toast({
+      title: "Dependency Suspended",
+      description: `Dependency ${dependencyId.substring(0, 8)} has been suspended.`,
+      variant: "default",
+    });
+  };
+  
+  // Handle resuming a dependency
+  const handleResumeDependency = (dependencyId: string) => {
+    resumeDependency(dependencyId);
+    toast({
+      title: "Dependency Resumed",
+      description: `Dependency ${dependencyId.substring(0, 8)} has been resumed.`,
+      variant: "default",
+    });
+  };
+  
+  // Handle removing a dependency
+  const handleRemoveDependency = (dependencyId: string) => {
+    removeDependency(dependencyId);
+    toast({
+      title: "Dependency Removed",
+      description: `Dependency ${dependencyId.substring(0, 8)} has been removed.`,
+      variant: "default",
+    });
+  };
+  
+  // Handle suspending all dependencies for this component
+  const handleSuspendAllDependencies = () => {
+    suspendAllDependenciesForComponent(tabId);
+    toast({
+      title: "All Dependencies Suspended",
+      description: `All dependencies for ${tab.title || tabId} have been suspended.`,
+      variant: "default",
+    });
+  };
+  
+  // Handle resuming all dependencies for this component
+  const handleResumeAllDependencies = () => {
+    // Get all dependencies for this tab
+    const dependencies = getTabDependencies();
+    
+    // Resume each dependency
+    for (const dependency of dependencies) {
+      if (dependency.status === DependencyStatus.SUSPENDED) {
+        resumeDependency(dependency.id);
+      }
+    }
+    
+    toast({
+      title: "All Dependencies Resumed",
+      description: `All dependencies for ${tab.title || tabId} have been resumed.`,
+      variant: "default",
+    });
+  };
   
   return (
     <ContextMenu>

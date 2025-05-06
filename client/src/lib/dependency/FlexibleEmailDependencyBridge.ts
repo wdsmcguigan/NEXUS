@@ -69,19 +69,67 @@ export class FlexibleEmailDependencyBridge extends EventEmitter {
    * Connect all email list panes to all email detail panes
    */
   connectAllPanes(): void {
-    console.log(`[FlexibleEmailDependencyBridge] Connecting all panes: ${this.listPaneIds.size} list panes, ${this.detailPaneIds.size} detail panes`);
-    
-    // Only create connections automatically if auto-connect is enabled
-    if (!this.autoConnectEnabled) {
-      console.log(`[FlexibleEmailDependencyBridge] Auto-connect disabled. Skipping automatic connections.`);
-      return;
-    }
-    
-    // For each list pane, connect to all detail panes
-    for (const listId of this.listPaneIds) {
-      for (const detailId of this.detailPaneIds) {
-        this.createConnection(listId, detailId);
+    try {
+      // Get current counts
+      const listPaneCount = this.listPaneIds.size;
+      const detailPaneCount = this.detailPaneIds.size;
+      
+      console.log(`[FlexibleEmailDependencyBridge] Connecting all panes: ${listPaneCount} list panes, ${detailPaneCount} detail panes`);
+      
+      // Only create connections automatically if auto-connect is enabled
+      if (!this.autoConnectEnabled) {
+        console.log(`[FlexibleEmailDependencyBridge] Auto-connect disabled. Skipping automatic connections.`);
+        return;
       }
+      
+      // Skip if there are no panes to connect
+      if (listPaneCount === 0 || detailPaneCount === 0) {
+        console.log(`[FlexibleEmailDependencyBridge] No panes to connect. Skipping.`);
+        return;
+      }
+      
+      // Create an array from the Sets to avoid iteration issues
+      const listPaneIds = Array.from(this.listPaneIds);
+      const detailPaneIds = Array.from(this.detailPaneIds);
+      
+      console.log(`[FlexibleEmailDependencyBridge] Will connect ${listPaneIds.length} list panes to ${detailPaneIds.length} detail panes`);
+      
+      // For each list pane, connect to all detail panes
+      let connectionCount = 0;
+      
+      for (let i = 0; i < listPaneIds.length; i++) {
+        const listId = listPaneIds[i];
+        
+        for (let j = 0; j < detailPaneIds.length; j++) {
+          const detailId = detailPaneIds[j];
+          
+          // Skip if trying to connect a pane to itself (defensive coding)
+          if (listId === detailId) {
+            console.log(`[FlexibleEmailDependencyBridge] Skipping self-connection for ${listId}`);
+            continue;
+          }
+          
+          try {
+            this.createConnection(listId, detailId);
+            connectionCount++;
+          } catch (error) {
+            console.error(`[FlexibleEmailDependencyBridge] Error connecting ${listId} to ${detailId}:`, error);
+          }
+        }
+      }
+      
+      console.log(`[FlexibleEmailDependencyBridge] Auto-connect created ${connectionCount} connections`);
+      
+      // Emit an event after all connections are made
+      this.emit('allConnectionsCreated', {
+        timestamp: Date.now(),
+        listPaneCount: listPaneIds.length,
+        detailPaneCount: detailPaneIds.length,
+        connectionCount
+      });
+      
+    } catch (error) {
+      console.error(`[FlexibleEmailDependencyBridge] Error in connectAllPanes:`, error);
     }
   }
   

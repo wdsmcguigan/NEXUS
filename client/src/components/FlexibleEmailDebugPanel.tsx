@@ -27,6 +27,39 @@ export function FlexibleEmailDebugPanel({ emailBridge }: FlexibleEmailDebugPanel
   useEffect(() => {
     emailBridge.setAutoConnect(autoConnectEnabled);
   }, [emailBridge, autoConnectEnabled]);
+  
+  // Listen for bridge events to update the UI
+  useEffect(() => {
+    // Handler for connection created events
+    const handleConnectionCreated = (data: any) => {
+      console.log('[FlexibleEmailDebugPanel] Connection created:', data);
+      refreshConnections();
+    };
+    
+    // Handler for connection removed events
+    const handleConnectionRemoved = (data: any) => {
+      console.log('[FlexibleEmailDebugPanel] Connection removed:', data);
+      refreshConnections();
+    };
+    
+    // Handler for all connections created event
+    const handleAllConnectionsCreated = (data: any) => {
+      console.log('[FlexibleEmailDebugPanel] All connections created:', data);
+      refreshConnections();
+    };
+    
+    // Subscribe to events
+    emailBridge.on('connectionCreated', handleConnectionCreated);
+    emailBridge.on('connectionRemoved', handleConnectionRemoved);
+    emailBridge.on('allConnectionsCreated', handleAllConnectionsCreated);
+    
+    // Cleanup listeners on unmount
+    return () => {
+      emailBridge.off('connectionCreated', handleConnectionCreated);
+      emailBridge.off('connectionRemoved', handleConnectionRemoved);
+      emailBridge.off('allConnectionsCreated', handleAllConnectionsCreated);
+    };
+  }, [emailBridge]);
 
   // Refresh the connection data
   useEffect(() => {
@@ -41,7 +74,15 @@ export function FlexibleEmailDebugPanel({ emailBridge }: FlexibleEmailDebugPanel
       const connectionMap: { [key: string]: string[] } = {};
       
       listIds.forEach(listId => {
-        connectionMap[listId] = emailBridge.getConnectionsForListPane(listId);
+        const connections = emailBridge.getConnectionsForListPane(listId);
+        connectionMap[listId] = connections;
+        
+        // Log detailed connection information for debugging
+        if (connections.length > 0) {
+          console.log(`[FlexibleEmailDebugPanel] List pane ${listId} has ${connections.length} connections:`, 
+            connections.map(id => getDisplayName(id)).join(', ')
+          );
+        }
       });
       
       setConnections(connectionMap);

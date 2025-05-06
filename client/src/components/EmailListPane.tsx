@@ -340,9 +340,13 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
 
   // Handle email click with keyboard modifiers
   const handleEmailClick = (e: React.MouseEvent, emailId: number) => {
+    // Log selection for debugging
+    console.log(`[EmailListPane ${tabId}] Email click detected for emailId ${emailId}`);
+    
     if (e.ctrlKey || e.metaKey) {
       // If Ctrl/Cmd key is pressed, open in new tab
       e.preventDefault();
+      console.log(`[EmailListPane ${tabId}] Opening email in new tab`);
       tabFactory.createTab(
         tabContext,
         {
@@ -352,8 +356,62 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
         }
       );
     } else {
-      // Normal click behavior
-      setSelectedEmailId(emailId);
+      // Normal click behavior - direct selection
+      console.log(`[EmailListPane ${tabId}] Setting selected email ID and emitting selection event`);
+      
+      // Find the selected email in our list
+      const selectedEmail = emails.find(email => email.id === emailId);
+      
+      if (selectedEmail) {
+        // Standardize the selection event format
+        const selectionData = {
+          type: 'email-selection',
+          emailId: emailId,
+          email: selectedEmail,
+          timestamp: Date.now(),
+          source: `EmailListPane-${tabId}`
+        };
+        
+        console.log(`[EmailListPane ${tabId}] Prepared selection data:`, selectionData);
+        
+        // First set the local state
+        setSelectedEmailId(emailId);
+        
+        // Then emit the selection via all available dependency systems with standardized format
+        try {
+          // Immediate notification to improve dependency system responsiveness
+          toast({
+            title: "Email Selected",
+            description: `Email ${emailId} selected for viewing`,
+            variant: "default",
+            duration: 1500
+          });
+          
+          // This will trigger the useEffect that handles dependency updates
+          // But we'll also do direct notifications here for redundancy
+          
+          // Direct flexible bridge update
+          if (flexibleEmailBridge && componentId) {
+            console.log(`[EmailListPane ${tabId}] Directly notifying flexible email bridge`);
+            flexibleEmailBridge.updateSelectedEmail(selectionData);
+            
+            // Force update any existing connections to ensure data flows immediately
+            const detailPaneIds = flexibleEmailBridge.getConnectedDetailPanes(componentId);
+            if (detailPaneIds && detailPaneIds.length > 0) {
+              console.log(`[EmailListPane ${tabId}] Forcing update to ${detailPaneIds.length} connected detail panes`);
+              detailPaneIds.forEach(detailPaneId => {
+                flexibleEmailBridge.forceUpdateConnection(componentId, detailPaneId);
+              });
+            }
+          }
+        } catch (error) {
+          console.error(`[EmailListPane ${tabId}] Error emitting selection event:`, error);
+        }
+      } else {
+        console.warn(`[EmailListPane ${tabId}] Selected email not found: ${emailId}`);
+        // Still set the ID so it can be fetched directly
+        setSelectedEmailId(emailId);
+      }
     }
   };
 

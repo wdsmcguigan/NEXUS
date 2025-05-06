@@ -45,6 +45,7 @@ export function useFlexibleEmailDependency() {
 export function useFlexibleEmailListPane(componentId: string) {
   const bridge = useFlexibleEmailDependency();
   const { manager } = useDependencyContext();
+  const [connectedDetailPanes, setConnectedDetailPanes] = useState<string[]>([]);
   
   // Register the component on mount
   useEffect(() => {
@@ -55,6 +56,40 @@ export function useFlexibleEmailListPane(componentId: string) {
     return () => {
       bridge.unregisterComponent(componentId);
       console.log(`[useFlexibleEmailListPane] Unregistered email list pane: ${componentId}`);
+    };
+  }, [componentId, bridge]);
+  
+  // Update the connection status whenever it changes
+  useEffect(() => {
+    const updateConnectionStatus = () => {
+      if (componentId) {
+        try {
+          const connected = bridge.getConnectedDetailPanes(componentId);
+          setConnectedDetailPanes(connected || []);
+          console.log(`[useFlexibleEmailListPane] Updated connections for ${componentId}:`, connected?.length || 0);
+        } catch (error) {
+          console.error(`[useFlexibleEmailListPane] Error getting connections:`, error);
+          setConnectedDetailPanes([]);
+        }
+      }
+    };
+    
+    // Initial update
+    updateConnectionStatus();
+    
+    // Listen for connection changes
+    const handleConnectionChange = () => {
+      updateConnectionStatus();
+    };
+    
+    bridge.on('connectionCreated', handleConnectionChange);
+    bridge.on('connectionRemoved', handleConnectionChange);
+    bridge.on('connectionForceUpdated', handleConnectionChange);
+    
+    return () => {
+      bridge.off('connectionCreated', handleConnectionChange);
+      bridge.off('connectionRemoved', handleConnectionChange);
+      bridge.off('connectionForceUpdated', handleConnectionChange);
     };
   }, [componentId, bridge]);
   
@@ -77,13 +112,42 @@ export function useFlexibleEmailListPane(componentId: string) {
       if (manager && componentId) {
         manager.updateData(componentId, DependencyDataTypes.EMAIL, email);
       }
+      
+      // If we have connections, force update them for immediate data flow
+      if (connectedDetailPanes.length > 0) {
+        console.log(`[useFlexibleEmailListPane] Force updating ${connectedDetailPanes.length} connections`);
+        forceUpdateConnections();
+      }
     } catch (error) {
       console.error(`[useFlexibleEmailListPane] Error sending email data:`, error);
     }
   };
   
+  // Function to force update all connections
+  const forceUpdateConnections = () => {
+    try {
+      if (!componentId) {
+        console.warn(`[useFlexibleEmailListPane] Cannot force update: No component ID`);
+        return;
+      }
+      
+      const detailPanes = bridge.getConnectedDetailPanes(componentId);
+      console.log(`[useFlexibleEmailListPane] Forcing update of ${detailPanes.length} connections`);
+      
+      if (detailPanes && detailPanes.length > 0) {
+        detailPanes.forEach(detailPaneId => {
+          bridge.forceUpdateConnection(componentId, detailPaneId);
+        });
+      }
+    } catch (error) {
+      console.error(`[useFlexibleEmailListPane] Error forcing connection updates:`, error);
+    }
+  };
+  
   return {
-    updateSelectedEmail
+    updateSelectedEmail,
+    forceUpdateConnections,
+    connectedDetailPanes
   };
 }
 

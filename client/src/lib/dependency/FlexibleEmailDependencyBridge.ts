@@ -619,6 +619,18 @@ export class FlexibleEmailDependencyBridge extends EventEmitter {
   }
   
   /**
+   * Get all detail pane IDs connected to a specific list pane
+   */
+  getConnectedDetailPanes(listPaneId: string): string[] {
+    if (!this.listPaneIds.has(listPaneId)) {
+      console.warn(`[FlexibleEmailDependencyBridge] Cannot get connected detail panes: List pane ${listPaneId} not found`);
+      return [];
+    }
+    
+    return this.activeConnections.get(listPaneId) || [];
+  }
+  
+  /**
    * Force trigger an update for a specific connection
    * @param listPaneId The ID of the email list pane (source)
    * @param detailPaneId The ID of the email detail pane (target)

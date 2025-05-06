@@ -3,23 +3,63 @@
  */
 
 // Email data types
+export type StarColor = 'none' | 'gold' | 'green' | 'blue' | 'orange' | 'red';
+
 export interface Email {
   id: number;
   accountId: number;
   fromContactId: number;
   subject: string;
   body: string;
-  snippet: string;
-  date: string;
+  snippet?: string;
+  timestamp?: string;
+  category?: string;
   isRead: boolean;
-  isStarred: boolean;
-  starColor?: string;
-  labels: string[];
-  folder: string;
-  tags: string[];
-  attachments: EmailAttachment[];
+  isArchived?: boolean;
+  isTrashed?: boolean;
+  isStarred?: boolean;
+  starColor?: StarColor;
+  todoText?: string | null;
+  todoCompleted?: boolean;
+  labels?: string[];
+  folder?: string;
+  tags?: any[];
+  attachments?: EmailAttachment[];
   fromName?: string;
   fromEmail?: string;
+  fromContact?: Contact;
+  recipients?: EmailRecipient[];
+}
+
+// Extended email details with additional information
+export interface EmailWithDetails extends Email {
+  fromContact?: Contact;
+  recipients?: EmailRecipient[];
+  tags?: EmailTagAssociation[];
+}
+
+export interface EmailRecipient {
+  id: number;
+  emailId: number;
+  contactId: number;
+  type: 'to' | 'cc' | 'bcc';
+  contact: Contact;
+}
+
+export interface EmailTagAssociation {
+  id: number;
+  emailId: number;
+  tagId: number;
+  tag: Tag;
+}
+
+export interface Tag {
+  id: number;
+  name: string;
+  parentId: number | null;
+  bgColor: string;
+  textColor: string;
+  emoji: string | null;
 }
 
 export interface EmailAttachment {

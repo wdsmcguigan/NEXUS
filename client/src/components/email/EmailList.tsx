@@ -137,9 +137,6 @@ const EmailList: React.FC<EmailListProps> = ({
   filterFolder,
   filterTag
 }) => {
-  // Get dependency context hooks
-  const { suspendAllDependenciesForComponent } = useDependencyContext();
-  
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [filteredEmails, setFilteredEmails] = useState<Email[]>(emails);
   const [hasDependentViewer, setHasDependentViewer] = useState(false);
@@ -285,6 +282,9 @@ const EmailList: React.FC<EmailListProps> = ({
       });
     }
   };
+  
+  // Get dependency context hook for suspending dependencies
+  const { suspendAllDependenciesForComponent } = useDependencyContext();
   
   // Disconnect from all dependents
   const handleDisconnectDependents = () => {

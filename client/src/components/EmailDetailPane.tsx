@@ -524,47 +524,64 @@ Sarah`,
         
         {/* Tags and todos */}
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          {email.tags?.map((emailTag) => {
-            // Find the matching tag in our global context if it exists
-            const tagId = emailTag.tag.id.toString();
-            const globalTag = globalTags.find(gt => gt.id === tagId) || 
-                          globalTags.flatMap(gt => gt.children || [])
-                                .find(child => child.id === tagId);
-            
-            // Use global tag properties if available, otherwise use the email tag properties
-            const displayTag = globalTag || {
-              name: emailTag.tag.name,
-              color: emailTag.tag.bgColor,
-              textColor: emailTag.tag.textColor,
-              emoji: emailTag.tag.emoji
-            };
-            
-            return (
-              <Badge 
-                key={emailTag.id} 
-                variant="outline"
-                className="flex items-center gap-1 px-2 py-0.5" 
-                style={{ 
-                  backgroundColor: displayTag.color, 
-                  color: displayTag.textColor,
-                  borderColor: 'transparent' 
-                }}
-              >
-                {displayTag.emoji && <span>{displayTag.emoji}</span>}
-                {displayTag.name}
-              </Badge>
-            );
+          {email?.tags?.map((emailTag) => {
+            try {
+              // Add defensive checks - ensure the tag and its ID exist
+              if (!emailTag || !emailTag.tag || !emailTag.tag.id) {
+                console.warn("[EmailDetailPane] Invalid tag data:", emailTag);
+                return null; // Skip this tag
+              }
+              
+              // Find the matching tag in our global context if it exists
+              const tagId = emailTag.tag.id.toString();
+              
+              // Add defensive checks for globalTags
+              const globalTag = globalTags && Array.isArray(globalTags)
+                ? (globalTags.find(gt => gt && gt.id === tagId) || 
+                   globalTags
+                    .filter(gt => gt && gt.children && Array.isArray(gt.children))
+                    .flatMap(gt => gt.children || [])
+                    .find(child => child && child.id === tagId))
+                : undefined;
+              
+              // Use global tag properties if available, otherwise use the email tag properties with defensive checks
+              const displayTag = globalTag || {
+                name: emailTag.tag?.name || "Unknown",
+                color: emailTag.tag?.bgColor || "#e5e5e5",
+                textColor: emailTag.tag?.textColor || "#000000",
+                emoji: emailTag.tag?.emoji || ""
+              };
+              
+              return (
+                <Badge 
+                  key={emailTag.id} 
+                  variant="outline"
+                  className="flex items-center gap-1 px-2 py-0.5" 
+                  style={{ 
+                    backgroundColor: displayTag.color, 
+                    color: displayTag.textColor,
+                    borderColor: 'transparent' 
+                  }}
+                >
+                  {displayTag.emoji && <span>{displayTag.emoji}</span>}
+                  {displayTag.name}
+                </Badge>
+              );
+            } catch (error) {
+              console.error("[EmailDetailPane] Error rendering tag:", error);
+              return null; // Return null for this tag to prevent rendering errors
+            }
           })}
           
-          {email.todoText && (
+          {email?.todoText && (
             <div className="flex items-center gap-2 bg-amber-950/30 text-amber-400 border border-amber-800 rounded-md px-2 py-0.5">
               <Checkbox 
                 id="todo-checkbox" 
-                checked={email.todoCompleted}
+                checked={email?.todoCompleted || false}
                 onCheckedChange={(checked) => handleTodoToggle(Boolean(checked))}
               />
               <label htmlFor="todo-checkbox" className="text-sm cursor-pointer">
-                {email.todoText}
+                {email?.todoText}
               </label>
             </div>
           )}
@@ -573,10 +590,10 @@ Sarah`,
       
       {/* Email body */}
       <div className="flex-1 p-4 overflow-y-auto whitespace-pre-line">
-        {email.body}
+        {email?.body}
         
         {/* Attachments */}
-        {email.attachments && email.attachments.length > 0 && (
+        {email?.attachments && Array.isArray(email.attachments) && email.attachments.length > 0 && (
           <div className="mt-6 border-t border-neutral-800 pt-4">
             <h3 className="text-sm font-medium mb-2 flex items-center">
               <Paperclip size={16} className="mr-2" />
@@ -584,27 +601,39 @@ Sarah`,
             </h3>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {email.attachments.map((attachment) => (
-                <div 
-                  key={attachment.id} 
-                  className="flex items-center p-2 rounded-md bg-neutral-900 border border-neutral-800"
-                >
-                  <div className="text-xl mr-2">
-                    {getFileIcon(attachment.fileType)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">
-                      {attachment.fileName}
+              {email.attachments.map((attachment) => {
+                try {
+                  if (!attachment || !attachment.id) {
+                    console.warn("[EmailDetailPane] Invalid attachment:", attachment);
+                    return null;
+                  }
+                  
+                  return (
+                    <div 
+                      key={attachment.id} 
+                      className="flex items-center p-2 rounded-md bg-neutral-900 border border-neutral-800"
+                    >
+                      <div className="text-xl mr-2">
+                        {getFileIcon(attachment.fileType)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">
+                          {attachment.fileName || "Unknown file"}
+                        </div>
+                        <div className="text-xs text-neutral-400">
+                          {formatFileSize(attachment.fileSize || 0)}
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="sm" className="ml-2" title="Download">
+                        <Download size={16} />
+                      </Button>
                     </div>
-                    <div className="text-xs text-neutral-400">
-                      {formatFileSize(attachment.fileSize)}
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="sm" className="ml-2" title="Download">
-                    <Download size={16} />
-                  </Button>
-                </div>
-              ))}
+                  );
+                } catch (error) {
+                  console.error("[EmailDetailPane] Error rendering attachment:", error);
+                  return null;
+                }
+              })}
             </div>
           </div>
         )}

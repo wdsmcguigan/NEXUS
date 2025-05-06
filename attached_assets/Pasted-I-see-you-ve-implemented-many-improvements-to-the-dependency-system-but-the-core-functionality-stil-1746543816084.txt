@@ -1,0 +1,227 @@
+I see you've implemented many improvements to the dependency system, but the core functionality still isn't working. Let's add explicit debugging code to trace the exact flow of data:
+
+1. First, add a direct event tracing system to both components:
+
+   In EmailListPane.tsx:
+   ```typescript
+   // At the top of the file, add:
+   const DEBUG_EMAIL_DEPENDENCIES = true;
+   
+   // In the handleEmailSelection function:
+   const handleEmailSelection = (emailId: string) => {
+     if (DEBUG_EMAIL_DEPENDENCIES) {
+       console.log(`%c[EmailListPane] Email selected: ${emailId}`, 'background: #ff9; color: #333; font-weight: bold;');
+     }
+     
+     setSelectedEmailId(emailId);
+     
+     // Try ALL possible ways to send the selection
+     
+     // 1. Through the dependency system
+     if (dependencies && dependencies.updateDependents) {
+       const data = { type: 'email-selection', emailId, timestamp: Date.now() };
+       if (DEBUG_EMAIL_DEPENDENCIES) {
+         console.log(`%c[EmailListPane] Sending via dependencies.updateDependents:`, 'background: #ff9; color: #333;', data);
+       }
+       dependencies.updateDependents(data);
+     } else {
+       if (DEBUG_EMAIL_DEPENDENCIES) {
+         console.log(`%c[EmailListPane] dependencies.updateDependents not available`, 'background: #f99; color: #333;');
+       }
+     }
+     
+     // 2. Try a direct DOM event approach as fallback
+     try {
+       const customEvent = new CustomEvent('nexus:email-selected', { 
+         detail: { emailId, timestamp: Date.now() },
+         bubbles: true,
+         cancelable: true
+       });
+       
+       if (DEBUG_EMAIL_DEPENDENCIES) {
+         console.log(`%c[EmailListPane] Dispatching DOM event:`, 'background: #ff9; color: #333;', customEvent);
+       }
+       
+       // Find the current element and dispatch the event
+       const element = document.getElementById(`email-list-item-${emailId}`);
+       if (element) {
+         element.dispatchEvent(customEvent);
+       } else {
+         document.dispatchEvent(customEvent); // Fallback to document
+       }
+     } catch (error) {
+       if (DEBUG_EMAIL_DEPENDENCIES) {
+         console.log(`%c[EmailListPane] Error dispatching DOM event:`, 'background: #f99; color: #333;', error);
+       }
+     }
+   };
+In EmailDetailPane.tsx:
+typescript// At the top of the file, add:
+const DEBUG_EMAIL_DEPENDENCIES = true;
+
+// Add this effect to listen for DOM events as fallback
+useEffect(() => {
+  if (DEBUG_EMAIL_DEPENDENCIES) {
+    console.log(`%c[EmailDetailPane] Setting up event listeners`, 'background: #9f9; color: #333; font-weight: bold;');
+  }
+  
+  // Listen for dependency data
+  const handleDependencyData = (data) => {
+    if (DEBUG_EMAIL_DEPENDENCIES) {
+      console.log(`%c[EmailDetailPane] Received dependency data:`, 'background: #9f9; color: #333;', data);
+    }
+    
+    if (data && data.emailId) {
+      if (DEBUG_EMAIL_DEPENDENCIES) {
+        console.log(`%c[EmailDetailPane] Loading email: ${data.emailId}`, 'background: #9f9; color: #333;');
+      }
+      loadEmail(data.emailId);
+    }
+  };
+  
+  // Set up the dependency consumer hook
+  if (dependencies) {
+    dependencies.registerConsumer(instanceId, handleDependencyData);
+  } else {
+    if (DEBUG_EMAIL_DEPENDENCIES) {
+      console.log(`%c[EmailDetailPane] Dependencies not available`, 'background: #f99; color: #333;');
+    }
+  }
+  
+  // Fallback: Listen for DOM events
+  const handleDomEvent = (event) => {
+    if (DEBUG_EMAIL_DEPENDENCIES) {
+      console.log(`%c[EmailDetailPane] Received DOM event:`, 'background: #9f9; color: #333;', event);
+    }
+    
+    if (event.detail && event.detail.emailId) {
+      if (DEBUG_EMAIL_DEPENDENCIES) {
+        console.log(`%c[EmailDetailPane] Loading email from DOM event: ${event.detail.emailId}`, 'background: #9f9; color: #333;');
+      }
+      loadEmail(event.detail.emailId);
+    }
+  };
+  
+  document.addEventListener('nexus:email-selected', handleDomEvent);
+  
+  return () => {
+    if (dependencies) {
+      dependencies.unregisterConsumer(instanceId);
+    }
+    document.removeEventListener('nexus:email-selected', handleDomEvent);
+  };
+}, [instanceId, dependencies, loadEmail]);
+
+Add a direct communication bridge as a fallback:
+Create a new file DirectEmailBridge.ts:
+typescript// Simple global state for direct communication between email components
+class DirectEmailBridge {
+  private static instance: DirectEmailBridge;
+  private selectedEmailId: string | null = null;
+  private listeners: ((emailId: string) => void)[] = [];
+  
+  private constructor() {
+    console.log('DirectEmailBridge created');
+  }
+  
+  public static getInstance(): DirectEmailBridge {
+    if (!DirectEmailBridge.instance) {
+      DirectEmailBridge.instance = new DirectEmailBridge();
+    }
+    return DirectEmailBridge.instance;
+  }
+  
+  public setSelectedEmail(emailId: string): void {
+    console.log(`DirectEmailBridge: Setting selected email to ${emailId}`);
+    this.selectedEmailId = emailId;
+    this.notifyListeners(emailId);
+  }
+  
+  public getSelectedEmail(): string | null {
+    return this.selectedEmailId;
+  }
+  
+  public addListener(listener: (emailId: string) => void): void {
+    console.log('DirectEmailBridge: Adding listener');
+    this.listeners.push(listener);
+  }
+  
+  public removeListener(listener: (emailId: string) => void): void {
+    console.log('DirectEmailBridge: Removing listener');
+    this.listeners = this.listeners.filter(l => l !== listener);
+  }
+  
+  private notifyListeners(emailId: string): void {
+    console.log(`DirectEmailBridge: Notifying ${this.listeners.length} listeners`);
+    this.listeners.forEach(listener => {
+      try {
+        listener(emailId);
+      } catch (error) {
+        console.error('Error in email selection listener:', error);
+      }
+    });
+  }
+}
+
+export default DirectEmailBridge;
+
+Connect this bridge to both components:
+In EmailListPane.tsx:
+typescriptimport DirectEmailBridge from '../lib/DirectEmailBridge';
+
+// Add to the handleEmailSelection function:
+const handleEmailSelection = (emailId: string) => {
+  // Other existing code...
+  
+  // Also use the direct bridge
+  try {
+    const bridge = DirectEmailBridge.getInstance();
+    if (DEBUG_EMAIL_DEPENDENCIES) {
+      console.log(`%c[EmailListPane] Using DirectEmailBridge to set selected email: ${emailId}`, 'background: #ff9; color: #333;');
+    }
+    bridge.setSelectedEmail(emailId);
+  } catch (error) {
+    if (DEBUG_EMAIL_DEPENDENCIES) {
+      console.log(`%c[EmailListPane] Error using DirectEmailBridge:`, 'background: #f99; color: #333;', error);
+    }
+  }
+};
+In EmailDetailPane.tsx:
+typescriptimport DirectEmailBridge from '../lib/DirectEmailBridge';
+
+// Add to the setup effect:
+useEffect(() => {
+  // Other existing code...
+  
+  // Also use the direct bridge
+  try {
+    const bridge = DirectEmailBridge.getInstance();
+    
+    const handleDirectSelection = (emailId: string) => {
+      if (DEBUG_EMAIL_DEPENDENCIES) {
+        console.log(`%c[EmailDetailPane] DirectEmailBridge notified of selection: ${emailId}`, 'background: #9f9; color: #333;');
+      }
+      loadEmail(emailId);
+    };
+    
+    bridge.addListener(handleDirectSelection);
+    
+    return () => {
+      // Other cleanup...
+      bridge.removeListener(handleDirectSelection);
+    };
+  } catch (error) {
+    if (DEBUG_EMAIL_DEPENDENCIES) {
+      console.log(`%c[EmailDetailPane] Error setting up DirectEmailBridge:`, 'background: #f99; color: #333;', error);
+    }
+  }
+}, []);
+
+
+This approach implements multiple fallback methods for communication between the components:
+
+The normal dependency system
+DOM events as a reliable fallback
+A simple direct bridge specifically for email selection
+
+At least one of these approaches should work, and the detailed console logging will help identify exactly where the communication is breaking down.

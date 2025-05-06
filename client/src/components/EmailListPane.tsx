@@ -397,7 +397,42 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
         // First set the local state
         setSelectedEmailId(emailId);
         
-        // Then emit the selection via all available dependency systems with standardized format
+        // COMMUNICATION METHOD 1: Direct Email Bridge
+        try {
+          import('../lib/DirectEmailBridge').then(module => {
+            const DirectEmailBridge = module.default;
+            const bridge = DirectEmailBridge.getInstance();
+            console.log(`[EmailListPane ${tabId}] Using DirectEmailBridge to set selected email: ${emailId}`);
+            bridge.setSelectedEmail(emailId.toString());
+          }).catch(error => {
+            console.error(`[EmailListPane ${tabId}] Error loading DirectEmailBridge:`, error);
+          });
+        } catch (error) {
+          console.error(`[EmailListPane ${tabId}] Error using DirectEmailBridge:`, error);
+        }
+        
+        // COMMUNICATION METHOD 2: DOM Event
+        try {
+          const customEvent = new CustomEvent('nexus:email-selected', { 
+            detail: { emailId, email: selectedEmail, timestamp: Date.now() },
+            bubbles: true,
+            cancelable: true
+          });
+          
+          console.log(`[EmailListPane ${tabId}] Dispatching DOM event:`, customEvent);
+          
+          // Find the current element and dispatch the event
+          const element = document.getElementById(`email-list-item-${emailId}`);
+          if (element) {
+            element.dispatchEvent(customEvent);
+          } else {
+            document.dispatchEvent(customEvent); // Fallback to document
+          }
+        } catch (error) {
+          console.error(`[EmailListPane ${tabId}] Error dispatching DOM event:`, error);
+        }
+        
+        // COMMUNICATION METHOD 3: Dependency System
         try {
           // Immediate notification to improve dependency system responsiveness
           toast({

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Reply, Forward, Star, FileText, Tag, Clock, Paperclip, ArrowLeft, MoreHorizontal, Download, Trash, Archive } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { apiRequest } from '../lib/queryClient';
@@ -14,6 +14,7 @@ import { DependencyDataTypes, DependencySyncStrategy } from '../lib/dependency/D
 import { useEmailDetailPanel } from '../context/PanelDependencyContext';
 import { useFlexibleEmailDetailPane } from '../hooks/useFlexibleEmailDependency.tsx';
 import { toast } from '../hooks/use-toast';
+// Import the direct bridge dynamically in the component to avoid circular dependencies
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -74,6 +75,162 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
     console.log(`[EmailDetailPane ${tabId}] Is connected:`, isConnected);
     console.log(`[EmailDetailPane ${tabId}] Panel component ID:`, componentId);
   }, [tabId, dependencyConsumer.status, hasProvider, dependencyConsumer.providerId, isConnected, componentId]);
+  
+  // COMMUNICATION METHOD 1: Set up DirectEmailBridge listeners
+  useEffect(() => {
+    console.log(`[EmailDetailPane ${tabId}] Setting up DirectEmailBridge listener`);
+    
+    const setupDirectBridge = async () => {
+      try {
+        // Dynamically import the bridge to avoid circular dependencies
+        const module = await import('../lib/DirectEmailBridge');
+        const DirectEmailBridge = module.default;
+        const bridge = DirectEmailBridge.getInstance();
+        
+        // Create a handler function that will load the email when a selection is made
+        const handleDirectSelection = (emailId: string) => {
+          console.log(`[EmailDetailPane ${tabId}] DirectEmailBridge notified of selection: ${emailId}`);
+          
+          // Convert to number since our API expects a number ID
+          const numericId = parseInt(emailId, 10);
+          
+          if (!isNaN(numericId)) {
+            // Fetch the email data
+            const fetchEmailDetails = async () => {
+              try {
+                setLoading(true);
+                const response = await apiRequest(`/api/emails/${numericId}`);
+                
+                if (response.ok) {
+                  const data = await response.json();
+                  console.log(`[EmailDetailPane ${tabId}] Loaded email ${numericId} via DirectEmailBridge`, data);
+                  setEmail(data);
+                  
+                  // Display toast to indicate successful loading
+                  toast({
+                    title: "Email Loaded",
+                    description: `Loaded email ${numericId} via direct bridge`,
+                    variant: "default",
+                    duration: 2000
+                  });
+                }
+              } catch (error) {
+                console.error(`[EmailDetailPane ${tabId}] Error fetching email via DirectEmailBridge:`, error);
+                toast({
+                  title: "Error Loading Email",
+                  description: "Failed to load email details",
+                  variant: "destructive",
+                  duration: 3000
+                });
+              } finally {
+                setLoading(false);
+              }
+            };
+            
+            fetchEmailDetails();
+          }
+        };
+        
+        console.log(`[EmailDetailPane ${tabId}] Registering DirectEmailBridge listener`);
+        bridge.addListener(handleDirectSelection);
+        
+        // Handle any current selection
+        const currentSelection = bridge.getSelectedEmail();
+        if (currentSelection) {
+          console.log(`[EmailDetailPane ${tabId}] DirectEmailBridge has current selection: ${currentSelection}`);
+          handleDirectSelection(currentSelection);
+        }
+        
+        // Clean up the listener when the component unmounts
+        return () => {
+          console.log(`[EmailDetailPane ${tabId}] Removing DirectEmailBridge listener`);
+          bridge.removeListener(handleDirectSelection);
+        };
+      } catch (error) {
+        console.error(`[EmailDetailPane ${tabId}] Error setting up DirectEmailBridge:`, error);
+      }
+    };
+    
+    setupDirectBridge();
+  }, [tabId]);
+  
+  // COMMUNICATION METHOD 2: Set up DOM event listeners for email selection events
+  useEffect(() => {
+    console.log(`[EmailDetailPane ${tabId}] Setting up DOM event listeners`);
+    
+    // Handler for DOM custom events
+    const handleDomEvent = (event: Event) => {
+      console.log(`[EmailDetailPane ${tabId}] Received DOM event:`, event);
+      
+      // Check if it's a custom event with detail property
+      if ('detail' in event && event.detail) {
+        const detail = (event as CustomEvent).detail;
+        
+        if (detail.emailId) {
+          console.log(`[EmailDetailPane ${tabId}] DOM event contains emailId: ${detail.emailId}`);
+          
+          // If we have the full email object in the event, use it directly
+          if (detail.email) {
+            console.log(`[EmailDetailPane ${tabId}] Setting email directly from DOM event data`);
+            setEmail(detail.email);
+            setLoading(false);
+            
+            // Show toast notification
+            toast({
+              title: "Email Loaded",
+              description: `Loaded email data from DOM event`,
+              variant: "default",
+              duration: 2000
+            });
+          } else {
+            // Otherwise fetch the email by ID
+            console.log(`[EmailDetailPane ${tabId}] Fetching email from ID received via DOM event`);
+            
+            const fetchEmailDetails = async () => {
+              try {
+                setLoading(true);
+                const response = await apiRequest(`/api/emails/${detail.emailId}`);
+                
+                if (response.ok) {
+                  const data = await response.json();
+                  console.log(`[EmailDetailPane ${tabId}] Loaded email ${detail.emailId} via DOM event`, data);
+                  setEmail(data);
+                  
+                  // Display toast to indicate successful loading
+                  toast({
+                    title: "Email Loaded",
+                    description: `Loaded email ${detail.emailId} via DOM event`,
+                    variant: "default",
+                    duration: 2000
+                  });
+                }
+              } catch (error) {
+                console.error(`[EmailDetailPane ${tabId}] Error fetching email via DOM event:`, error);
+                toast({
+                  title: "Error Loading Email",
+                  description: "Failed to load email details",
+                  variant: "destructive",
+                  duration: 3000
+                });
+              } finally {
+                setLoading(false);
+              }
+            };
+            
+            fetchEmailDetails();
+          }
+        }
+      }
+    };
+    
+    // Listen for the custom event globally
+    document.addEventListener('nexus:email-selected', handleDomEvent);
+    
+    // Clean up the listener when the component unmounts
+    return () => {
+      document.removeEventListener('nexus:email-selected', handleDomEvent);
+    };
+  }, [tabId]);
 
   // Process dependency data when it's received - from any system
   useEffect(() => {

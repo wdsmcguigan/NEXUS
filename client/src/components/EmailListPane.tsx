@@ -35,7 +35,7 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
   
   // Register as dependency provider for selected email data
   const dependencyProvider = useDependencyProvider<any>(
-    DependencyDataTypes.EMAIL_DATA,
+    DependencyDataTypes.EMAIL_DATA as DependencyDataTypes,
     instanceId
   );
   

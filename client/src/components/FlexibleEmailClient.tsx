@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { TabProvider } from '../context/TabContext';
 import { DragProvider } from '../context/DragContext';
+import { DependencyProvider } from '../context/DependencyContext';
 import { PanelManager } from './PanelManager';
 import TopNavbar from './TopNavbar';
 import registerComponents from '../lib/componentRegistry.setup';
@@ -17,12 +18,14 @@ export function FlexibleEmailClient() {
   return (
     <TabProvider>
       <DragProvider>
-        <div className="h-screen w-screen flex flex-col overflow-hidden bg-neutral-950 text-white">
-          <Header />
-          <main className="flex-1 overflow-hidden">
-            <EmailClientContent />
-          </main>
-        </div>
+        <DependencyProvider>
+          <div className="h-screen w-screen flex flex-col overflow-hidden bg-neutral-950 text-white">
+            <Header />
+            <main className="flex-1 overflow-hidden">
+              <EmailClientContent />
+            </main>
+          </div>
+        </DependencyProvider>
       </DragProvider>
     </TabProvider>
   );

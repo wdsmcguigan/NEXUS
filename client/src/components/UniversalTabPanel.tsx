@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useTabContext } from '../context/TabContext';
 import { useAppContext } from '../context/AppContext';
-import { Plus, Maximize2, Minimize2, X } from 'lucide-react';
+import { useDependencyContext } from '../context/DependencyContext';
+import { usePanelDependencyContext } from '../context/PanelDependencyContext';
+import { Plus, Maximize2, Minimize2, X, Link, Check, AlertTriangle } from 'lucide-react';
 import componentRegistry from '../lib/componentRegistry';
 import { cn } from '../lib/utils';
 import { AdvancedTabBar } from './AdvancedTabBar';
 import { useDragContext, DropTarget } from '../context/DragContext';
+import { DependencyDataTypes, DependencyStatus } from '../lib/dependency/DependencyInterfaces';
 
 interface UniversalTabPanelProps {
   panelId: string;
@@ -27,6 +30,7 @@ export function UniversalTabPanel({
   onClosePanel
 }: UniversalTabPanelProps) {
   const { state, activateTab, closeTab } = useTabContext();
+  const { createAllCompatibleDependencies, registerPanelComponent, unregisterPanelComponent } = usePanelDependencyContext();
   const panel = state.panels[panelId];
   
   if (!panel) {
@@ -40,9 +44,33 @@ export function UniversalTabPanel({
     .map(tabId => state.tabs[tabId])
     .filter(Boolean);
   
+  // Create compatible dependencies when tabs change
+  useEffect(() => {
+    // Attempt to create dependencies when tabs change
+    if (tabIds.length > 0) {
+      // Small delay to ensure all components are registered
+      const timer = setTimeout(() => {
+        createAllCompatibleDependencies();
+      }, 300);
+      
+      return () => {
+        clearTimeout(timer);
+      };
+    }
+  }, [tabIds, createAllCompatibleDependencies]);
+  
   // Handler functions
-  const handleTabClick = (tabId: string) => activateTab(tabId, panelId);
-  const handleTabClose = (tabId: string) => closeTab(tabId);
+  const handleTabClick = (tabId: string) => {
+    activateTab(tabId, panelId);
+  };
+  
+  const handleTabClose = (tabId: string) => {
+    // Notify the bridge that the component is being unmounted
+    unregisterPanelComponent(tabId);
+    // Close the tab
+    closeTab(tabId);
+  };
+  
   const handleViewToggle = isMaximized ? onRestore : onMaximize;
   
   // Handle drops for drag-and-drop operations
@@ -87,7 +115,10 @@ export function UniversalTabPanel({
         data-content-area={panelId} // Add descriptive data attribute
       >
         {activeTabId ? (
-          <RenderActiveTab tabId={activeTabId} />
+          <RenderActiveTab 
+            tabId={activeTabId} 
+            panelId={panelId}
+          />
         ) : (
           <div className="h-full flex items-center justify-center text-neutral-400">
             <div className="text-center">
@@ -106,11 +137,16 @@ export function UniversalTabPanel({
   );
 }
 
-// Using the advanced tab bar with drag and drop support
-
-function RenderActiveTab({ tabId }: { tabId: string }) {
+function RenderActiveTab({ tabId, panelId }: { tabId: string, panelId: string }) {
   const { state, getComponentForTab } = useTabContext();
+  const { focusPanelComponent } = usePanelDependencyContext();
   const tab = state.tabs[tabId];
+  
+  // When tab becomes active, notify the bridge
+  useEffect(() => {
+    focusPanelComponent(tabId);
+    console.log(`[UniversalTabPanel] Tab ${tabId} activated in panel ${panelId}`);
+  }, [tabId, panelId, focusPanelComponent]);
   
   if (!tab) {
     return <div>Tab not found</div>;
@@ -124,9 +160,83 @@ function RenderActiveTab({ tabId }: { tabId: string }) {
   
   const ComponentToRender = componentDef.component;
   
+  // Render the tab content with panel information
   return (
     <div className="h-full overflow-auto thin-scrollbar">
-      <ComponentToRender {...(tab.props || {})} tabId={tabId} />
+      <ComponentToRender 
+        {...(tab.props || {})} 
+        tabId={tabId} 
+        panelId={panelId}
+      />
+      <TabDependencyIndicator tabId={tabId} panelId={panelId} />
+    </div>
+  );
+}
+
+// Component to show dependency status for debugging
+function TabDependencyIndicator({ tabId, panelId }: { tabId: string, panelId: string }) {
+  const { getComponentIdForTab, showDebugInfo } = usePanelDependencyContext();
+  const dependencyContext = useDependencyContext();
+  const { state } = useTabContext();
+  const tab = state.tabs[tabId];
+  
+  if (!tab || !showDebugInfo) return null;
+  
+  const componentId = getComponentIdForTab(tabId);
+  if (!componentId) return null;
+  
+  // Check if this component has any dependencies
+  const providingDeps = dependencyContext.registry.getDependenciesByProvider(componentId);
+  const consumingDeps = dependencyContext.registry.getDependenciesByConsumer(componentId);
+  
+  if (providingDeps.length === 0 && consumingDeps.length === 0) {
+    return null;
+  }
+  
+  return (
+    <div className="fixed bottom-20 right-4 z-40 text-xs bg-neutral-900 border border-neutral-700 rounded p-2">
+      <h4 className="font-semibold mb-1">Tab Dependencies</h4>
+      <div>Component ID: <span className="text-blue-400">{componentId}</span></div>
+      
+      {providingDeps.length > 0 && (
+        <div className="mt-1">
+          <div className="text-yellow-400">Providing to:</div>
+          <ul className="ml-2">
+            {providingDeps.map(dep => (
+              <li key={dep.id} className="flex items-center gap-1">
+                {dep.status === DependencyStatus.CONNECTED ? (
+                  <Check size={12} className="text-green-500" />
+                ) : dep.status === DependencyStatus.ERROR ? (
+                  <AlertTriangle size={12} className="text-red-500" />
+                ) : (
+                  <Link size={12} className="text-blue-500" />
+                )}
+                <span>{dep.consumerId} ({dep.status})</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      
+      {consumingDeps.length > 0 && (
+        <div className="mt-1">
+          <div className="text-purple-400">Consuming from:</div>
+          <ul className="ml-2">
+            {consumingDeps.map(dep => (
+              <li key={dep.id} className="flex items-center gap-1">
+                {dep.status === DependencyStatus.CONNECTED ? (
+                  <Check size={12} className="text-green-500" />
+                ) : dep.status === DependencyStatus.ERROR ? (
+                  <AlertTriangle size={12} className="text-red-500" />
+                ) : (
+                  <Link size={12} className="text-blue-500" />
+                )}
+                <span>{dep.providerId} ({dep.status})</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

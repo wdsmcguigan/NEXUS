@@ -17,6 +17,7 @@ import { AdvancedPanelLayout } from "./components/AdvancedPanelLayout";
 import { FlexibleEmailClient } from "./components/FlexibleEmailClient";
 import EmailDependencyDemo from "./components/EmailDependencyDemo";
 import { DependencyProvider } from "./context/DependencyContext";
+import { PanelDependencyProvider } from "./context/PanelDependencyContext";
 import { ShortcutProvider } from "./context/ShortcutContext";
 import EmailPage from "./pages/EmailPage";
 import NavBar from "./components/NavBar";
@@ -126,7 +127,9 @@ function App() {
               <ComponentProvider>
                 <ShortcutProvider>
                   <DependencyProvider>
-                    <AppContent />
+                    <PanelDependencyProvider>
+                      <AppContent />
+                    </PanelDependencyProvider>
                   </DependencyProvider>
                 </ShortcutProvider>
               </ComponentProvider>

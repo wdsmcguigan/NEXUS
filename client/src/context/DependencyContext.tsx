@@ -7,12 +7,15 @@ import {
 } from '../lib/dependency/DependencyInterfaces';
 import { DependencyRegistry } from '../lib/dependency/DependencyRegistry';
 import { DependencyManager } from '../lib/dependency/DependencyManager';
+import { DependencyRegistryExtended } from '../lib/dependency/DependencyRegistryExtended';
+import { DependencyManagerExtended } from '../lib/dependency/DependencyManagerExtended';
 import { registerSampleDependencies } from '../lib/dependency/sampleDependencies';
 import { registerEmailDependencies } from '../lib/dependency/registerEmailDependencies';
 
 // Create registry and manager instances
-const registry = new DependencyRegistry();
-const manager = new DependencyManager(registry);
+// Use the extended versions with event emission support
+const registry = new DependencyRegistryExtended();
+const manager = new DependencyManagerExtended(registry);
 
 // Initialize with sample dependencies
 registerSampleDependencies(registry);

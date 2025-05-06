@@ -157,6 +157,8 @@ export function useFlexibleEmailListPane(componentId: string) {
 export function useFlexibleEmailDetailPane(componentId: string) {
   const bridge = useFlexibleEmailDependency();
   const [email, setEmail] = useState<any>(null);
+  const [connectedListPanes, setConnectedListPanes] = useState<string[]>([]);
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected'>('disconnected');
   
   // Register the component on mount
   useEffect(() => {
@@ -167,6 +169,48 @@ export function useFlexibleEmailDetailPane(componentId: string) {
     return () => {
       bridge.unregisterComponent(componentId);
       console.log(`[useFlexibleEmailDetailPane] Unregistered email detail pane: ${componentId}`);
+    };
+  }, [componentId, bridge]);
+  
+  // Update connected list panes whenever connections change
+  useEffect(() => {
+    const updateConnectionStatus = () => {
+      if (!componentId) return;
+      
+      // Find any list panes that have this detail pane as a connection
+      const connected: string[] = [];
+      const listPaneIds = bridge.getListPaneIds();
+      
+      listPaneIds.forEach(listPaneId => {
+        const connections = bridge.getConnectionsForListPane(listPaneId);
+        if (connections && connections.includes(componentId)) {
+          connected.push(listPaneId);
+        }
+      });
+      
+      setConnectedListPanes(connected);
+      setConnectionStatus(connected.length > 0 ? 'connected' : 'disconnected');
+      
+      console.log(`[useFlexibleEmailDetailPane] Connection status for ${componentId}:`, 
+        connected.length > 0 ? `Connected to ${connected.length} sources` : 'Disconnected');
+    };
+    
+    // Initial update
+    updateConnectionStatus();
+    
+    // Update when connections change
+    const handleConnectionChange = () => {
+      updateConnectionStatus();
+    };
+    
+    bridge.on('connectionCreated', handleConnectionChange);
+    bridge.on('connectionRemoved', handleConnectionChange);
+    bridge.on('connectionForceUpdated', handleConnectionChange);
+    
+    return () => {
+      bridge.off('connectionCreated', handleConnectionChange);
+      bridge.off('connectionRemoved', handleConnectionChange);
+      bridge.off('connectionForceUpdated', handleConnectionChange);
     };
   }, [componentId, bridge]);
   
@@ -195,8 +239,27 @@ export function useFlexibleEmailDetailPane(componentId: string) {
     };
   }, [componentId, bridge]);
   
+  // Force-request updates from all connected list panes
+  const forceRequestUpdates = () => {
+    if (!componentId) return;
+    
+    try {
+      console.log(`[useFlexibleEmailDetailPane] Requesting forced update from ${connectedListPanes.length} sources`);
+      
+      connectedListPanes.forEach(listPaneId => {
+        bridge.forceUpdateConnection(listPaneId, componentId);
+      });
+    } catch (error) {
+      console.error(`[useFlexibleEmailDetailPane] Error forcing updates:`, error);
+    }
+  };
+  
   return {
     email,
-    selectedEmail: email  // Add the selectedEmail alias for compatibility with EmailDetailPane
+    selectedEmail: email,  // Add the selectedEmail alias for compatibility with EmailDetailPane
+    connectedListPanes,
+    connectionStatus,
+    forceRequestUpdates,
+    isConnected: connectionStatus === 'connected'
   };
 }

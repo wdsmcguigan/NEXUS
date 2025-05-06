@@ -53,14 +53,22 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
   const { updateSelectedEmail, componentId } = useEmailListPanel(tabId || 'default', panelId);
   
   // 3. Flexible Email Dependency system (direct bridge)
-  const flexibleEmailBridge = useFlexibleEmailListPane(componentId);
+  const { 
+    updateSelectedEmail: updateBridgeEmail, 
+    forceUpdateConnections,
+    connectedDetailPanes 
+  } = useFlexibleEmailListPane(componentId);
   
   // Extract the methods we need from the legacy provider
   const updateSelectedEmailData = dependencyProvider.updateProviderData;
   const getDependentConsumers = dependencyProvider.getDependentConsumers;
+  
+  // Get connection count across all dependency systems
   const connectionCount = useMemo(() => {
-    return getDependentConsumers().length;
-  }, [getDependentConsumers]);
+    const legacyCount = getDependentConsumers().length;
+    const bridgeCount = connectedDetailPanes?.length || 0;
+    return legacyCount + bridgeCount;
+  }, [getDependentConsumers, connectedDetailPanes]);
   
   // Log dependency status for debugging
   useEffect(() => {
@@ -305,9 +313,9 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
         
         // 3. Flexible Email Dependency Bridge system
         console.log(`[EmailListPane ${tabId}] Updating flexible email bridge with email data`);
-        flexibleEmailBridge.updateSelectedEmail(emailData);
+        updateBridgeEmail(emailData);
         
-        // Force dependency status updates
+        // Force dependency status updates for immediate data flow
         console.log(`[EmailListPane ${tabId}] Attempting to force connection status updates`);
         
         if (connectionCount > 0) {
@@ -318,12 +326,24 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
             duration: 2000,
           });
           
+          // Force update connections in flexible bridge system
+          if (connectedDetailPanes?.length > 0) {
+            console.log(`[EmailListPane ${tabId}] Forcing update for ${connectedDetailPanes.length} bridge connections`);
+            forceUpdateConnections();
+            
+            // Explicitly log each connected detail pane for debugging
+            connectedDetailPanes.forEach(detailPane => {
+              console.log(`[EmailListPane ${tabId}] Connected to detail pane:`, detailPane);
+            });
+          }
+          
+          // Legacy system connections
           const consumers = getDependentConsumers();
-          console.log(`[EmailListPane ${tabId}] Broadcasting email data to consumers:`, consumers);
+          console.log(`[EmailListPane ${tabId}] Broadcasting to ${consumers.length} legacy consumers`);
           
           // Explicitly log each consumer for debugging
           consumers.forEach(consumer => {
-            console.log(`[EmailListPane ${tabId}] Sending data to consumer:`, consumer);
+            console.log(`[EmailListPane ${tabId}] Sending data to legacy consumer:`, consumer);
           });
         }
       }
@@ -334,9 +354,9 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
       // Update all dependency systems with null
       updateSelectedEmailData(null);
       updateSelectedEmail(null);
-      flexibleEmailBridge.updateSelectedEmail(null);
+      updateBridgeEmail(null);
     }
-  }, [selectedEmailId, emails, connectionCount, tabId, updateSelectedEmailData, updateSelectedEmail, getDependentConsumers, flexibleEmailBridge]);
+  }, [selectedEmailId, emails, connectionCount, tabId, updateSelectedEmailData, updateSelectedEmail, getDependentConsumers, updateBridgeEmail, forceUpdateConnections, connectedDetailPanes]);
 
   // Handle email click with keyboard modifiers
   const handleEmailClick = (e: React.MouseEvent, emailId: number) => {
@@ -391,17 +411,14 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
           // But we'll also do direct notifications here for redundancy
           
           // Direct flexible bridge update
-          if (flexibleEmailBridge && componentId) {
+          if (componentId) {
             console.log(`[EmailListPane ${tabId}] Directly notifying flexible email bridge`);
-            flexibleEmailBridge.updateSelectedEmail(selectionData);
+            updateBridgeEmail(selectionData);
             
-            // Force update any existing connections to ensure data flows immediately
-            const detailPaneIds = flexibleEmailBridge.getConnectedDetailPanes(componentId);
-            if (detailPaneIds && detailPaneIds.length > 0) {
-              console.log(`[EmailListPane ${tabId}] Forcing update to ${detailPaneIds.length} connected detail panes`);
-              detailPaneIds.forEach(detailPaneId => {
-                flexibleEmailBridge.forceUpdateConnection(componentId, detailPaneId);
-              });
+            // Force update all connections to ensure data flows immediately
+            if (connectedDetailPanes?.length > 0) {
+              console.log(`[EmailListPane ${tabId}] Forcing update to ${connectedDetailPanes.length} connected detail panes`);
+              forceUpdateConnections();
             }
           }
         } catch (error) {

@@ -189,25 +189,29 @@ export class DependencyManager implements IDependencyManager {
    * Notify all listeners of a data update.
    */
   private notifyDataUpdated(dependencyId: string, data: any): void {
-    for (const callback of this.dataUpdateCallbacks) {
+    // Convert Set to Array before iterating to avoid TypeScript errors
+    const callbacks = [...this.dataUpdateCallbacks];
+    callbacks.forEach(callback => {
       try {
         callback(dependencyId, data);
       } catch (error) {
         console.error('Error in data update callback:', error);
       }
-    }
+    });
   }
   
   /**
    * Notify all listeners of a status change.
    */
   private notifyStatusChanged(dependencyId: string, status: DependencyStatus): void {
-    for (const callback of this.statusChangeCallbacks) {
+    // Convert Set to Array before iterating to avoid TypeScript errors
+    const callbacks = [...this.statusChangeCallbacks];
+    callbacks.forEach(callback => {
       try {
         callback(dependencyId, status);
       } catch (error) {
         console.error('Error in status change callback:', error);
       }
-    }
+    });
   }
 }

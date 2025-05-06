@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Pause, Play, Link, Link2Off } from 'lucide-react';
+import { Trash2, Pause, Play, Link } from 'lucide-react';
 
 /**
  * Component for managing dependencies between components.

@@ -147,17 +147,22 @@ const EmailList: React.FC<EmailListProps> = ({
     isRegistered
   } = useDependencyProvider<Email>(
     instanceId,
-    DependencyDataTypes.EMAIL_DATA,
-    {
-      onConsumerConnected: (consumerId) => {
-        console.log(`EmailList: Consumer ${consumerId} connected`);
-        // If we have a selected email, send it to the new consumer immediately
-        if (selectedEmail) {
-          updateProviderData(selectedEmail);
-        }
+    DependencyDataTypes.EMAIL_DATA
+  );
+  
+  // Custom handler for when consumers connect
+  useEffect(() => {
+    const consumers = getDependentConsumers();
+    if (consumers.length > 0) {
+      console.log(`EmailList: Has ${consumers.length} connected consumers`);
+      // If we have a selected email, make sure to send it 
+      if (selectedEmail) {
+        console.log("Sending existing selected email to consumers:", selectedEmail);
+        // @ts-ignore - intentionally allowing null
+        updateProviderData(selectedEmail);
       }
     }
-  );
+  }, [getDependentConsumers, selectedEmail]);
   
   // Register as dependency provider for email list data
   const { 

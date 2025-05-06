@@ -12,9 +12,10 @@ import {
  * This will make the EmailList and EmailViewer components work with the dependency system
  */
 export function registerEmailDependencies(registry: DependencyRegistry) {
+  // Use fixed IDs for more consistent dependency connection
   // Register Email List component as provider for email data
   const emailListProvider: DependencyDefinition = {
-    id: `email-list-provider-${nanoid(6)}`,
+    id: `email-list-provider-fixed`,
     componentId: 'email-list',
     dataType: DependencyDataTypes.EMAIL_DATA,
     role: 'provider',
@@ -26,7 +27,7 @@ export function registerEmailDependencies(registry: DependencyRegistry) {
   
   // Register Email Viewer component as consumer for email data
   const emailViewerConsumer: DependencyDefinition = {
-    id: `email-viewer-consumer-${nanoid(6)}`,
+    id: `email-viewer-consumer-fixed`,
     componentId: 'email-viewer',
     dataType: DependencyDataTypes.EMAIL_DATA,
     role: 'consumer',
@@ -46,13 +47,12 @@ export function registerEmailDependencies(registry: DependencyRegistry) {
   // Set initial status
   if (dependency) {
     registry.updateDependencyStatus(dependency.id, DependencyStatus.CONNECTED);
+    console.log('Email dependency created and connected with ID:', dependency.id);
+  } else {
+    console.error('Failed to create email dependency!');
   }
   
-  console.log('Email dependencies registered:', {
-    emailListProvider,
-    emailViewerConsumer,
-    dependency
-  });
+  console.log('Email dependencies registered successfully');
   
   return {
     emailListProvider,

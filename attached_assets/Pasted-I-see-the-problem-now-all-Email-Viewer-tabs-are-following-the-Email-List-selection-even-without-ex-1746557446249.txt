@@ -1,0 +1,111 @@
+I see the problem now - all Email Viewer tabs are following the Email List selection even without explicit dependencies. This prevents having both static and dynamic Email Viewer tabs. Let's fix this by:
+
+1. Modify the EmailViewer/EmailDetailPane component to disable automatic selection following by default:
+   
+   ```typescript
+   // In EmailDetailPane.tsx or similar
+   const EmailDetailPane = ({ instanceId, initialEmailId, followSelection = false }) => {
+     const [emailId, setEmailId] = useState(initialEmailId);
+     
+     // Only follow selection events if explicitly enabled via prop or dependency
+     useEffect(() => {
+       // Check if this component should follow selections
+       const shouldFollowSelection = () => {
+         // First check explicit prop
+         if (followSelection === true) {
+           console.log(`[EmailDetailPane ${instanceId}] Following selection due to prop`);
+           return true;
+         }
+         
+         // Then check for active dependency
+         const hasDependency = checkForDependency(instanceId);
+         if (hasDependency) {
+           console.log(`[EmailDetailPane ${instanceId}] Following selection due to dependency`);
+           return true;
+         }
+         
+         // Otherwise, don't follow selection
+         console.log(`[EmailDetailPane ${instanceId}] Not following selection`);
+         return false;
+       };
+       
+       // Only set up listeners if we should follow selection
+       if (!shouldFollowSelection()) {
+         return; // Don't set up any listeners
+       }
+       
+       // Set up event listeners here for selection events
+       // ...
+     }, [instanceId, followSelection]);
+     
+     // Rest of component
+   };
+
+2. Update all global events that might be causing auto-selection behavior:
+typescript// Find any global event handlers like:
+document.addEventListener('email-selected', handleEmailSelected);
+
+// And modify them to only apply to components with active dependencies:
+document.addEventListener('email-selected', (event) => {
+  // Get all components that should react to this event
+  const dependencies = getDependenciesForEvent('email-selected');
+  
+  // Only notify components with active dependencies
+  dependencies.forEach(dep => {
+    const targetId = dep.targetId;
+    const component = getComponentById(targetId);
+    if (component) {
+      component.handleEmailSelected(event.detail);
+    }
+  });
+});
+
+3. Add an explicit opt-in for email selection following:
+typescript// Create a specific method for the EmailDetailPane to opt into following selection
+const enableSelectionFollowing = () => {
+  setFollowSelection(true);
+};
+
+const disableSelectionFollowing = () => {
+  setFollowSelection(false);
+};
+
+4. Fix any global state that might be causing this behavior:
+typescript// Check for any global state managers like:
+class GlobalEmailState {
+  // ...
+}
+
+// And modify them to only notify components with active dependencies
+updateEmailSelection(emailId) {
+  this.selectedEmailId = emailId;
+  
+  // Only notify components that should receive updates
+  const listeners = this.listeners.filter(listener => {
+    return this.dependencies.some(dep => 
+      dep.targetId === listener.componentId && dep.active
+    );
+  });
+  
+  listeners.forEach(listener => listener.callback(emailId));
+}
+
+5. Add visual indicators to show which email viewers are following selection:
+tsx<div className="email-detail-header">
+  <h3>{email.subject}</h3>
+  {followingSelection && (
+    <Badge variant="outline" className="ml-2">Following selection</Badge>
+  )}
+</div>
+
+
+Please implement these changes to ensure Email Viewer tabs only follow selections when they have an active dependency.
+
+This solution addresses the core issue by:
+
+1. Making selection following opt-in rather than the default behavior
+2. Ensuring that only components with active dependencies respond to selection events
+3. Adding visual indicators to show which components are following selection
+4. Fixing any global state or event systems that might be bypassing the dependency system
+
+This approach will allow you to have both static and dynamic Email Viewer tabs as desired, with clear control over which tabs follow selections.

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Reply, Forward, Star, FileText, Tag, Clock, Paperclip, ArrowLeft, MoreHorizontal, Download, Trash, Archive } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { apiRequest } from '../lib/queryClient';
@@ -28,12 +28,37 @@ interface EmailDetailPaneProps {
   tabId?: string;
   emailId?: number;
   onBack?: () => void;
+  followSelection?: boolean; // New prop to control selection following behavior
   [key: string]: any;
 }
 
-export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailDetailPaneProps) {
+export function EmailDetailPane({ 
+  tabId, 
+  emailId = 1, 
+  onBack, 
+  followSelection = false, // Default to false to make it opt-in
+  ...props 
+}: EmailDetailPaneProps) {
   // Component should have a panel ID from the parent
   const panelId = props.panelId || 'defaultPanel';
+  
+  // State to track whether this instance follows selection
+  const [isFollowingSelection, setIsFollowingSelection] = useState(followSelection);
+  
+  // Toggle function for following selection - defined early to avoid hook order issues
+  const toggleFollowSelection = useCallback(() => {
+    const newValue = !isFollowingSelection;
+    console.log(`[EmailDetailPane ${tabId}] Toggling followSelection from ${isFollowingSelection} to ${newValue}`);
+    setIsFollowingSelection(newValue);
+    
+    toast({
+      title: newValue ? "Following selection enabled" : "Following selection disabled",
+      description: newValue 
+        ? "This email viewer will update when emails are selected" 
+        : "This email viewer will stay fixed on the current email",
+      duration: 3000
+    });
+  }, [isFollowingSelection, tabId]);
   
   const [email, setEmail] = useState<EmailWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,9 +101,33 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
     console.log(`[EmailDetailPane ${tabId}] Panel component ID:`, componentId);
   }, [tabId, dependencyConsumer.status, hasProvider, dependencyConsumer.providerId, isConnected, componentId]);
   
+  // Helper function to determine if this component should follow selections
+  const shouldFollowSelection = useCallback(() => {
+    // First check if there's an explicit dependency connection
+    const hasDependency = hasProvider && isConnected;
+    
+    // Check if we're explicitly set to follow selections via prop or state
+    const followingExplicitly = isFollowingSelection;
+    
+    const result = hasDependency || followingExplicitly;
+    console.log(`[EmailDetailPane ${tabId}] shouldFollowSelection:`, {
+      hasDependency,
+      followingExplicitly,
+      result
+    });
+    
+    return result;
+  }, [hasProvider, isConnected, isFollowingSelection, tabId]);
+  
   // COMMUNICATION METHOD 1: Set up DirectEmailBridge listeners
   useEffect(() => {
-    console.log(`[EmailDetailPane ${tabId}] Setting up DirectEmailBridge listener`);
+    console.log(`[EmailDetailPane ${tabId}] Setting up DirectEmailBridge listener, following=${isFollowingSelection}`);
+    
+    // Skip setup if this component shouldn't follow selection
+    if (!shouldFollowSelection()) {
+      console.log(`[EmailDetailPane ${tabId}] Skipping DirectEmailBridge setup, not following selection`);
+      return;
+    }
     
     const setupDirectBridge = async () => {
       try {
@@ -152,11 +201,17 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
     };
     
     setupDirectBridge();
-  }, [tabId]);
+  }, [tabId, shouldFollowSelection]);
   
   // COMMUNICATION METHOD 2: Set up DOM event listeners for email selection events
   useEffect(() => {
-    console.log(`[EmailDetailPane ${tabId}] Setting up DOM event listeners`);
+    console.log(`[EmailDetailPane ${tabId}] Setting up DOM event listeners, following=${isFollowingSelection}`);
+    
+    // Skip setup if this component shouldn't follow selection
+    if (!shouldFollowSelection()) {
+      console.log(`[EmailDetailPane ${tabId}] Skipping DOM event listeners setup, not following selection`);
+      return;
+    }
     
     // Handler for DOM custom events
     const handleDomEvent = (event: Event) => {
@@ -230,10 +285,16 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
     return () => {
       document.removeEventListener('nexus:email-selected', handleDomEvent);
     };
-  }, [tabId]);
+  }, [tabId, shouldFollowSelection]);
 
   // Process dependency data when it's received - from any system
   useEffect(() => {
+    // Skip processing dependencies if we're not following selection
+    if (!shouldFollowSelection() && email) {
+      console.log(`[EmailDetailPane ${tabId}] Not following selection, ignoring dependency updates`);
+      return;
+    }
+    
     // Create helper for logging data structure
     const logEmailData = (source: string, data: any) => {
       if (!data) {
@@ -325,7 +386,17 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
         console.log(`[EmailDetailPane ${tabId}] Will use direct fetch with emailId: ${emailId}`);
       }
     }
-  }, [dependencyEmailData, hasProvider, isConnected, tabId, panelEmail, emailId, email, flexibleEmailBridge.selectedEmail]);
+  }, [
+    dependencyEmailData, 
+    hasProvider, 
+    isConnected, 
+    tabId, 
+    panelEmail, 
+    emailId, 
+    email, 
+    flexibleEmailBridge.selectedEmail,
+    shouldFollowSelection
+  ]);
 
   // Fetch email details if no dependency data
   useEffect(() => {
@@ -607,6 +678,8 @@ Sarah`,
     );
   }
 
+
+
   return (
     <div className="flex flex-col h-full bg-neutral-950 text-white overflow-hidden">
       {/* Email header */}
@@ -618,7 +691,22 @@ Sarah`,
         )}
         
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">{email.subject}</h2>
+          <div className="flex items-center">
+            <h2 className="text-xl font-semibold">{email.subject}</h2>
+            
+            {/* Selection following badge */}
+            {isFollowingSelection && (
+              <Badge variant="outline" className="ml-2 text-xs bg-blue-950 text-blue-300 border-blue-800 py-0 px-2">
+                Following selection
+              </Badge>
+            )}
+            
+            {hasProvider && isConnected && (
+              <Badge variant="outline" className="ml-2 text-xs bg-green-950 text-green-300 border-green-800 py-0 px-2">
+                Connected
+              </Badge>
+            )}
+          </div>
           
           <div className="flex items-center gap-2">
             <button 
@@ -635,6 +723,21 @@ Sarah`,
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="bg-neutral-900 border-neutral-800 text-white">
+                {/* Toggle selection following option */}
+                <DropdownMenuItem onClick={toggleFollowSelection}>
+                  {isFollowingSelection ? (
+                    <>
+                      <div className="mr-2 h-4 w-4 text-blue-400">■</div> 
+                      Stop following selection
+                    </>
+                  ) : (
+                    <>
+                      <div className="mr-2 h-4 w-4 text-gray-400">□</div> 
+                      Follow selection
+                    </>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-neutral-800" />
                 <DropdownMenuItem>
                   <Archive size={16} className="mr-2" /> Archive
                 </DropdownMenuItem>

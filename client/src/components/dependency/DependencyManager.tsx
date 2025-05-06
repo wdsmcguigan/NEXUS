@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useDependencyContext } from '../../context/DependencyContext';
-import { 
-  DependencyDataTypes, 
-  DependencyStatus,
-  Dependency
-} from '../../lib/dependency/DependencyInterfaces';
+import { useDependencyContext } from '@/context/DependencyContext';
+import { Dependency, DependencyStatus, DependencyDataTypes } from '@/lib/dependency/DependencyInterfaces';
 import { 
   Card, 
   CardContent, 
@@ -12,412 +8,243 @@ import {
   CardFooter, 
   CardHeader, 
   CardTitle 
-} from '../ui/card';
-import { ScrollArea } from '../ui/scroll-area';
-import { Button } from '../ui/button';
-import { Switch } from '../ui/switch';
-import { 
-  Link, 
-  Link2, 
-  Link2Off as LinkOff, 
-  RefreshCcw, 
-  ChevronDown, 
-  ChevronUp, 
-  LockOpen, 
-  Lock 
-} from 'lucide-react';
-import { 
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger
-} from '../ui/accordion';
+} from '@/components/ui/card';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from '../ui/tooltip';
-import { Badge } from '../ui/badge';
-import DependencyStatusIndicator from './DependencyStatusIndicator';
-import DependencySelector from './DependencySelector';
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
+import { Trash2, Pause, Play, Link, Link2Off } from 'lucide-react';
 
-interface DependencyManagerProps {
-  componentId: string;
-  title?: string;
-  description?: string;
-  showDetailedInfo?: boolean;
-  maxHeight?: string;
-}
+/**
+ * Component for managing dependencies between components.
+ * Allows viewing, suspending/resuming, and removing dependencies.
+ */
+export default function DependencyManager() {
+  const { registry, suspendDependency, resumeDependency, removeDependency } = useDependencyContext();
+  const [dependencies, setDependencies] = useState<Dependency[]>([]);
+  const [selectedDependencyId, setSelectedDependencyId] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const { toast } = useToast();
 
-const DependencyManager: React.FC<DependencyManagerProps> = ({
-  componentId,
-  title = 'Dependency Manager',
-  description = 'Manage data connections for this component',
-  showDetailedInfo = true,
-  maxHeight = '320px'
-}) => {
-  const { registry, manager } = useDependencyContext();
-  const [dependencies, setDependencies] = useState<{
-    asProvider: Dependency[];
-    asConsumer: Dependency[];
-  }>({
-    asProvider: [],
-    asConsumer: []
-  });
-  const [lockedDependencies, setLockedDependencies] = useState<Set<string>>(new Set());
-  const [expanded, setExpanded] = useState<boolean>(false);
-
-  // Load component dependencies
+  // Load dependencies when the component mounts
   useEffect(() => {
-    const loadDependencies = () => {
-      // Get dependencies where this component is a provider
-      const asProvider = registry.getDependenciesByProvider(componentId);
-      
-      // Get dependencies where this component is a consumer
-      const asConsumer = registry.getDependenciesByConsumer(componentId);
-      
-      setDependencies({
-        asProvider,
-        asConsumer
+    refreshDependencies();
+  }, []);
+
+  // Function to refresh the list of dependencies
+  const refreshDependencies = () => {
+    // Get all dependencies for all data types
+    const allDataTypes = Object.values(DependencyDataTypes);
+    let allDependencies: Dependency[] = [];
+    
+    allDataTypes.forEach(dataType => {
+      const depsForType = registry.getDependenciesByType(dataType);
+      allDependencies = [...allDependencies, ...depsForType];
+    });
+    
+    // Remove duplicates by ID
+    const uniqueDependencies = Array.from(
+      new Map(allDependencies.map(dep => [dep.id, dep])).values()
+    );
+    
+    setDependencies(uniqueDependencies);
+  };
+
+  // Handle suspending a dependency
+  const handleSuspend = (dependencyId: string) => {
+    suspendDependency(dependencyId);
+    toast({
+      title: "Dependency Suspended",
+      description: `Dependency ${dependencyId.substring(0, 8)} has been suspended.`,
+      variant: "default",
+    });
+    refreshDependencies();
+  };
+
+  // Handle resuming a dependency
+  const handleResume = (dependencyId: string) => {
+    resumeDependency(dependencyId);
+    toast({
+      title: "Dependency Resumed",
+      description: `Dependency ${dependencyId.substring(0, 8)} has been resumed.`,
+      variant: "default",
+    });
+    refreshDependencies();
+  };
+
+  // Handle removing a dependency
+  const handleRemove = (dependencyId: string) => {
+    setSelectedDependencyId(dependencyId);
+    setIsDeleteDialogOpen(true);
+  };
+
+  // Confirm dependency removal
+  const confirmRemove = () => {
+    if (selectedDependencyId) {
+      removeDependency(selectedDependencyId);
+      toast({
+        title: "Dependency Removed",
+        description: `Dependency ${selectedDependencyId.substring(0, 8)} has been removed.`,
+        variant: "default",
       });
-    };
-    
-    loadDependencies();
-    
-    // Set up an interval to refresh dependencies periodically
-    const interval = setInterval(loadDependencies, 2000);
-    
-    return () => {
-      clearInterval(interval);
-    };
-  }, [componentId, registry]);
-
-  // Lock/unlock a dependency (prevents auto-disconnection)
-  const toggleLockDependency = (dependencyId: string) => {
-    const newLockedDependencies = new Set(lockedDependencies);
-    
-    if (newLockedDependencies.has(dependencyId)) {
-      newLockedDependencies.delete(dependencyId);
-    } else {
-      newLockedDependencies.add(dependencyId);
-    }
-    
-    setLockedDependencies(newLockedDependencies);
-  };
-
-  // Refresh dependency data
-  const refreshDependency = (dependency: Dependency) => {
-    if (dependency.consumerId === componentId) {
-      // This component is the consumer, request data from provider
-      manager.requestData(componentId, dependency.providerId, dependency.dataType);
+      setIsDeleteDialogOpen(false);
+      setSelectedDependencyId(null);
+      refreshDependencies();
     }
   };
 
-  // Disconnect a dependency
-  const removeDependency = (dependencyId: string) => {
-    if (lockedDependencies.has(dependencyId)) {
-      return; // Don't remove locked dependencies
+  // Get status badge for each dependency
+  const getStatusBadge = (status: DependencyStatus) => {
+    switch (status) {
+      case DependencyStatus.CONNECTED:
+        return <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20">Connected</Badge>;
+      case DependencyStatus.READY:
+        return <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">Ready</Badge>;
+      case DependencyStatus.SUSPENDED:
+        return <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20">Suspended</Badge>;
+      case DependencyStatus.ERROR:
+        return <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20">Error</Badge>;
+      case DependencyStatus.CONNECTING:
+        return <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/20">Connecting</Badge>;
+      case DependencyStatus.CYCLE_DETECTED:
+        return <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20">Cycle Detected</Badge>;
+      case DependencyStatus.DISCONNECTED:
+        return <Badge variant="outline" className="bg-gray-500/10 text-gray-500 border-gray-500/20">Disconnected</Badge>;
+      case DependencyStatus.OPTIMIZING:
+        return <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20">Optimizing</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
     }
-    
-    registry.removeDependency(dependencyId);
-    
-    // Update local state immediately for UI responsiveness
-    setDependencies(prev => ({
-      asProvider: prev.asProvider.filter(dep => dep.id !== dependencyId),
-      asConsumer: prev.asConsumer.filter(dep => dep.id !== dependencyId)
-    }));
-  };
-
-  // Create a new dependency
-  const createDependency = (providerId: string, dataType: DependencyDataTypes) => {
-    const dependency = registry.createDependency(providerId, componentId, dataType);
-    
-    if (dependency) {
-      // Request data from the provider
-      manager.requestData(componentId, providerId, dataType);
-      
-      // Update local state immediately for UI responsiveness
-      setDependencies(prev => ({
-        ...prev,
-        asConsumer: [...prev.asConsumer, dependency]
-      }));
-    }
-  };
-
-  // Whether to show the "Add" button based on dependencies
-  const shouldShowAddButton = () => {
-    // Check if there are any provider definitions available
-    const availableProviders = Object.values(DependencyDataTypes)
-      .flatMap(dataType => registry.getProviderDefinitions(dataType))
-      .filter(provider => provider.componentId !== componentId);
-    
-    // Exclude providers that are already connected
-    const existingProviderIds = new Set(
-      dependencies.asConsumer.map(dep => dep.providerId)
-    );
-    
-    const unusedProviders = availableProviders.filter(
-      provider => !existingProviderIds.has(provider.componentId)
-    );
-    
-    return unusedProviders.length > 0;
-  };
-
-  // Format data type name for display
-  const formatDataTypeName = (dataType: string) => {
-    return dataType
-      .replace(/-/g, ' ')
-      .replace(/\b\w/g, l => l.toUpperCase());
-  };
-
-  // Get existing provider IDs
-  const getExistingProviderIds = () => {
-    return dependencies.asConsumer.map(dep => dep.providerId);
   };
 
   return (
-    <Card>
-      <CardHeader className={expanded ? 'pb-0' : 'pb-2'}>
-        <div className="flex justify-between items-center">
-          <CardTitle className="text-md">{title}</CardTitle>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-7 w-7 p-0" 
-            onClick={() => setExpanded(!expanded)}
-          >
-            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </Button>
-        </div>
-        {!expanded && <CardDescription>{description}</CardDescription>}
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Link className="h-5 w-5" />
+          Dependency Manager
+        </CardTitle>
+        <CardDescription>
+          View, suspend, resume, or remove dependencies between components.
+        </CardDescription>
       </CardHeader>
-      
-      {expanded && (
-        <>
-          <CardContent className={`pt-4 pb-0 ${showDetailedInfo ? 'px-4' : 'px-2'}`}>
-            <CardDescription className="mb-3">{description}</CardDescription>
-            
-            <ScrollArea className={`pr-4 ${maxHeight ? `max-h-[${maxHeight}]` : ''}`}>
-              <Accordion type="multiple" className="w-full" defaultValue={['consumer', 'provider']}>
-                {/* Dependencies where this component is a consumer */}
-                <AccordionItem value="consumer" className="border-b-0">
-                  <AccordionTrigger className="py-2 text-sm hover:no-underline">
-                    <span className="flex items-center">
-                      <Badge variant="secondary" className="mr-2 text-xs py-0 px-1">
-                        {dependencies.asConsumer.length}
-                      </Badge>
-                      Data Sources
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    {dependencies.asConsumer.length === 0 ? (
-                      <div className="py-2 px-1 text-sm text-muted-foreground flex items-center">
-                        <Link className="h-3.5 w-3.5 mr-1.5 text-muted-foreground/60" />
-                        <span>No data sources connected</span>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {dependencies.asConsumer.map(dependency => (
-                          <Card key={dependency.id} className="border-muted/40">
-                            <CardContent className="p-3">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <div className="flex items-center">
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger>
-                                          <DependencyStatusIndicator status={dependency.status} />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          Status: {dependency.status}
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                    <span className="font-medium text-sm ml-1.5">
-                                      {dependency.providerId}
-                                    </span>
-                                  </div>
-                                  <div className="text-xs text-muted-foreground mt-1">
-                                    <Badge variant="outline" className="font-normal px-1 py-0 text-[10px]">
-                                      {formatDataTypeName(dependency.dataType)}
-                                    </Badge>
-                                    {showDetailedInfo && dependency.lastUpdated && (
-                                      <span className="ml-2">
-                                        Updated: {new Date(dependency.lastUpdated).toLocaleTimeString()}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex items-center space-x-1">
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button 
-                                          size="icon" 
-                                          variant="ghost" 
-                                          className="h-6 w-6"
-                                          onClick={() => toggleLockDependency(dependency.id)}
-                                        >
-                                          {lockedDependencies.has(dependency.id) ? (
-                                            <Lock className="h-3 w-3" />
-                                          ) : (
-                                            <LockOpen className="h-3 w-3" />
-                                          )}
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        {lockedDependencies.has(dependency.id) ? 
-                                          "Unlock (allow disconnection)" : 
-                                          "Lock (prevent disconnection)"}
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                  
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button 
-                                          size="icon" 
-                                          variant="ghost" 
-                                          className="h-6 w-6"
-                                          onClick={() => refreshDependency(dependency)}
-                                        >
-                                          <RefreshCcw className="h-3 w-3" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        Refresh data
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                  
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button 
-                                          size="icon" 
-                                          variant="ghost" 
-                                          className="h-6 w-6 text-destructive/80 hover:text-destructive"
-                                          onClick={() => removeDependency(dependency.id)}
-                                          disabled={lockedDependencies.has(dependency.id)}
-                                        >
-                                          <LinkOff className="h-3 w-3" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        Disconnect
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
-                  </AccordionContent>
-                </AccordionItem>
-                
-                {/* Dependencies where this component is a provider */}
-                <AccordionItem value="provider" className="border-b-0">
-                  <AccordionTrigger className="py-2 text-sm hover:no-underline">
-                    <span className="flex items-center">
-                      <Badge variant="secondary" className="mr-2 text-xs py-0 px-1">
-                        {dependencies.asProvider.length}
-                      </Badge>
-                      Data Consumers
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    {dependencies.asProvider.length === 0 ? (
-                      <div className="py-2 px-1 text-sm text-muted-foreground flex items-center">
-                        <Link2 className="h-3.5 w-3.5 mr-1.5 text-muted-foreground/60" />
-                        <span>No components are consuming data from this component</span>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {dependencies.asProvider.map(dependency => (
-                          <Card key={dependency.id} className="border-muted/40">
-                            <CardContent className="p-3">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <div className="flex items-center">
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger>
-                                          <DependencyStatusIndicator status={dependency.status} />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                          Status: {dependency.status}
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                    <span className="font-medium text-sm ml-1.5">
-                                      {dependency.consumerId}
-                                    </span>
-                                  </div>
-                                  <div className="text-xs text-muted-foreground mt-1">
-                                    <Badge variant="outline" className="font-normal px-1 py-0 text-[10px]">
-                                      {formatDataTypeName(dependency.dataType)}
-                                    </Badge>
-                                    {showDetailedInfo && dependency.lastUpdated && (
-                                      <span className="ml-2">
-                                        Updated: {new Date(dependency.lastUpdated).toLocaleTimeString()}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex items-center">
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <Button 
-                                          size="icon" 
-                                          variant="ghost" 
-                                          className="h-6 w-6 text-destructive/80 hover:text-destructive"
-                                          onClick={() => removeDependency(dependency.id)}
-                                        >
-                                          <LinkOff className="h-3 w-3" />
-                                        </Button>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        Disconnect consumer
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-            </ScrollArea>
-          </CardContent>
-          
-          <CardFooter className="py-3 flex justify-end">
-            {shouldShowAddButton() && (
-              <DependencySelector
-                currentComponentId={componentId}
-                onCreateDependency={createDependency}
-                existingProviderIds={getExistingProviderIds()}
-                trigger={
-                  <Button variant="outline" size="sm" className="flex items-center text-xs">
-                    <Link className="w-3.5 h-3.5 mr-1" /> Add Data Source
-                  </Button>
-                }
-              />
-            )}
-          </CardFooter>
-        </>
-      )}
+      <CardContent>
+        {dependencies.length === 0 ? (
+          <div className="text-center py-6 text-muted-foreground">
+            No dependencies found. Create dependencies by connecting components.
+          </div>
+        ) : (
+          <Table>
+            <TableCaption>List of all dependencies in the system</TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead>ID</TableHead>
+                <TableHead>Provider</TableHead>
+                <TableHead>Consumer</TableHead>
+                <TableHead>Data Type</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {dependencies.map((dep) => (
+                <TableRow key={dep.id}>
+                  <TableCell className="font-mono text-xs">
+                    {dep.id.substring(4, 12)}
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-semibold">{dep.providerId}</span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-semibold">{dep.consumerId}</span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className="font-mono">
+                      {dep.dataType}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {getStatusBadge(dep.status)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      {dep.status !== DependencyStatus.SUSPENDED ? (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleSuspend(dep.id)}
+                          title="Suspend dependency"
+                        >
+                          <Pause className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleResume(dep.id)}
+                          title="Resume dependency"
+                        >
+                          <Play className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => handleRemove(dep.id)}
+                        title="Remove dependency"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+      <CardFooter className="flex justify-between">
+        <Button variant="outline" onClick={refreshDependencies}>
+          Refresh
+        </Button>
+      </CardFooter>
+
+      <AlertDialog 
+        open={isDeleteDialogOpen} 
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the dependency. Components will no longer be able to share data through this connection unless it is recreated.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmRemove}>Remove</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
-};
-
-export default DependencyManager;
+}

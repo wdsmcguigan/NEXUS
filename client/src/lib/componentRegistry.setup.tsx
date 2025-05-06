@@ -1,5 +1,5 @@
 import React from 'react';
-import { Inbox as InboxIcon, User as UserIcon, Settings as SettingsIcon, Tag as TagIcon, Mail as MailIcon, MailOpen as MailOpenIcon, FileText as FileTextIcon, Sliders as SlidersIcon, PanelLeft as PanelLeftIcon, Folder as FolderIcon, Search as SearchIcon, SearchCheck as SearchCheckIcon, Link2 as Link2Icon, Network as NetworkIcon } from 'lucide-react';
+import { Inbox as InboxIcon, User as UserIcon, Settings as SettingsIcon, Tag as TagIcon, Mail as MailIcon, MailOpen as MailOpenIcon, FileText as FileTextIcon, Sliders as SlidersIcon, PanelLeft as PanelLeftIcon, Folder as FolderIcon, Search as SearchIcon, SearchCheck as SearchCheckIcon, Link2 as Link2Icon, Network as NetworkIcon, ListFilter as ListFilterIcon } from 'lucide-react';
 import componentRegistry, { defineComponent } from './componentRegistry';
 import { PlaceholderComponent } from '../components/PlaceholderComponent';
 import { TagManager } from '../components/TagManager';
@@ -11,6 +11,7 @@ import { EmailWorkspaceWithSearch } from '../components/EmailWorkspaceWithSearch
 import { AdvancedSearchComponent } from '../components/AdvancedSearchComponent';
 import { DependencyPanel } from '../components/dependency/DependencyPanel';
 import { DependencyDemo } from '../components/demo/DependencyDemo';
+import DependencyManager from '../components/dependency/DependencyManager';
 
 // Helper types to patch missing imports
 // In a real implementation, you would import these from their respective files
@@ -127,7 +128,7 @@ export function registerComponents() {
   // Dependency System Components
   defineComponent({
     id: 'dependency-panel',
-    displayName: 'Dependency Manager',
+    displayName: 'Dependency Panel',
     category: 'utility',
     icon: Link2Icon,
     component: DependencyPanel,
@@ -140,6 +141,15 @@ export function registerComponents() {
     category: 'utility',
     icon: NetworkIcon,
     component: DependencyPanel,
+    supportedPanelTypes: ['main', 'bottom', 'any'],
+  });
+  
+  defineComponent({
+    id: 'dependency-manager',
+    displayName: 'Dependency Manager',
+    category: 'utility',
+    icon: ListFilterIcon,
+    component: DependencyManager,
     supportedPanelTypes: ['main', 'bottom', 'any'],
   });
   

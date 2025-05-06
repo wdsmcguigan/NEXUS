@@ -29,6 +29,8 @@ interface PanelDependencyContextType {
   forceCreateDependency: (providerId: string, consumerId: string) => void;
   getComponentIdForTab: (tabId: string) => string | undefined;
   showDebugInfo: boolean;
+  autoConnectEnabled: boolean;
+  setAutoConnectEnabled: (enabled: boolean) => void;
 }
 
 // Create context
@@ -204,6 +206,22 @@ export function PanelDependencyProvider({ children }: { children: React.ReactNod
   // Debug flag for UI
   const showDebugInfo = true;
   
+  // Auto-connect state
+  const [autoConnectEnabled, setAutoConnectEnabled] = useState<boolean>(
+    bridge.getAutoConnect() // Get initial value from bridge
+  );
+  
+  // Handle auto-connect changes
+  const handleSetAutoConnectEnabled = (enabled: boolean) => {
+    // Update bridge
+    bridge.setAutoConnect(enabled);
+    
+    // Update state
+    setAutoConnectEnabled(enabled);
+    
+    console.log(`[PanelDependencyProvider] Auto-connect ${enabled ? 'enabled' : 'disabled'}`);
+  };
+  
   // Context value
   const contextValue: PanelDependencyContextType = {
     bridge,
@@ -218,7 +236,9 @@ export function PanelDependencyProvider({ children }: { children: React.ReactNod
     createAllCompatibleDependencies,
     forceCreateDependency,
     getComponentIdForTab,
-    showDebugInfo
+    showDebugInfo,
+    autoConnectEnabled,
+    setAutoConnectEnabled: handleSetAutoConnectEnabled
   };
   
   return (

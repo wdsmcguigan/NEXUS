@@ -6,18 +6,27 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
 import { Info, AlertCircle, Check, X, Link2, RefreshCw } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { usePanelDependencyContext } from '../context/PanelDependencyContext';
 
 interface FlexibleEmailDebugPanelProps {
   emailBridge: FlexibleEmailDependencyBridge;
 }
 
 export function FlexibleEmailDebugPanel({ emailBridge }: FlexibleEmailDebugPanelProps) {
+  const { autoConnectEnabled, setAutoConnectEnabled } = usePanelDependencyContext();
   const [listPaneIds, setListPaneIds] = useState<string[]>([]);
   const [detailPaneIds, setDetailPaneIds] = useState<string[]>([]);
   const [connections, setConnections] = useState<{ [key: string]: string[] }>({});
   const [selectedListPane, setSelectedListPane] = useState<string | null>(null);
   const [selectedDetailPane, setSelectedDetailPane] = useState<string | null>(null);
   const [refreshCounter, setRefreshCounter] = useState(0);
+
+  // Sync autoConnectEnabled with FlexibleEmailDependencyBridge
+  useEffect(() => {
+    emailBridge.setAutoConnect(autoConnectEnabled);
+  }, [emailBridge, autoConnectEnabled]);
 
   // Refresh the connection data
   useEffect(() => {
@@ -165,6 +174,16 @@ export function FlexibleEmailDebugPanel({ emailBridge }: FlexibleEmailDebugPanel
                 <span>
                   {Object.values(connections).reduce((total, details) => total + details.length, 0)}
                 </span>
+              </div>
+              <div className="flex items-center justify-between mt-2 pt-2 border-t border-neutral-700">
+                <Label htmlFor="auto-connect" className="text-xs cursor-pointer">
+                  Auto-Connect Components
+                </Label>
+                <Switch
+                  id="auto-connect"
+                  checked={autoConnectEnabled}
+                  onCheckedChange={setAutoConnectEnabled}
+                />
               </div>
             </div>
           </div>

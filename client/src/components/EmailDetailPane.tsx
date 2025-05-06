@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { useTagContext, TagItem } from '../context/TagContext';
 import { useDependencyConsumer } from '../hooks/useDependencyHooks';
-import { DependencyDataTypes } from '../lib/dependency/DependencyInterfaces';
+import { DependencyDataTypes, DependencySyncStrategy } from '../lib/dependency/DependencyInterfaces';
 import { toast } from '../hooks/use-toast';
 import {
   DropdownMenu,
@@ -39,9 +39,13 @@ export function EmailDetailPane({ tabId, emailId = 1, onBack, ...props }: EmailD
   const { tags: globalTags } = useTagContext();
   
   // Register as dependency consumer for email data
-  const dependencyConsumer = useDependencyConsumer<any>(
-    DependencyDataTypes.EMAIL_DATA as DependencyDataTypes,
-    instanceId
+  const dependencyConsumer = useDependencyConsumer<Email>(
+    instanceId,
+    DependencyDataTypes.EMAIL_DATA,
+    {
+      required: true,
+      syncStrategy: DependencySyncStrategy.PULL
+    }
   );
   
   // Extract the methods and properties we need from the consumer

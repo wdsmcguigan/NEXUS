@@ -11,7 +11,7 @@ import { useTabContext } from '../context/TabContext';
 import tabFactory from '../services/TabFactory';
 import { useTagContext, TagItem } from '../context/TagContext';
 import { useDependencyProvider } from '../hooks/useDependencyHooks';
-import { DependencyDataTypes } from '../lib/dependency/DependencyInterfaces';
+import { DependencyDataTypes, DependencySyncStrategy } from '../lib/dependency/DependencyInterfaces';
 import { toast } from '../hooks/use-toast';
 
 interface EmailListPaneProps {
@@ -33,9 +33,13 @@ export function EmailListPane({ tabId, view, ...props }: EmailListPaneProps) {
   const { tags: globalTags } = useTagContext();
   
   // Register as dependency provider for selected email data
-  const dependencyProvider = useDependencyProvider<any>(
-    DependencyDataTypes.EMAIL_DATA as DependencyDataTypes,
-    instanceId
+  const dependencyProvider = useDependencyProvider<Email>(
+    instanceId,
+    DependencyDataTypes.EMAIL_DATA,
+    { 
+      acceptsMultiple: true,
+      syncStrategy: DependencySyncStrategy.PULL
+    }
   );
   
   // Extract the methods we need from the provider

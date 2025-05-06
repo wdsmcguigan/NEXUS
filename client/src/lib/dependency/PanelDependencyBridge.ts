@@ -372,10 +372,13 @@ export class PanelDependencyBridge {
         // No existing connection, suggest one
         this.suggestConnection(listPane.componentId, detailPane.componentId);
         
-        // Automatically create the connection after suggesting it
-        // This is more aggressive than just suggesting but ensures data flows
-        console.log(`[PanelDependencyBridge] Auto-creating connection from ${listPane.componentId} to ${detailPane.componentId}`);
-        this.createConnection(listPane.componentId, detailPane.componentId, DependencyDataTypes.EMAIL);
+        // Only automatically create connection if auto-connect is enabled
+        if (this.autoConnectEnabled) {
+          console.log(`[PanelDependencyBridge] Auto-creating connection from ${listPane.componentId} to ${detailPane.componentId}`);
+          this.createConnection(listPane.componentId, detailPane.componentId, DependencyDataTypes.EMAIL);
+        } else {
+          console.log(`[PanelDependencyBridge] Auto-connect disabled. Skipping automatic connection creation.`);
+        }
       }
     }
     
@@ -511,5 +514,25 @@ export class PanelDependencyBridge {
    */
   getAllRegistrations(): PanelComponentRegistration[] {
     return Array.from(this.componentsByTab.values());
+  }
+  
+  /**
+   * Set whether automatic connections should be created
+   */
+  setAutoConnect(enabled: boolean): void {
+    this.autoConnectEnabled = enabled;
+    console.log(`[PanelDependencyBridge] Auto-connect ${enabled ? 'enabled' : 'disabled'}`);
+    
+    // If enabling, trigger a sync to create connections
+    if (enabled) {
+      this.findCompatibleComponents();
+    }
+  }
+  
+  /**
+   * Get the current auto-connect setting
+   */
+  getAutoConnect(): boolean {
+    return this.autoConnectEnabled;
   }
 }

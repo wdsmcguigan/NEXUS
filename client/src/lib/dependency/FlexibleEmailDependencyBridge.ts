@@ -15,6 +15,7 @@ export class FlexibleEmailDependencyBridge extends EventEmitter {
   private listPaneIds: Set<string> = new Set();
   private detailPaneIds: Set<string> = new Set();
   private activeConnections: Map<string, string[]> = new Map(); // Map of listId -> detailIds[]
+  private autoConnectEnabled: boolean = false; // Default to false - only connect when explicitly requested
 
   constructor(registry: DependencyRegistry, manager: DependencyManager) {
     super();
@@ -69,6 +70,12 @@ export class FlexibleEmailDependencyBridge extends EventEmitter {
    */
   connectAllPanes(): void {
     console.log(`[FlexibleEmailDependencyBridge] Connecting all panes: ${this.listPaneIds.size} list panes, ${this.detailPaneIds.size} detail panes`);
+    
+    // Only create connections automatically if auto-connect is enabled
+    if (!this.autoConnectEnabled) {
+      console.log(`[FlexibleEmailDependencyBridge] Auto-connect disabled. Skipping automatic connections.`);
+      return;
+    }
     
     // For each list pane, connect to all detail panes
     for (const listId of this.listPaneIds) {
@@ -312,5 +319,25 @@ export class FlexibleEmailDependencyBridge extends EventEmitter {
         targetId: detailPaneId
       });
     }
+  }
+  
+  /**
+   * Set whether automatic connections should be created
+   */
+  setAutoConnect(enabled: boolean): void {
+    this.autoConnectEnabled = enabled;
+    console.log(`[FlexibleEmailDependencyBridge] Auto-connect ${enabled ? 'enabled' : 'disabled'}`);
+    
+    // If enabling, try to connect all panes
+    if (enabled) {
+      this.connectAllPanes();
+    }
+  }
+  
+  /**
+   * Get the current auto-connect setting
+   */
+  getAutoConnect(): boolean {
+    return this.autoConnectEnabled;
   }
 }

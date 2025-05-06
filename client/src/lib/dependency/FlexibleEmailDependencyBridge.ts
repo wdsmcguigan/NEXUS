@@ -617,4 +617,101 @@ export class FlexibleEmailDependencyBridge extends EventEmitter {
   getAutoConnect(): boolean {
     return this.autoConnectEnabled;
   }
+  
+  /**
+   * Force trigger an update for a specific connection
+   * @param listPaneId The ID of the email list pane (source)
+   * @param detailPaneId The ID of the email detail pane (target)
+   */
+  forceUpdateConnection(listPaneId: string, detailPaneId: string): void {
+    console.log(`[FlexibleEmailDependencyBridge] Force updating connection from ${listPaneId} to ${detailPaneId}`);
+    
+    try {
+      // First, verify the components exist
+      if (!this.listPaneIds.has(listPaneId) || !this.detailPaneIds.has(detailPaneId)) {
+        console.warn(`[FlexibleEmailDependencyBridge] Cannot force update: invalid components`, { listPaneId, detailPaneId });
+        return;
+      }
+      
+      // Get registry dependency IDs
+      const depIds = this.getRegistryDependencyIds(listPaneId, detailPaneId);
+      
+      if (depIds.length === 0) {
+        console.warn(`[FlexibleEmailDependencyBridge] No dependencies found between components, attempting to create connection first`);
+        this.createConnection(listPaneId, detailPaneId);
+        
+        // Get the new dependencies after creation
+        const newDepIds = this.getRegistryDependencyIds(listPaneId, detailPaneId);
+        
+        if (newDepIds.length === 0) {
+          console.error(`[FlexibleEmailDependencyBridge] Failed to create dependencies for force update`);
+          return;
+        }
+        
+        // Use the newly created dependencies
+        for (const depId of newDepIds) {
+          console.log(`[FlexibleEmailDependencyBridge] Force triggering update for new dependency: ${depId}`);
+          this.manager.forceTriggerUpdate(depId);
+        }
+      } else {
+        // Force update each dependency
+        for (const depId of depIds) {
+          console.log(`[FlexibleEmailDependencyBridge] Force triggering update for existing dependency: ${depId}`);
+          this.manager.forceTriggerUpdate(depId);
+        }
+      }
+      
+      // Emit a force update event
+      this.emit('connectionForceUpdated', {
+        sourceId: listPaneId,
+        targetId: detailPaneId,
+        timestamp: Date.now()
+      });
+      
+      // Display toast notification
+      toast({
+        title: 'Connection Refreshed',
+        description: `Refreshed data flow from ${listPaneId} to ${detailPaneId}`,
+        variant: 'default'
+      });
+    } catch (error) {
+      console.error(`[FlexibleEmailDependencyBridge] Error during force update:`, error);
+      
+      toast({
+        title: 'Error Refreshing Connection',
+        description: `Failed to refresh connection data flow`,
+        variant: 'destructive'
+      });
+    }
+  }
+  
+  /**
+   * Force updates all active connections
+   */
+  forceUpdateAllConnections(): void {
+    console.log(`[FlexibleEmailDependencyBridge] Force updating all connections`);
+    
+    try {
+      // Iterate through all active connections
+      for (const [listPaneId, detailPaneIds] of this.activeConnections.entries()) {
+        for (const detailPaneId of detailPaneIds) {
+          this.forceUpdateConnection(listPaneId, detailPaneId);
+        }
+      }
+      
+      toast({
+        title: 'All Connections Refreshed',
+        description: `Refreshed data flow for all active connections`,
+        variant: 'default'
+      });
+    } catch (error) {
+      console.error(`[FlexibleEmailDependencyBridge] Error updating all connections:`, error);
+      
+      toast({
+        title: 'Error Refreshing Connections',
+        description: `Failed to refresh all connections`,
+        variant: 'destructive'
+      });
+    }
+  }
 }

@@ -54,10 +54,26 @@ export class DependencyManager implements IDependencyManager {
       // Store the data
       this.dataStore.set(dependency.id, data);
       
-      // Always update to READY status when data is provided
-      this.registry.updateDependencyStatus(dependency.id, DependencyStatus.READY);
-      this.notifyStatusChanged(dependency.id, DependencyStatus.READY);
-      console.log(`[DependencyManager] Updated dependency ${dependency.id} status to READY`);
+      // Update status based on current state and data presence
+      let newStatus = dependency.status;
+      
+      // If data is present, transition to CONNECTED state
+      if (data !== null && data !== undefined) {
+        newStatus = DependencyStatus.CONNECTED;
+        console.log(`[DependencyManager] Data present, transitioning dependency ${dependency.id} to CONNECTED status`);
+      } 
+      // If no data but we're not already in READY, set to READY
+      else if (dependency.status !== DependencyStatus.READY) {
+        newStatus = DependencyStatus.READY;
+        console.log(`[DependencyManager] No data present, keeping dependency ${dependency.id} in READY status`);
+      }
+      
+      // Update status if changed
+      if (newStatus !== dependency.status) {
+        this.registry.updateDependencyStatus(dependency.id, newStatus);
+        this.notifyStatusChanged(dependency.id, newStatus);
+        console.log(`[DependencyManager] Updated dependency ${dependency.id} status to ${newStatus}`);
+      }
       
       // Notify listeners
       console.log(`[DependencyManager] Notifying listeners for dependency ${dependency.id}`);
@@ -264,5 +280,69 @@ export class DependencyManager implements IDependencyManager {
         console.error('Error in status change callback:', error);
       }
     });
+  }
+  
+  /**
+   * Force trigger an update for a specific dependency
+   * This is useful for manually synchronizing dependencies when automatic updates fail
+   */
+  forceTriggerUpdate(dependencyId: string): void {
+    console.log(`[DependencyManager] Manually forcing update for dependency ${dependencyId}`);
+    
+    try {
+      // Get the dependency
+      const dependency = this.registry.getDependency(dependencyId);
+      
+      if (!dependency) {
+        console.warn(`[DependencyManager] Cannot force update: dependency ${dependencyId} not found`);
+        return;
+      }
+      
+      // Get the current data
+      const currentData = this.dataStore.get(dependencyId);
+      
+      // If we have data, force the dependency to CONNECTED state
+      if (currentData !== undefined) {
+        console.log(`[DependencyManager] Force updating dependency with existing data`, currentData);
+        
+        // Set to CONNECTED status
+        this.registry.updateDependencyStatus(dependencyId, DependencyStatus.CONNECTED);
+        this.notifyStatusChanged(dependencyId, DependencyStatus.CONNECTED);
+        
+        // Re-notify about the data
+        this.notifyDataUpdated(dependencyId, currentData);
+      } 
+      // If no current data, try to get data from the provider
+      else {
+        console.log(`[DependencyManager] No existing data for dependency, checking provider data`);
+        
+        // Try to get data directly from the provider's store
+        const { providerId, dataType } = dependency;
+        const providerKey = `${providerId}:${dataType}`;
+        const providerData = this.dataStore.get(providerKey);
+        
+        if (providerData !== undefined) {
+          console.log(`[DependencyManager] Found provider data, using it for force update`);
+          
+          // Store with the dependency ID
+          this.dataStore.set(dependencyId, providerData);
+          
+          // Update to CONNECTED status
+          this.registry.updateDependencyStatus(dependencyId, DependencyStatus.CONNECTED);
+          this.notifyStatusChanged(dependencyId, DependencyStatus.CONNECTED);
+          
+          // Notify about the data
+          this.notifyDataUpdated(dependencyId, providerData);
+        } else {
+          console.warn(`[DependencyManager] No data available for force update of dependency ${dependencyId}`);
+          
+          // At least update to READY status to indicate it's waiting for data
+          this.registry.updateDependencyStatus(dependencyId, DependencyStatus.READY);
+          this.notifyStatusChanged(dependencyId, DependencyStatus.READY);
+        }
+      }
+    } catch (error) {
+      console.error(`[DependencyManager] Error during force update:`, error);
+    }
   }
 }

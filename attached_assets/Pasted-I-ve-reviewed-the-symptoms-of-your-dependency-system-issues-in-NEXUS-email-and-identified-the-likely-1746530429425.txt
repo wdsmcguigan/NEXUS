@@ -1,0 +1,249 @@
+I've reviewed the symptoms of your dependency system issues in NEXUS.email and identified the likely root causes. Please implement these specific fixes:
+
+1. Fix the dependency status transition issue:
+   - In `DependencyManager.ts`, locate the method that creates or updates dependency status
+   - The issue is likely that dependencies stay in "Ready" state and don't properly transition to "Connected"
+   - Modify the dependency creation and update code with this logic:
+
+   ```typescript
+   // In createDependency or a similar method
+   createDependency(sourceId: string, targetId: string, type: string): string {
+     // Create the dependency record
+     const dependency = {
+       id: generateId(),
+       sourceId,
+       targetId,
+       type,
+       status: 'Ready', // Initial status
+       createdAt: new Date()
+     };
+     
+     // Store the dependency
+     this.dependencies.push(dependency);
+     
+     // IMPORTANT: Register event listeners immediately
+     this.registerDependencyListeners(dependency.id);
+     
+     // Return the ID
+     return dependency.id;
+   }
+   
+   // Add this method to properly transition states
+   private registerDependencyListeners(dependencyId: string): void {
+     const dependency = this.getDependency(dependencyId);
+     if (!dependency) return;
+     
+     // Get the source and target components
+     const source = this.registry.getComponent(dependency.sourceId);
+     const target = this.registry.getComponent(dependency.targetId);
+     
+     if (!source || !target) return;
+     
+     // Set up the event listener for data updates
+     source.addEventListener('data-update', (data) => {
+       // When data is received, transition to Connected state
+       dependency.status = 'Connected';
+       
+       // Forward the data to the target
+       target.receiveData(data, dependency.id);
+       
+       // Notify listeners of the status change
+       this.notifyDependencyUpdate(dependency.id);
+     });
+   }
+
+Fix the data flow in FlexibleEmailClient:
+
+The issue is likely in how the EmailListPane communicates selections to the EmailDetailPane
+Update the email selection handler in EmailListPane.tsx:
+
+typescript// In EmailListPane.tsx
+const handleEmailSelection = (emailId: string) => {
+  setSelectedEmailId(emailId);
+  
+  // Log for debugging
+  console.log(`EmailListPane: Selected email ${emailId}`);
+  
+  // Explicitly emit the selection event with a standardized format
+  const selectionData = {
+    type: 'email-selection',
+    emailId: emailId,
+    timestamp: Date.now()
+  };
+  
+  // Use the dependency system to notify dependents
+  if (dependencies && dependencies.updateDependents) {
+    console.log('Emitting selection via dependency system:', selectionData);
+    dependencies.updateDependents(selectionData);
+  } else {
+    console.warn('Dependency system not available for selection update');
+  }
+};
+
+Fix the EmailDetailPane to properly receive selection events:
+
+Update EmailDetailPane.tsx to correctly handle dependency data:
+
+typescript// In EmailDetailPane.tsx
+// Use the dependency consumer hook
+const { data: dependencyData, isConnected } = useDependencyConsumer({
+  componentId: instanceId,
+  componentType: 'email-detail',
+  onDataReceived: (data) => {
+    console.log('EmailDetailPane received dependency data:', data);
+    
+    // Check for valid data format
+    if (data && (data.emailId || data.id)) {
+      const emailId = data.emailId || data.id;
+      console.log(`Loading email with ID: ${emailId}`);
+      
+      // Load the email data
+      loadEmailData(emailId);
+    } else {
+      console.warn('Received invalid dependency data:', data);
+    }
+  }
+});
+
+// Add explicit logging for connection status
+useEffect(() => {
+  console.log(`EmailDetailPane dependency connection status: ${isConnected ? 'Connected' : 'Not connected'}`);
+}, [isConnected]);
+
+Fix the connection between the panel system and dependency system:
+
+The issue may be in how panel components register with the dependency system
+Update the PanelDependencyContext.tsx or similar file:
+
+typescript// In PanelDependencyContext.tsx or similar
+// Ensure components in panels are registered with the dependency system
+useEffect(() => {
+  const registerPanelComponent = (panelId, component) => {
+    if (!component || !component.id) {
+      console.warn('Cannot register component without ID:', component);
+      return;
+    }
+    
+    console.log(`Registering panel component: ${component.id} in panel ${panelId}`);
+    
+    // Register the component with the dependency system
+    dependencyRegistry.registerComponent({
+      id: component.id,
+      type: component.type,
+      panelId: panelId,
+      component: component
+    });
+  };
+  
+  // Set up listeners for panel component mounting
+  // This is critical to connect the panel system with the dependency system
+  panelSystem.on('component-mounted', registerPanelComponent);
+  
+  return () => {
+    panelSystem.off('component-mounted', registerPanelComponent);
+  };
+}, [dependencyRegistry, panelSystem]);
+
+Add a debugging panel to trace dependency issues:
+
+Create a new component to visualize dependency connections and data flow:
+
+typescript// Create a new DependencyDebugPanel.tsx component
+const DependencyDebugPanel = () => {
+  const { dependencies, registry } = useDependency();
+  const [logs, setLogs] = useState([]);
+  
+  // Subscribe to dependency events
+  useEffect(() => {
+    const handleDependencyEvent = (event) => {
+      setLogs(prev => [...prev, {
+        time: new Date(),
+        type: event.type,
+        data: event.data,
+        sourceId: event.sourceId,
+        targetId: event.targetId
+      }]);
+    };
+    
+    dependencies.on('dependency-event', handleDependencyEvent);
+    
+    return () => {
+      dependencies.off('dependency-event', handleDependencyEvent);
+    };
+  }, [dependencies]);
+  
+  return (
+    <div className="dependency-debug-panel">
+      <h3>Dependency Debug</h3>
+      <div className="dependency-list">
+        {dependencies.map(dep => (
+          <div key={dep.id} className="dependency-item">
+            <div className="status" data-status={dep.status}>{dep.status}</div>
+            <div>{dep.sourceId} → {dep.targetId}</div>
+            <button onClick={() => dependencies.forceTrigger(dep.id)}>
+              Force Update
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="event-log">
+        <h4>Event Log</h4>
+        {logs.map((log, i) => (
+          <div key={i} className="log-entry">
+            <span className="time">{log.time.toISOString()}</span>
+            <span className="type">{log.type}</span>
+            <span className="source">{log.sourceId}</span>
+            <span className="target">{log.targetId}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+Add a force update button to the dependency manager:
+
+This will help manually trigger updates when the automatic system fails:
+
+typescript// In DependencyManager.ts, add a method to force trigger an update
+forceTriggerUpdate(dependencyId: string): void {
+  const dependency = this.getDependency(dependencyId);
+  if (!dependency) {
+    console.warn(`Cannot force update: dependency ${dependencyId} not found`);
+    return;
+  }
+  
+  console.log(`Forcing update for dependency ${dependencyId}`);
+  
+  // Get source and target
+  const source = this.registry.getComponent(dependency.sourceId);
+  const target = this.registry.getComponent(dependency.targetId);
+  
+  if (!source || !target) {
+    console.warn('Cannot force update: source or target component not found');
+    return;
+  }
+  
+  // Get the current data from the source
+  const currentData = source.getCurrentData();
+  
+  // Manually set the dependency to Connected state
+  dependency.status = 'Connected';
+  
+  // Send the data to the target
+  target.receiveData(currentData, dependency.id);
+  
+  // Notify of update
+  this.notifyDependencyUpdate(dependency.id);
+}
+
+
+These changes address the core issues with your dependency system by:
+
+Ensuring proper state transitions from "Ready" to "Connected"
+Standardizing the data format passed between components
+Adding explicit debugging and logging
+Creating a force update mechanism for manual intervention
+Properly connecting the panel system to the dependency system
+
+Implement these changes and verify they fix the issues by creating a dependency and selecting emails in the Email List.

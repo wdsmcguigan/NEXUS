@@ -1,0 +1,48 @@
+Phase 1: Investigation and Analysis
+
+Understand Core Components:
+
+Identify and thoroughly examine the source code for the 'Email List' component. Pay attention to how it handles email selection and how it communicates this selection (e.g., event emission, state update, context API).
+Identify and examine the 'Email Viewer' component. Focus on how it receives the ID or data of the email to display, and how it's supposed to react to dependency links.
+Locate the 'Component Dependency System' logic. Understand how dependencies are created, stored, tracked, and how data/events flow between linked components.
+Determine the state management strategy used for the selected email ID and component communication (e.g., React Context, Redux, Zustand, Jotai, custom hooks, prop drilling). Note if a global state is being used in a way that could cause unintended side effects.
+How are individual instances of components (e.g., multiple Email Viewers) uniquely identified and managed, especially within the dependency system?
+Trace Data Flow for Email Selection:
+
+When an email is selected in an 'Email List' instance:
+How is the selected email's ID or data captured?
+How is this information intended to be propagated to a linked 'Email Viewer'?
+Why is the linked 'Email Viewer' currently not receiving or reacting to this update?
+Investigate Unintended Updates:
+
+Why is an unlinked or static 'Email Viewer' instance also updating?
+Is it subscribing to a global state variable that's being updated by any 'Email List' selection?
+Is there a flaw in the dependency logic that broadcasts selection changes too broadly or doesn't respect instance-specific links?
+Phase 2: Propose and Implement Solution
+
+Rectify Linked Viewer Updates:
+
+Modify the 'Email List', 'Email Viewer', and/or 'Component Dependency System' to ensure that when a dependency is active, the linked 'Email Viewer' correctly receives the selected email data and re-renders to display it.
+Prevent Unlinked Viewer Updates (Ensure Isolation):
+
+Modify the system so that 'Email Viewer' instances only update based on an 'Email List' selection if an explicit dependency link exists between those specific instances.
+Ensure that an 'Email Viewer' can be opened to display a specific email (e.g., by passing a prop or setting an initial state) and remain static, unaffected by selections in unrelated 'Email List' components.
+This might involve refining state management (e.g., more granular context, instance-specific state), improving the dependency tracking mechanism to be instance-aware, or ensuring event listeners are correctly scoped.
+Maintain PRD Alignment:
+
+Ensure the solution aligns with the principles outlined in the NEXUS PRD, particularly regarding the 'Component Dependency System' (e.g., 'Selection dependencies', 'Intelligent Data Flow').
+Phase 3: Explanation and Output
+
+Explain Your Findings: Describe the root causes of both issues.
+Detail Your Changes: Clearly document the files and code sections you modified, and explain the logic behind your changes.
+Provide Modified Code: Present the complete code for the modified files/components.
+Key Considerations for Implementation:
+
+Instance Specificity: The core of the solution likely lies in making dependencies and state updates instance-specific rather than global or type-based.
+Clarity: Prioritize clear, maintainable code.
+Testing (Mental Walkthrough): Before finalizing, mentally walk through these scenarios:
+Scenario A: One Email List, one linked Email Viewer. Select email in list -> viewer updates.
+Scenario B: One Email List, one linked Email Viewer, one unlinked Email Viewer (displaying a different, static email). Select email in list -> linked viewer updates, unlinked viewer does not change.
+Scenario C: (If applicable) Two Email Lists, each linked to a separate Email Viewer. Selections in List1 update Viewer1 only; selections in List2 update Viewer2 only.
+If you need to make assumptions about file names or specific function implementations because they are not standard, please state those assumptions.
+

@@ -1,0 +1,79 @@
+<ReplitAgentPrompt>
+  <Objective>Fix issues with the component dependency system, specifically between 'Email List' and 'Email Viewer' components in the NEXUSemail application.</Objective>
+  <Context>
+    <Timestamp>Tuesday, May 6, 2025, 1:00 PM America/Los_Angeles</Timestamp>
+    <Location>Los Angeles County, California</Location>
+  </Context>
+  <ProblemDescription>
+    <Issue1>Linked Email Viewer Not Updating: When an 'Email List' component is explicitly linked to an 'Email Viewer' component (each in separate panes/tabs), selecting an email in the 'Email List' does NOT update the content in the linked 'Email Viewer'.</Issue1>
+    <Issue2>Unlinked/Static Email Viewer Incorrectly Updating: Simultaneously, another 'Email Viewer' instance (which is either unlinked, or I intend for it to display a static email) IS incorrectly updating its content to match the selection in the 'Email List'.</Issue2>
+  </ProblemDescription>
+  <DesiredBehavior>
+    <Behavior1>When an 'Email List' (e.g., ListA) is linked to an 'Email Viewer' (e.g., ViewerLinked), ViewerLinked should dynamically display the content of the email selected in ListA.</Behavior1>
+    <Behavior2>Other 'Email Viewer' instances (e.g., ViewerStatic or ViewerUnlinked) should NOT be affected by selections in ListA unless they have their own explicit dependency link to ListA (or another list). It should be possible for ViewerStatic to display a specific email without its content changing due to interactions elsewhere.</Behavior2>
+  </DesiredBehavior>
+  <Instructions>
+    <Phase name="Investigation and Analysis">
+      <Step>
+        <Action>Understand Core Components</Action>
+        <Details>
+          <SubDetail>Identify and thoroughly examine the source code for the 'Email List' component. Pay attention to how it handles email selection and how it communicates this selection (e.g., event emission, state update, context API).</SubDetail>
+          <SubDetail>Identify and examine the 'Email Viewer' component. Focus on how it receives the ID or data of the email to display, and how it's supposed to react to dependency links.</SubDetail>
+          <SubDetail>Locate the 'Component Dependency System' logic. Understand how dependencies are created, stored, tracked, and how data/events flow between linked components.</SubDetail>
+          <SubDetail>Determine the state management strategy used for the selected email ID and component communication (e.g., React Context, Redux, Zustand, Jotai, custom hooks, prop drilling). Note if a global state is being used in a way that could cause unintended side effects.</SubDetail>
+          <SubDetail>How are individual instances of components (e.g., multiple Email Viewers) uniquely identified and managed, especially within the dependency system?</SubDetail>
+        </Details>
+      </Step>
+      <Step>
+        <Action>Trace Data Flow for Email Selection</Action>
+        <Details>
+          <SubDetail>When an email is selected in an 'Email List' instance: How is the selected email's ID or data captured?</SubDetail>
+          <SubDetail>How is this information intended to be propagated to a *linked* 'Email Viewer'?</SubDetail>
+          <SubDetail>Why is the linked 'Email Viewer' currently *not* receiving or reacting to this update?</SubDetail>
+        </Details>
+      </Step>
+      <Step>
+        <Action>Investigate Unintended Updates</Action>
+        <Details>
+          <SubDetail>Why is an unlinked or static 'Email Viewer' instance also updating?</SubDetail>
+          <SubDetail>Is it subscribing to a global state variable that's being updated by any 'Email List' selection?</SubDetail>
+          <SubDetail>Is there a flaw in the dependency logic that broadcasts selection changes too broadly or doesn't respect instance-specific links?</SubDetail>
+        </Details>
+      </Step>
+    </Phase>
+    <Phase name="Propose and Implement Solution">
+      <Step>
+        <Action>Rectify Linked Viewer Updates</Action>
+        <Details>Modify the 'Email List', 'Email Viewer', and/or 'Component Dependency System' to ensure that when a dependency is active, the linked 'Email Viewer' correctly receives the selected email data and re-renders to display it.</Details>
+      </Step>
+      <Step>
+        <Action>Prevent Unlinked Viewer Updates (Ensure Isolation)</Action>
+        <Details>Modify the system so that 'Email Viewer' instances only update based on an 'Email List' selection if an explicit dependency link exists *between those specific instances*. Ensure that an 'Email Viewer' can be opened to display a specific email and remain static. This might involve refining state management, improving dependency tracking, or correctly scoping event listeners.</Details>
+      </Step>
+      <Step>
+        <Action>Maintain PRD Alignment</Action>
+        <Details>Ensure the solution aligns with the principles outlined in the NEXUS PRD, particularly regarding the 'Component Dependency System'.</Details>
+      </Step>
+    </Phase>
+    <Phase name="Explanation and Output">
+      <Step>
+        <Action>Explain Your Findings</Action>
+        <Details>Describe the root causes of both issues.</Details>
+      </Step>
+      <Step>
+        <Action>Detail Your Changes</Action>
+        <Details>Clearly document the files and code sections you modified, and explain the logic behind your changes.</Details>
+      </Step>
+      <Step>
+        <Action>Provide Modified Code</Action>
+        <Details>Present the complete code for the modified files/components.</Details>
+      </Step>
+    </Phase>
+    <KeyConsiderations>
+      <Consideration>Instance Specificity: The core of the solution likely lies in making dependencies and state updates instance-specific.</Consideration>
+      <Consideration>Clarity: Prioritize clear, maintainable code.</Consideration>
+      <Consideration>Testing (Mental Walkthrough): Verify scenarios involving linked and unlinked viewers.</Consideration>
+    </KeyConsiderations>
+    <AssumptionsNote>If you need to make assumptions about file names or specific function implementations, please state those assumptions.</AssumptionsNote>
+  </Instructions>
+</ReplitAgentPrompt>
